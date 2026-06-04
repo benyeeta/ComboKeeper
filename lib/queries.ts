@@ -1,9 +1,11 @@
 import prisma from '@/lib/prisma';
 import { MappoolMap, ScoreData } from '@/lib/types';
 
-export async function getTournamentData(selectedTournamentId?: string) {
+export async function getTournamentData(userId: number, selectedTournamentId?: string) {
+  const userFilter = { team: { players: { some: { playerId: userId } } } };
+
   // 1. Fetch the requested tournament, or default to the currently active one
-  const whereClause = selectedTournamentId ? { id: selectedTournamentId } : { isCompleted: false };
+  const whereClause = selectedTournamentId ? { id: selectedTournamentId, ...userFilter } : { isCompleted: false, ...userFilter };
   const tournament = await prisma.tournament.findFirst({
     where: whereClause,
     orderBy: { createdAt: 'desc' },
@@ -32,6 +34,7 @@ export async function getTournamentData(selectedTournamentId?: string) {
 
   // Fetch all tournaments to populate the dashboard dropdown
   const allTournaments = await prisma.tournament.findMany({
+    where: userFilter,
     select: { id: true, name: true, acronym: true, isCompleted: true },
     orderBy: { createdAt: 'desc' }
   });
