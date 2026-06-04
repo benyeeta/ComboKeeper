@@ -75,9 +75,6 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
               <input type="hidden" name="rosterSize" value={formDataCache?.get("rosterSize") as string || ""} />
               <input type="hidden" name="players" value={formDataCache?.get("players") as string || ""} />
               
-              <input type="hidden" name="copyFromId" id="copyFromIdInput" value="" />
-              <input type="hidden" name="forceBlank" id="forceBlankInput" value="" />
-
               <div className="bg-blue-900/30 border border-blue-500 rounded p-4 text-blue-200">
                 <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -101,10 +98,10 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
                 <button type="button" onClick={() => { setDuplicateCandidate(null); setFormDataCache(null); }} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors">
                   Back
                 </button>
-                <button type="submit" onClick={() => document.getElementById('forceBlankInput')!.setAttribute('value', 'true')} disabled={isSubmitting} className="rounded border border-gray-600 px-4 py-2 text-sm font-bold text-gray-300 transition-colors hover:bg-gray-800 disabled:opacity-50">
+                <button type="submit" name="forceBlank" value="true" disabled={isSubmitting} className="rounded border border-gray-600 px-4 py-2 text-sm font-bold text-gray-300 transition-colors hover:bg-gray-800 disabled:opacity-50">
                   Create Blank
                 </button>
-                <button type="submit" onClick={() => document.getElementById('copyFromIdInput')!.setAttribute('value', duplicateCandidate.id)} disabled={isSubmitting} className="rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50">
+                <button type="submit" name="copyFromId" value={duplicateCandidate.id} disabled={isSubmitting} className="rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50">
                   {isSubmitting ? "Creating..." : "Copy Mappool"}
                 </button>
               </div>

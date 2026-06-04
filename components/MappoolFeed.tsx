@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { MappoolMap, Mod, ScoreData } from "@/lib/types";
 import { addMapToStage, deleteMap } from "@/app/actions";
 import AnalyticsPanel from "./AnalyticsPanel";
@@ -42,10 +42,51 @@ export default function MappoolFeed({
   onViewPlayerScores
 }: MappoolFeedProps) {
   const currentMappool = mappool[stage] || [];
-  const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newMaps, setNewMaps] = useState([{ mod: 'NM', mapId: '', beatmapId: '' }]);
+
+  const handleAddMapRow = () => {
+    let nextMod = 'NM';
+    let nextMapId = '';
+
+    if (newMaps.length > 0) {
+      const lastMap = newMaps[newMaps.length - 1];
+      nextMod = lastMap.mod;
+      const match = lastMap.mapId.trim().match(/^(.*?)(\d+)$/);
+      if (match) {
+        const prefix = match[1];
+        const num = parseInt(match[2], 10);
+        nextMapId = `${prefix}${num + 1}`;
+      }
+    }
+
+    setNewMaps([...newMaps, { mod: nextMod, mapId: nextMapId, beatmapId: '' }]);
+  };
   
+  const handleRemoveMapRow = (index: number) => {
+    const updated = [...newMaps];
+    updated.splice(index, 1);
+    if (updated.length === 0) setNewMaps([{ mod: 'NM', mapId: '', beatmapId: '' }]);
+    else setNewMaps(updated);
+  };
+
+  const handleUpdateMap = (index: number, field: string, value: string) => {
+    const updated = [...newMaps];
+    
+    let processedValue = value;
+    if (field === 'beatmapId') {
+      // Extract the Beatmap ID automatically if the user pastes an osu! link
+      const match = value.match(/(?:beatmaps\/|#(?:osu|taiko|fruits|mania)\/|b\/)(\d+)/);
+      if (match && match[1]) {
+        processedValue = match[1];
+      }
+    }
+
+    updated[index] = { ...updated[index], [field]: processedValue };
+    setNewMaps(updated);
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-4 flex flex-col gap-3 transition-colors duration-200">
       <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{stage ? `${stage} Mappool` : "Mappool"}</h2>
@@ -130,38 +171,86 @@ export default function MappoolFeed({
             </div>
           )}
           <form 
-            ref={formRef}
-            action={async (formData) => {
+            action={async () => {
               setError("");
               setIsSubmitting(true);
-              const result = await addMapToStage(formData);
+              
+              let hasError = false;
+              for (const map of newMaps) {
+                if (!map.mapId || !map.beatmapId) continue;
+                
+                const fd = new FormData();
+                fd.append("stageId", stageId || "");
+                fd.append("stageName", stage);
+                fd.append("tournamentId", tournamentId);
+                fd.append("mod", map.mod);
+                fd.append("mapId", map.mapId);
+                fd.append("beatmapId", map.beatmapId);
+                
+                const result = await addMapToStage(fd);
+                if (result?.error) {
+                  setError(`Error adding ${map.mapId}: ${result.error}`);
+                  hasError = true;
+                  break;
+                }
+              }
+              
               setIsSubmitting(false);
-              if (result?.error) setError(result.error);
-              else formRef.current?.reset();
+              if (!hasError) setNewMaps([{ mod: 'NM', mapId: '', beatmapId: '' }]);
             }}
             className="flex flex-col gap-3"
           >
-            <input type="hidden" name="stageId" value={stageId || ""} />
-            <input type="hidden" name="stageName" value={stage} />
-            <input type="hidden" name="tournamentId" value={tournamentId} />
-            <div className="flex gap-2">
-              <select name="mod" className="w-20 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none" required>
-                  {['NM', 'HD', 'HR', 'DT', 'FM', 'MM', 'TB'].map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <input type="text" name="mapId" placeholder="Slot (NM1)" className="w-24 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none" required />
-              <input type="number" name="beatmapId" placeholder="osu! Beatmap ID" className="flex-grow rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none" required />
-            </div>
-            <div className="flex gap-2">
-              <input type="text" name="skill" placeholder="Skill Category (e.g. Stream)" className="flex-grow rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none" />
-              <button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white px-4 py-2 rounded text-sm font-medium transition-colors flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                Add
-              </button>
-            </div>
+            {newMaps.map((map, index) => (
+              <div key={index} className="flex gap-2 items-center">
+                <select 
+                  value={map.mod} 
+                  onChange={e => handleUpdateMap(index, 'mod', e.target.value)} 
+                  className="w-20 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none" 
+                  required
+                >
+                    {['NM', 'HD', 'HR', 'DT', 'FM', 'MM', 'TB'].map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                <input 
+                  type="text" 
+                  placeholder="Slot (NM1)" 
+                  value={map.mapId} 
+                  onChange={e => handleUpdateMap(index, 'mapId', e.target.value)} 
+                  className="w-24 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none" 
+                  required 
+                />
+                <input 
+                  type="text" 
+                  placeholder="Beatmap ID or Link" 
+                  value={map.beatmapId} 
+                  onChange={e => handleUpdateMap(index, 'beatmapId', e.target.value)} 
+                  className="flex-grow rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none" 
+                  required 
+                />
+                <button 
+                  type="button" 
+                  onClick={() => handleRemoveMapRow(index)} 
+                  className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors flex-shrink-0"
+                  title="Remove Map"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+            ))}
+            
+            <button
+              type="button"
+              onClick={handleAddMapRow}
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              + Add another map
+            </button>
+            <button 
+              type="submit" 
+              disabled={isSubmitting || newMaps.filter(m => m.mapId && m.beatmapId).length === 0}
+              className="w-full rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700 disabled:opacity-50 transition-colors"
+            >
+              {isSubmitting ? "Adding Maps..." : `Save ${newMaps.filter(m => m.mapId && m.beatmapId).length || ''} Map(s)`}
+            </button>
           </form>
         </div>
       )}

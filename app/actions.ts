@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/session";
 import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
+import { ratelimit } from "@/lib/ratelimit";
+import { z } from "zod";
 
 async function verifyAdmin(teamId: string) {
   const cookieStore = await cookies();
@@ -25,26 +27,43 @@ async function verifyAdmin(teamId: string) {
 }
 
 export async function createTournament(formData: FormData) {
-  const name = formData.get("name") as string;
-  const acronym = formData.get("acronym") as string;
-  const teamName = formData.get("teamName") as string;
-  const format = formData.get("format") as string;
-  const rosterSize = parseInt(formData.get("rosterSize") as string, 10) || 8;
-  const playersJson = formData.get("players") as string;
-  const copyFromId = formData.get("copyFromId") as string;
+  const CreateTournamentSchema = z.object({
+    name: z.string().min(1, "Tournament name is required").max(100, "Tournament name is too long"),
+    acronym: z.string().max(20, "Acronym is too long").optional().catch(""),
+    teamName: z.string().min(1, "Team name is required").max(100, "Team name is too long"),
+    format: z.string().min(1, "Format is required"),
+    rosterSize: z.coerce.number().min(1).max(32).default(8),
+    copyFromId: z.string().optional(),
+    players: z.string().optional().catch("").transform((val, ctx) => {
+      if (!val) return [];
+      try {
+        const parsed = JSON.parse(val);
+        return z.array(z.object({
+          username: z.string().min(1, "Username is required").max(50, "Username is too long"),
+          isAdmin: z.boolean()
+        })).parse(parsed);
+      } catch (e) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid players data format." });
+        return z.NEVER;
+      }
+    })
+  });
+
+  const validatedFields = CreateTournamentSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { error: validatedFields.error.errors[0].message };
+  }
+
+  const { name, acronym, teamName, format, rosterSize, players: parsedPlayers, copyFromId } = validatedFields.data;
 
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
 
-  if (!name || !teamName) return { error: "Tournament and Team names are required." };
-
-  let parsedPlayers: { username: string; isAdmin: boolean }[] = [];
-  if (playersJson) {
-    try {
-      parsedPlayers = JSON.parse(playersJson);
-    } catch (e) {
-      return { error: "Invalid players data." };
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`createTournament_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are creating tournaments too fast. Please wait a few seconds." };
     }
   }
 
@@ -206,12 +225,26 @@ export async function updateTeamRoster(formData: FormData) {
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
 
-  let parsedPlayers: { username: string; isAdmin: boolean }[] = [];
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`updateTeamRoster_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are updating the roster too fast. Please wait a few seconds." };
+    }
+  }
+
+  // Define the exact shape and limits of the expected data
+  const PlayerSchema = z.array(z.object({
+    username: z.string().min(1, "Username is required").max(50, "Username is too long"),
+    isAdmin: z.boolean()
+  }));
+
+  let parsedPlayers: z.infer<typeof PlayerSchema> = [];
   if (playersJson) {
     try {
-      parsedPlayers = JSON.parse(playersJson);
+      const rawParsed = JSON.parse(playersJson);
+      parsedPlayers = PlayerSchema.parse(rawParsed); // Throws an error if the shape is wrong
     } catch (e) {
-      return { error: "Invalid players data." };
+      return { error: "Invalid players data format provided." };
     }
   }
 
@@ -250,6 +283,14 @@ export async function addMapToStage(formData: FormData) {
   if (!tournament) return { error: "Tournament not found" };
   const auth = await verifyAdmin(tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`addMapToStage_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are adding maps too fast. Please wait a few seconds." };
+    }
+  }
 
   // If the stage doesn't exist in the DB yet, create it dynamically
   if (!stageId && stageName && tournamentId) {
@@ -308,6 +349,14 @@ export async function deleteMap(id: string) {
   if (!map) return { error: "Map not found" };
   const auth = await verifyAdmin(map.stage.tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`deleteMap_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are deleting maps too fast. Please wait a few seconds." };
+    }
+  }
 
   await prisma.mappoolMap.delete({
     where: { id }
@@ -327,6 +376,13 @@ export async function addManualScores(mappoolMapId: string, playerId: number, sc
   const auth = await verifyAdmin(map.stage.tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`addManualScores_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are adding scores too fast. Please wait a few seconds." };
+    }
+  }
 
   await prisma.score.createMany({
     data: scores.map(entry => ({
@@ -363,6 +419,14 @@ export async function deleteScore(id: string) {
   if (!score) return { error: "Score not found" };
   const auth = await verifyAdmin(score.mappoolMap.stage.tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`deleteScore_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are deleting scores too fast. Please wait a few seconds." };
+    }
+  }
 
   await prisma.score.delete({
     where: { id }
@@ -452,6 +516,14 @@ export async function importMatchScores(url: string, tournamentId: string, score
 
   const auth = await verifyAdmin(tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`importMatchScores_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are importing match scores too fast. Please wait a few seconds." };
+    }
+  }
 
   const validBeatmapIds = new Map();
   for (const s of tournament.stages) {
@@ -545,6 +617,14 @@ export async function importDbScores(formData: FormData) {
 
   const auth = await verifyAdmin(tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`importDbScores_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are importing local scores too fast. Please wait a few seconds." };
+    }
+  }
 
   const validBeatmapIds = new Map();
   for (const s of tournament.stages) {
@@ -727,6 +807,14 @@ export async function addStage(tournamentId: string, name: string) {
   if (!tournament) return { error: "Tournament not found" };
   const auth = await verifyAdmin(tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`addStage_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are adding stages too fast. Please wait a few seconds." };
+    }
+  }
 
   const existing = await prisma.stage.findFirst({ where: { tournamentId, name } });
   if (existing) return { error: "Stage already exists" };
