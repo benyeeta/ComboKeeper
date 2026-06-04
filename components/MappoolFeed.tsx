@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { MappoolMap, Mod, ScoreData } from "@/lib/types";
-import { addMapToStage, deleteMap } from "@/app/actions";
+import { addMapsToStage, deleteMap } from "@/app/actions";
 import AnalyticsPanel from "./AnalyticsPanel";
 
 const MOD_COLORS: Record<string, string> = {
@@ -18,7 +18,7 @@ const MOD_COLORS: Record<string, string> = {
 
 type MappoolFeedProps = {
   stage: string;
-  onMapSelect: (map: MappoolMap) => void;
+  onMapSelect: (map: MappoolMap | null) => void;
   selectedMap: MappoolMap | null;
   onAddScore: (map: MappoolMap) => void;
   mappool: Record<string, MappoolMap[]>;
@@ -46,21 +46,35 @@ export default function MappoolFeed({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMaps, setNewMaps] = useState([{ mod: 'NM', mapId: '', beatmapId: '' }]);
 
-  const handleAddMapRow = () => {
-    let nextMod = 'NM';
-    let nextMapId = '';
-
-    if (newMaps.length > 0) {
-      const lastMap = newMaps[newMaps.length - 1];
-      nextMod = lastMap.mod;
-      const match = lastMap.mapId.trim().match(/^(.*?)(\d+)$/);
-      if (match) {
-        const prefix = match[1];
-        const num = parseInt(match[2], 10);
-        nextMapId = `${prefix}${num + 1}`;
-      }
+  const getNextMapId = (mod: string, skipIndex: number, currentNewMaps: typeof newMaps) => {
+    const existingMapIds = currentMappool
+      .filter(m => (m.mod || '').toUpperCase() === mod.toUpperCase())
+      .map(m => m.id);
+    const newMapIds = currentNewMaps
+      .filter((m, i) => m.mod.toUpperCase() === mod.toUpperCase() && i !== skipIndex)
+      .map(m => m.mapId);
+    const allIds = [...existingMapIds, ...newMapIds];
+    
+    const numbers = allIds.map(id => {
+      const match = id.match(/\d+$/);
+      return match ? parseInt(match[0], 10) : 0;
+    });
+    
+    let nextNum = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
+    let result = mod.toUpperCase() === 'TB' && nextNum === 1 ? 'TB' : `${mod.toUpperCase()}${nextNum}`;
+    
+    // Fallback safety: guarantee we never return a duplicate ID
+    while (allIds.includes(result)) {
+      nextNum++;
+      result = `${mod.toUpperCase()}${nextNum}`;
     }
+    
+    return result;
+  };
 
+  const handleAddMapRow = () => {
+    const nextMod = newMaps.length > 0 ? newMaps[newMaps.length - 1].mod : 'NM';
+    const nextMapId = getNextMapId(nextMod, -1, newMaps);
     setNewMaps([...newMaps, { mod: nextMod, mapId: nextMapId, beatmapId: '' }]);
   };
   
@@ -84,6 +98,11 @@ export default function MappoolFeed({
     }
 
     updated[index] = { ...updated[index], [field]: processedValue };
+
+    if (field === 'mod') {
+      updated[index].mapId = getNextMapId(processedValue, index, updated);
+    }
+
     setNewMaps(updated);
   };
 
@@ -175,41 +194,43 @@ export default function MappoolFeed({
               setError("");
               setIsSubmitting(true);
               
-              let hasError = false;
-              for (const map of newMaps) {
-                if (!map.mapId || !map.beatmapId) continue;
-                
-                const fd = new FormData();
-                fd.append("stageId", stageId || "");
-                fd.append("stageName", stage);
-                fd.append("tournamentId", tournamentId);
-                fd.append("mod", map.mod);
-                fd.append("mapId", map.mapId);
-                fd.append("beatmapId", map.beatmapId);
-                
-                const result = await addMapToStage(fd);
-                if (result?.error) {
-                  setError(`Error adding ${map.mapId}: ${result.error}`);
-                  hasError = true;
-                  break;
-                }
+              const validMaps = newMaps.filter(m => m.mapId && m.beatmapId);
+              if (validMaps.length === 0) {
+                setIsSubmitting(false);
+                return;
               }
               
+              const fd = new FormData();
+              fd.append("stageId", stageId || "");
+              fd.append("stageName", stage);
+              fd.append("tournamentId", tournamentId);
+              fd.append("maps", JSON.stringify(validMaps));
+              
+              const result = await addMapsToStage(fd);
               setIsSubmitting(false);
-              if (!hasError) setNewMaps([{ mod: 'NM', mapId: '', beatmapId: '' }]);
+              
+              if (result?.error) {
+                setError(result.error);
+              } else {
+                setNewMaps([{ mod: 'NM', mapId: '', beatmapId: '' }]);
+              }
             }}
             className="flex flex-col gap-3"
           >
+            <datalist id="mod-options">
+              {['NM', 'HD', 'HR', 'DT', 'FM', 'MM', 'TB'].map(m => <option key={m} value={m} />)}
+            </datalist>
+
             {newMaps.map((map, index) => (
               <div key={index} className="flex gap-2 items-center">
-                <select 
+                <input 
+                  list="mod-options"
                   value={map.mod} 
-                  onChange={e => handleUpdateMap(index, 'mod', e.target.value)} 
-                  className="w-20 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none" 
+                  onChange={e => handleUpdateMap(index, 'mod', e.target.value.toUpperCase())} 
+                  className="w-20 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none uppercase" 
+                  placeholder="Mod"
                   required
-                >
-                    {['NM', 'HD', 'HR', 'DT', 'FM', 'MM', 'TB'].map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                />
                 <input 
                   type="text" 
                   placeholder="Slot (NM1)" 

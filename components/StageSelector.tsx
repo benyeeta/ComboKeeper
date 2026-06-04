@@ -1,9 +1,7 @@
-import { Stage } from "@/lib/types";
-
 type StageSelectorProps = {
-  stages: Stage[];
-  selectedStage: Stage;
-  setSelectedStage: (stage: Stage) => void;
+  stages: string[];
+  selectedStage: string;
+  setSelectedStage: (stage: string) => void;
 };
  
 export default function StageSelector({

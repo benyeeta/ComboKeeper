@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+// @ts-expect-error: osu-db-parser does not have TypeScript types available
 import { ScoreDecoder } from 'osu-db-parser'; 
 import { Buffer } from 'buffer';
 import { saveScoresToDatabase } from '@/app/actions/scores';

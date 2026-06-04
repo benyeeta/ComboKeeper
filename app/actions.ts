@@ -51,7 +51,7 @@ export async function createTournament(formData: FormData) {
 
   const validatedFields = CreateTournamentSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
-    return { error: validatedFields.error.errors[0].message };
+    return { error: validatedFields.error.issues[0]?.message || "Validation failed." };
   }
 
   const { name, acronym, teamName, format, rosterSize, players: parsedPlayers, copyFromId } = validatedFields.data;
@@ -269,16 +269,14 @@ export async function updateTeamRoster(formData: FormData) {
   return { success: true };
 }
 
-export async function addMapToStage(formData: FormData) {
-  const beatmapId = parseInt(formData.get("beatmapId") as string, 10);
+export async function addMapsToStage(formData: FormData) {
   let stageId = formData.get("stageId") as string;
   const stageName = formData.get("stageName") as string;
   const tournamentId = formData.get("tournamentId") as string;
-  const mapId = formData.get("mapId") as string;
-  const mod = formData.get("mod") as string;
-  const skill = (formData.get("skill") as string) || null;
+  const mapsJson = formData.get("maps") as string;
 
-  if (!tournamentId) return { error: "Missing tournament ID" };
+  if (!tournamentId || !mapsJson) return { error: "Missing required fields" };
+
   const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
   if (!tournament) return { error: "Tournament not found" };
   const auth = await verifyAdmin(tournament.teamId);
@@ -286,11 +284,26 @@ export async function addMapToStage(formData: FormData) {
   const currentUser = auth.currentUser;
 
   if (currentUser) {
-    const { success } = await ratelimit.limit(`addMapToStage_${currentUser.id}`);
+    const { success } = await ratelimit.limit(`addMapsToStage_${currentUser.id}`);
     if (!success) {
       return { error: "You are adding maps too fast. Please wait a few seconds." };
     }
   }
+
+  const MapsSchema = z.array(z.object({
+    mod: z.string(),
+    mapId: z.string(),
+    beatmapId: z.string()
+  }));
+
+  let maps: z.infer<typeof MapsSchema> = [];
+  try {
+    maps = MapsSchema.parse(JSON.parse(mapsJson));
+  } catch (e) {
+    return { error: "Invalid maps data provided." };
+  }
+
+  if (maps.length === 0) return { error: "No maps provided." };
 
   // If the stage doesn't exist in the DB yet, create it dynamically
   if (!stageId && stageName && tournamentId) {
@@ -301,42 +314,54 @@ export async function addMapToStage(formData: FormData) {
     stageId = stage.id;
   }
 
-  if (!beatmapId || !stageId || !mapId || !mod) {
-    return { error: "Missing required fields" };
-  }
-
-  // Check for duplicate map ID in the same stage
-  const existingMap = await prisma.mappoolMap.findFirst({
-    where: { stageId, mapId }
+  // Check for duplicate map IDs in the same stage
+  const existingMaps = await prisma.mappoolMap.findMany({
+    where: { stageId, mapId: { in: maps.map(m => m.mapId) } }
   });
-  if (existingMap) {
-    return { error: `Slot ${mapId} already exists in this stage. Delete it first.` };
+  if (existingMaps.length > 0) {
+    return { error: `Slot(s) ${existingMaps.map(m => m.mapId).join(", ")} already exist in this stage. Delete them first.` };
   }
 
   // Authenticate with the osu! API as a bot to fetch map metadata
   const tokenData = await getOsuToken();
   if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
 
-  const beatmapRes = await fetch(`https://osu.ppy.sh/api/v2/beatmaps/${beatmapId}`, {
-    headers: { Authorization: `Bearer ${tokenData.access_token}` },
-  });
-  const beatmap = await beatmapRes.json();
+  // Fetch multiple beatmaps from osu! API in chunks of 50
+  const beatmapIds = Array.from(new Set(maps.map(m => m.beatmapId)));
+  const beatmapMetadata = new Map();
 
-  if (!beatmapRes.ok || !beatmap.beatmapset) {
-    return { error: `Beatmap with ID ${beatmapId} not found.` };
+  for (let i = 0; i < beatmapIds.length; i += 50) {
+    const chunk = beatmapIds.slice(i, i + 50);
+    const url = `https://osu.ppy.sh/api/v2/beatmaps?${chunk.map(id => `ids[]=${id}`).join('&')}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
+    if (res.ok) {
+      const data = await res.json();
+      for (const b of data.beatmaps) {
+        beatmapMetadata.set(b.id.toString(), b);
+      }
+    }
   }
 
-  // Save the map to the SQLite database
-  await prisma.mappoolMap.create({
-    data: {
-      mapId,
-      mod,
-      artist: beatmap.beatmapset.artist,
-      songName: beatmap.beatmapset.title,
-      skill,
-      beatmapId,
+  const mapsToInsert = [];
+  for (const map of maps) {
+    const bm = beatmapMetadata.get(map.beatmapId);
+    if (!bm || !bm.beatmapset) {
+      return { error: `Beatmap with ID ${map.beatmapId} not found.` };
+    }
+    mapsToInsert.push({
+      mapId: map.mapId,
+      mod: map.mod,
+      artist: bm.beatmapset.artist,
+      songName: bm.beatmapset.title,
+      skill: null,
+      beatmapId: parseInt(map.beatmapId, 10),
       stageId,
-    },
+    });
+  }
+
+  // Perform a single bulk database insert
+  await prisma.mappoolMap.createMany({
+    data: mapsToInsert
   });
 
   // Refresh the dashboard

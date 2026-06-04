@@ -13,7 +13,7 @@ export async function Header() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('session')?.value;
   let user = null;
-  let notifications = [];
+  let notifications: any[] = [];
 
   if (sessionCookie) {
     try {

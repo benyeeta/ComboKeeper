@@ -1,6 +1,6 @@
 "use client";
 
-import { MappoolMap, Player } from "@/lib/types";
+import { MappoolMap } from "@/lib/types";
 import { useState, useEffect } from "react";
 import { addManualScores } from "@/app/actions";
 

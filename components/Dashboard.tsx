@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MappoolMap, Player, ScoreData } from "@/lib/types";
+import { MappoolMap, PlayerData, ScoreData } from "@/lib/types";
 import { addStage, deleteStage } from "@/app/actions";
 import StageSelector from "@/components/StageSelector";
 import MappoolFeed from "@/components/MappoolFeed";
@@ -38,7 +38,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const [selectedMap, setSelectedMap] = useState<MappoolMap | null>(null);
   const [isImportModalOpen, setisImportModalOpen] = useState(false);
   const [manualEntryMap, setManualEntryMap] = useState<MappoolMap | null>(null);
-  const [viewingPlayer, setViewingPlayer] = useState<Player | null>(null);
+  const [viewingPlayer, setViewingPlayer] = useState<PlayerData | null>(null);
   const [isAddTournamentOpen, setIsAddTournamentOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isEditRosterOpen, setIsEditRosterOpen] = useState(false);

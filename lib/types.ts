@@ -1,4 +1,4 @@
-export const MODS = ['NM', 'HD', 'HR', 'DT', 'MM', 'TB'] as const;
+export const MODS = ['NM', 'HD', 'HR', 'DT', 'FM', 'MM', 'TB'] as const;
 export type Mod = (typeof MODS)[number];
 
 export type MappoolMap = {
@@ -20,8 +20,12 @@ export const STAGES = [
 export type Stage = (typeof STAGES)[number];
 
 export type Score = {
+  id?: string;
   score: number;
   accuracy: number;
+  timestamp?: string;
+  scoreType?: string;
+  playedMod?: string | null;
 };
 
 export type PlayerData = {

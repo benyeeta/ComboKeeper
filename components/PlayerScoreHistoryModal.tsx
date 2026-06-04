@@ -1,13 +1,13 @@
 "use client";
 
-import { MappoolMap, Player } from "@/lib/types";
+import { MappoolMap, PlayerData } from "@/lib/types";
 import { deleteScore } from "@/app/actions";
 import { useState } from "react";
 
 interface PlayerScoreHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  playerData: Player | null;
+  playerData: PlayerData | null;
   map: MappoolMap | null;
 }
 
@@ -74,24 +74,24 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map }: PlayerSco
         <div className="max-h-80 overflow-y-auto pr-2">
           <ul className="space-y-2">
             {sortedHistory.map((play) => (
-              <li key={(play as any).id || play.timestamp} className="flex justify-between items-center rounded-md bg-gray-800 p-3">
+              <li key={play.id || play.timestamp} className="flex justify-between items-center rounded-md bg-gray-800 p-3">
                 <div>
                   <div className="flex items-center">
                     <span className="font-mono text-lg">{play.score.toLocaleString('en-US').replace(/,/g, ' ')}</span>
-                    <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ml-3 ${(play as any).scoreType ? getTypeColor((play as any).scoreType) : getTypeColor("PRACTICE")}`}>
-                      {(play as any).scoreType ? getTypeLabel((play as any).scoreType) : "Practice"}
+                    <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ml-3 ${play.scoreType ? getTypeColor(play.scoreType) : getTypeColor("PRACTICE")}`}>
+                      {play.scoreType ? getTypeLabel(play.scoreType) : "Practice"}
                     </span>
-                    {(play as any).playedMod && (play as any).playedMod !== "NM" && (
+                    {play.playedMod && play.playedMod !== "NM" && (
                       <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ml-2 bg-yellow-900/50 text-yellow-300 border-yellow-800">
-                        +{(play as any).playedMod}
+                        +{play.playedMod}
                       </span>
                     )}
                   </div>
                   <span className="text-sm text-gray-400">{play.accuracy.toFixed(2)}%</span>
                 </div>
                 <button 
-                  onClick={() => handleDelete((play as any).id)}
-                  disabled={isDeleting === (play as any).id}
+                  onClick={() => play.id && handleDelete(play.id)}
+                  disabled={isDeleting === play.id}
                   className="text-gray-500 hover:text-red-400 p-1 transition-colors disabled:opacity-50" 
                   title="Delete Score"
                 >

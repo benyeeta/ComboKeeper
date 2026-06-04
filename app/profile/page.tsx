@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import { decrypt } from "@/lib/session";
 import { getCachedOsuUser } from "@/lib/osu";
 import LeaveTeamButton from "@/components/LeaveTeamButton";
+import { Suspense } from "react";
 
-export default async function ProfilePage() {
+async function ProfileContent() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
   if (!sessionCookie) redirect("/api/auth/login");
@@ -163,5 +164,18 @@ export default async function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex-grow flex flex-col items-center justify-center mt-24 text-gray-500">
+        <div className="w-12 h-12 border-4 border-pink-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-lg font-medium">Loading Profile...</p>
+      </div>
+    }>
+      <ProfileContent />
+    </Suspense>
   );
 }

@@ -1,11 +1,11 @@
 import Image from "next/image";
 import { useMemo } from "react";
-import { MappoolMap, Player, ScoreData } from "@/lib/types";
+import { MappoolMap, PlayerData, ScoreData } from "@/lib/types";
 
 type AnalyticsPanelProps = {
   selectedMap: MappoolMap | null;
   selectedStage: string;
-  onViewPlayerScores: (player: Player) => void;
+  onViewPlayerScores: (player: PlayerData) => void;
   allScores: ScoreData[];
 };
 
