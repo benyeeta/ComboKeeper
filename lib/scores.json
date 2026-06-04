@@ -1,0 +1,58 @@
+[
+  {
+    "mapId": "NM1",
+    "stage": "Qualifiers",
+    "artist": "xi",
+    "songName": "over the top",
+    "scores": [
+      { "playerId": 4586304, "history": [{ "score": 845210, "accuracy": 91.2 }, { "score": 875620, "accuracy": 93.1 }, { "score": 912050, "accuracy": 96.8 }] },
+      { "playerId": 4023183, "history": [{ "score": 621450, "accuracy": 88.0 }, { "score": 690935, "accuracy": 92.4 }] },
+      { "playerId": 8947341, "history": [{ "score": 812450, "accuracy": 90.5 }, { "score": 895440, "accuracy": 95.3 }, { "score": 921450, "accuracy": 97.2 }] },
+      { "playerId": 18569771, "history": [{ "score": 834120, "accuracy": 91.7 }, { "score": 897117, "accuracy": 94.9 }] },
+      { "playerId": 20803806, "history": [{ "score": 712450, "accuracy": 89.2 }, { "score": 751524, "accuracy": 91.5 }] },
+      { "playerId": 33305106, "history": [{ "score": 891250, "accuracy": 95.1 }, { "score": 912926, "accuracy": 96.9 }] }
+    ]
+  },
+  {
+    "mapId": "HD3",
+    "stage": "Quarterfinals",
+    "artist": "Nekomata Master",
+    "songName": "Scars of FAUNA",
+    "scores": [
+      { "playerId": 4586304, "history": [{ "score": 710000, "accuracy": 89.2 }, { "score": 785000, "accuracy": 92.4 }] },
+      { "playerId": 4023183, "history": [{ "score": 680000, "accuracy": 87.5 }, { "score": 745000, "accuracy": 90.1 }] },
+      { "playerId": 8947341, "history": [{ "score": 890000, "accuracy": 95.1 }, { "score": 915000, "accuracy": 96.4 }, { "score": 940000, "accuracy": 97.8 }] },
+      { "playerId": 18569771, "history": [{ "score": 695000, "accuracy": 88.2 }, { "score": 712000, "accuracy": 89.9 }] },
+      { "playerId": 20803806, "history": [{ "score": 740000, "accuracy": 91.0 }, { "score": 765000, "accuracy": 92.5 }] },
+      { "playerId": 33305106, "history": [{ "score": 810000, "accuracy": 93.4 }, { "score": 855000, "accuracy": 94.8 }] }
+    ]
+  },
+  {
+    "mapId": "NM5",
+    "stage": "Semifinals",
+    "artist": "The Quick Brown Fox",
+    "songName": "The Big Black",
+    "scores": [
+      { "playerId": 4586304, "history": [{ "score": 910000, "accuracy": 96.5 }, { "score": 945000, "accuracy": 97.8 }] },
+      { "playerId": 4023183, "history": [{ "score": 710000, "accuracy": 91.2 }, { "score": 789000, "accuracy": 93.4 }] },
+      { "playerId": 8947341, "history": [{ "score": 880000, "accuracy": 94.2 }, { "score": 920000, "accuracy": 95.9 }] },
+      { "playerId": 18569771, "history": [{ "score": 895000, "accuracy": 95.1 }, { "score": 911000, "accuracy": 96.0 }] },
+      { "playerId": 20803806, "history": [{ "score": 820000, "accuracy": 92.4 }, { "score": 860000, "accuracy": 94.1 }] },
+      { "playerId": 33305106, "history": [{ "score": 940000, "accuracy": 98.1 }, { "score": 975000, "accuracy": 99.2 }, { "score": 991000, "accuracy": 99.7 }] }
+    ]
+  },
+  {
+    "mapId": "TB",
+    "stage": "Grand Finals",
+    "artist": "icdd / xi",
+    "songName": "Embraced by the Flame",
+    "scores": [
+      { "playerId": 4586304, "history": [{ "score": 920000, "accuracy": 96.1 }, { "score": 955000, "accuracy": 98.0 }] },
+      { "playerId": 4023183, "history": [{ "score": 810000, "accuracy": 92.5 }, { "score": 845000, "accuracy": 94.2 }] },
+      { "playerId": 8947341, "history": [{ "score": 960000, "accuracy": 98.4 }, { "score": 985000, "accuracy": 99.2 }, { "score": 994000, "accuracy": 99.8 }] },
+      { "playerId": 18569771, "history": [{ "score": 910000, "accuracy": 95.8 }, { "score": 935000, "accuracy": 97.1 }] },
+      { "playerId": 20803806, "history": [{ "score": 850000, "accuracy": 93.9 }, { "score": 890000, "accuracy": 95.2 }] },
+      { "playerId": 33305106, "history": [{ "score": 950000, "accuracy": 97.9 }, { "score": 972000, "accuracy": 98.8 }] }
+    ]
+  }
+]

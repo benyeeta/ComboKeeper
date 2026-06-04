@@ -1,0 +1,102 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String
+  players     TeamPlayer[]
+  tournaments Tournament[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model TeamPlayer {
+  teamId   String
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  playerId Int
+  player   Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  role     String   @default("PLAYER") // e.g., "CAPTAIN", "EDITOR", "PLAYER"
+  status   String   @default("PENDING") // e.g., "PENDING", "ACCEPTED"
+  joinedAt DateTime @default(now())
+
+  @@id([teamId, playerId])
+}
+
+model Tournament {
+  id          String   @id @default(uuid())
+  name        String
+  acronym     String?
+  format      String   @default("4v4")
+  rosterSize  Int      @default(8)
+  placement   String?  // e.g., "1st Place", "Top 8"
+  isCompleted Boolean  @default(false)
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  stages      Stage[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Stage {
+  id           String       @id @default(uuid())
+  name         String       // e.g., "Qualifiers", "Round of 32"
+  tournamentId String
+  tournament   Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  maps         MappoolMap[]
+  createdAt    DateTime     @default(now())
+}
+
+model MappoolMap {
+  id          String   @id @default(uuid())
+  mapId       String   // e.g., "NM1", "HD1"
+  mod         String   // e.g., "NM", "HD"
+  artist      String
+  songName    String
+  skill       String?
+  beatmapId   Int?     // For osu! api fetching later
+  stageId     String
+  stage       Stage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
+  scores      Score[]
+  createdAt   DateTime @default(now())
+}
+
+model Player {
+  id        Int      @id // osu! user id
+  username  String
+  avatarUrl String?
+  isPublicProfile Boolean @default(true)
+  teams     TeamPlayer[]
+  scores    Score[]
+  notifications Notification[]
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    Int
+  user      Player   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  isRead    Boolean  @default(false)
+  type      String   @default("INFO") // INFO, TEAM_INVITE
+  teamId    String?
+  createdAt DateTime @default(now())
+}
+model Score {
+  id           String     @id @default(uuid())
+  score        Int
+  accuracy     Float
+  timestamp    DateTime   @default(now())
+  scoreType    String     @default("PRACTICE") // e.g., "PRACTICE", "QUALIFIER_1", "QUALIFIER_2", "MATCH"
+  playedMod    String?    // e.g., "NM", "HD", "HR", "EZ"
+  playerId     Int
+  player       Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  mappoolMapId String
+  mappoolMap   MappoolMap @relation(fields: [mappoolMapId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,179 @@
+"use client";
+
+import { useState } from "react";
+import { importMatchScores, importDbScores } from "@/app/actions";
+
+type Tab = "mp" | "db";
+
+interface AddDataModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  tournamentId?: string;
+}
+
+const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
+  const [activeTab, setActiveTab] = useState<Tab>("mp");
+  const [url, setUrl] = useState("");
+  const [scoreType, setScoreType] = useState("MATCH");
+  const [isLoading, setIsLoading] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [dbFile, setDbFile] = useState<File | null>(null);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const TabButton = ({ label, tabName }: { label: string; tabName: Tab }) => (
+    <button
+      onClick={() => setActiveTab(tabName)}
+      className={`${
+        activeTab === tabName
+          ? "border-blue-500 text-blue-400"
+          : "border-transparent text-gray-400 hover:border-gray-500 hover:text-gray-200"
+      } whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium`}
+    >
+      {label}
+    </button>
+  );
+
+  const handleImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tournamentId) return setFeedback({ type: "error", text: "No active tournament selected." });
+    
+    setIsLoading(true);
+    setFeedback(null);
+    
+    const res = await importMatchScores(url, tournamentId, scoreType);
+    if (res?.error) setFeedback({ type: "error", text: res.error });
+    else if (res?.message) {
+      setFeedback({ type: "success", text: res.message });
+      setUrl(""); // clear url on success
+    }
+    setIsLoading(false);
+  };
+
+  const handleDbImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tournamentId) return setFeedback({ type: "error", text: "No active tournament selected." });
+    if (!dbFile) return setFeedback({ type: "error", text: "Please select a scores.db file." });
+
+    setIsLoading(true);
+    setFeedback(null);
+
+    const formData = new FormData();
+    formData.append("file", dbFile);
+    formData.append("tournamentId", tournamentId);
+    formData.append("scoreType", scoreType);
+
+    const res = await importDbScores(formData);
+    if (res?.error) setFeedback({ type: "error", text: res.error });
+    else if (res?.message) {
+      setFeedback({ type: "success", text: res.message });
+      setDbFile(null); // clear file on success
+    }
+    setIsLoading(false);
+  };
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "mp":
+        return (
+          <form onSubmit={handleImport} className="space-y-4">
+            <p className="text-sm text-gray-400">
+              Import all scores from an osu! multiplayer match lobby. Only scores from players currently on your team roster will be saved.
+            </p>
+            
+            {feedback && (
+              <div className={`px-3 py-2 rounded text-sm font-medium ${feedback.type === "error" ? "bg-red-900/50 text-red-300 border border-red-800" : "bg-green-900/50 text-green-300 border border-green-800"}`}>
+                {feedback.text}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label htmlFor="mp-link-input" className="block text-sm font-medium text-gray-300">osu! Multiplayer Match URL</label>
+              <input value={url} onChange={(e) => setUrl(e.target.value)} required type="text" id="mp-link-input" placeholder="e.g. 111818274 or https://osu.ppy.sh/community/matches/..." className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:outline-none" />
+            </div>
+            <div className="space-y-2 mb-2">
+               <label className="block text-sm font-medium text-gray-300">Score Type</label>
+               <select value={scoreType} onChange={(e) => setScoreType(e.target.value)} className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:outline-none">
+                  <option value="MATCH">In-Match</option>
+                  <option value="QUALIFIER_1">Qualifier (Run 1)</option>
+                  <option value="QUALIFIER_2">Qualifier (Run 2)</option>
+                  <option value="PRACTICE">Practice</option>
+               </select>
+            </div>
+            <button disabled={isLoading} className="w-full rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 mt-4">
+              {isLoading ? "Importing..." : "Import Match"}
+            </button>
+          </form>
+        );
+      case "db":
+        return (
+          <form onSubmit={handleDbImport} className="space-y-4">
+            <p className="text-sm text-gray-400">
+              Drag and drop your osu! `scores.db` file to import all relevant solo plays. This is processed locally in your browser.
+            </p>
+
+            {feedback && (
+              <div className={`px-3 py-2 rounded text-sm font-medium ${feedback.type === "error" ? "bg-red-900/50 text-red-300 border border-red-800" : "bg-green-900/50 text-green-300 border border-green-800"}`}>
+                {feedback.text}
+              </div>
+            )}
+
+            <div 
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files[0]) setDbFile(e.dataTransfer.files[0]); }}
+              className={`mt-2 flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 transition-colors ${
+                dbFile ? 'border-pink-500 bg-pink-900/10' : 'border-gray-600 bg-gray-800'
+              }`}
+            >
+              <input type="file" accept=".db" onChange={(e) => setDbFile(e.target.files?.[0] || null)} className="hidden" id="db-file-upload" />
+              <label htmlFor="db-file-upload" className="cursor-pointer text-center w-full">
+                {dbFile ? (
+                  <p className="text-pink-400 font-semibold">{dbFile.name}</p>
+                ) : (
+                  <>
+                    <p className="mt-1 text-sm text-gray-400"><span className="font-semibold text-blue-400">Upload a file</span> or drag and drop</p>
+                    <p className="text-xs text-gray-500">scores.db</p>
+                  </>
+                )}
+              </label>
+            </div>
+            <div className="space-y-2 mb-2">
+               <label className="block text-sm font-medium text-gray-300">Score Type</label>
+               <select value={scoreType} onChange={(e) => setScoreType(e.target.value)} className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:outline-none">
+                  <option value="MATCH">In-Match</option>
+                  <option value="QUALIFIER_1">Qualifier (Run 1)</option>
+                  <option value="QUALIFIER_2">Qualifier (Run 2)</option>
+                  <option value="PRACTICE">Practice</option>
+               </select>
+            </div>
+            <button disabled={isLoading || !dbFile} className="w-full rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700 disabled:opacity-50 mt-4">
+              {isLoading ? "Importing..." : "Process Local File"}
+            </button>
+          </form>
+        );
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity">
+      <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl">
+        <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold">Import Scores</h2>
+          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        <div className="mb-4 border-b border-gray-700">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <TabButton label="MP Link Import" tabName="mp" />
+            <TabButton label="Bulk Upload (.db)" tabName="db" />
+          </nav>
+        </div>
+        <div className="mt-6">{renderTabContent()}</div>
+      </div>
+    </div>
+  );
+};
+
+export default AddDataModal;
