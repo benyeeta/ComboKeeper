@@ -5,15 +5,15 @@ export async function getOsuToken() {
   "use cache";
   cacheLife({ expire: 86000 });
 
-  const OSU_CLIENT_ID = process.env.OSU_CLIENT_ID;
-  const OSU_CLIENT_SECRET = process.env.OSU_CLIENT_SECRET;
+  const OSU_CLIENT_ID = process.env.OSU_CLIENT_ID?.trim();
+  const OSU_CLIENT_SECRET = process.env.OSU_CLIENT_SECRET?.trim();
   if (!OSU_CLIENT_ID || !OSU_CLIENT_SECRET) return null;
 
   const tokenRes = await fetch("https://osu.ppy.sh/oauth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
-      client_id: OSU_CLIENT_ID, 
+      client_id: Number(OSU_CLIENT_ID), 
       client_secret: OSU_CLIENT_SECRET, 
       grant_type: "client_credentials", 
       scope: "public" 

@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const OSU_CLIENT_ID = process.env.OSU_CLIENT_ID;
-  const OSU_CLIENT_SECRET = process.env.OSU_CLIENT_SECRET;
-  const REDIRECT_URI = process.env.OSU_REDIRECT_URI;
+  const OSU_CLIENT_ID = process.env.OSU_CLIENT_ID?.trim();
+  const OSU_CLIENT_SECRET = process.env.OSU_CLIENT_SECRET?.trim();
+  const REDIRECT_URI = process.env.OSU_REDIRECT_URI?.trim();
 
   if (!OSU_CLIENT_ID || !OSU_CLIENT_SECRET || !REDIRECT_URI) {
     console.error('Missing osu! OAuth environment variables');
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        client_id: OSU_CLIENT_ID,
+        client_id: Number(OSU_CLIENT_ID),
         client_secret: OSU_CLIENT_SECRET,
         code,
         grant_type: 'authorization_code',
@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
     response.cookies.set('session', encryptedSession, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/',
       maxAge: tokenData.expires_in || 86400,
     });
