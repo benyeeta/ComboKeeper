@@ -25,14 +25,8 @@ export async function GET() {
   url.searchParams.set('scope', 'public');
   url.searchParams.set('state', state);
 
-  const response = NextResponse.redirect(url);
-  response.cookies.set('oauth_state', state, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 10,
-  });
-
-  return response;
+  // --- TEMPORARY DEBUGGING STEP ---
+  // Instead of redirecting, let's return the URL as JSON to inspect it.
+  // This also means we don't set the state cookie yet.
+  return NextResponse.json({ generatedUrl: url.toString() });
 }
