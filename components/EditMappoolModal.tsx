@@ -141,7 +141,7 @@ export default function EditMappoolModal({ isOpen, onClose, stages, selectedStag
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity">
-      <div className="w-full max-w-2xl rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-4xl rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl flex flex-col max-h-[90vh]">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold">Edit Mappool</h2>

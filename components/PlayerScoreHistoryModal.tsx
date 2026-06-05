@@ -117,10 +117,10 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
           </div>
         )}
 
-        <div className="max-h-80 overflow-y-auto pr-2">
-          <ul className="space-y-2">
+        <div className="max-h-[65vh] overflow-y-auto pr-2">
+          <ul className="space-y-1">
             {sortedHistory.map((play) => (
-              <li key={play.id || play.timestamp} className="flex justify-between items-center rounded-md bg-gray-800 p-3">
+              <li key={play.id || play.timestamp} className="flex justify-between items-center rounded-md bg-gray-800 px-3 py-1.5">
                 <div className="flex items-center gap-3">
                   {isBulkDeleteMode && canEdit && (
                     <input
@@ -132,7 +132,7 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
                   )}
                   <div>
                   <div className="flex items-center">
-                    <span className="font-mono text-lg">{play.score.toLocaleString('en-US').replace(/,/g, ' ')}</span>
+                    <span className="font-mono text-base">{play.score.toLocaleString('en-US').replace(/,/g, ' ')}</span>
                     {canEdit ? (
                       <select
                         title="Change score type"
