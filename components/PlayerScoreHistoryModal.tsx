@@ -1,7 +1,7 @@
 "use client";
 
 import { MappoolMap, PlayerData } from "@/lib/types";
-import { deleteScore } from "@/app/actions";
+import { deleteScore, updateScoreType } from "@/app/actions";
 import { useState } from "react";
 
 interface PlayerScoreHistoryModalProps {
@@ -9,9 +9,11 @@ interface PlayerScoreHistoryModalProps {
   onClose: () => void;
   playerData: PlayerData | null;
   map: MappoolMap | null;
+  currentUserId?: string;
+  currentUserRole?: string;
 }
 
-const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map }: PlayerScoreHistoryModalProps) => {
+const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUserId, currentUserRole }: PlayerScoreHistoryModalProps) => {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   if (!isOpen || !playerData || !map) {
@@ -33,6 +35,10 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map }: PlayerSco
   };
 
   const sortedHistory = [...playerData.history].sort((a, b) => b.score - a.score);
+
+  const isAdmin = currentUserRole === "CAPTAIN" || currentUserRole === "EDITOR";
+  const isOwnScore = currentUserId && playerData.id.toString() === currentUserId;
+  const canEdit = isAdmin || isOwnScore;
 
   const getTypeColor = (type: string) => {
     switch (type) {
@@ -78,9 +84,27 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map }: PlayerSco
                 <div>
                   <div className="flex items-center">
                     <span className="font-mono text-lg">{play.score.toLocaleString('en-US').replace(/,/g, ' ')}</span>
-                    <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ml-3 ${play.scoreType ? getTypeColor(play.scoreType) : getTypeColor("PRACTICE")}`}>
-                      {play.scoreType ? getTypeLabel(play.scoreType) : "Practice"}
-                    </span>
+                    {canEdit ? (
+                      <select
+                        title="Change score type"
+                        defaultValue={play.scoreType || "PRACTICE"}
+                        onChange={async (e) => {
+                          if (!play.id) return;
+                          const res = await updateScoreType(play.id, e.target.value);
+                          if (res?.error) alert(res.error);
+                        }}
+                        className={`text-[10px] uppercase font-bold tracking-wider pl-1.5 pr-1 py-0.5 rounded border ml-3 cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 ${play.scoreType ? getTypeColor(play.scoreType) : getTypeColor("PRACTICE")}`}
+                      >
+                        <option value="MATCH" className="bg-gray-800 text-white font-sans text-xs">Match</option>
+                        <option value="QUALIFIER_1" className="bg-gray-800 text-white font-sans text-xs">Qual 1</option>
+                        <option value="QUALIFIER_2" className="bg-gray-800 text-white font-sans text-xs">Qual 2</option>
+                        <option value="PRACTICE" className="bg-gray-800 text-white font-sans text-xs">Practice</option>
+                      </select>
+                    ) : (
+                      <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ml-3 ${play.scoreType ? getTypeColor(play.scoreType) : getTypeColor("PRACTICE")}`}>
+                        {play.scoreType ? getTypeLabel(play.scoreType) : "Practice"}
+                      </span>
+                    )}
                     {play.playedMod && play.playedMod !== "NM" && (
                       <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ml-2 bg-yellow-900/50 text-yellow-300 border-yellow-800">
                         +{play.playedMod}
@@ -89,14 +113,16 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map }: PlayerSco
                   </div>
                   <span className="text-sm text-gray-400">{play.accuracy.toFixed(2)}%</span>
                 </div>
-                <button 
-                  onClick={() => play.id && handleDelete(play.id)}
-                  disabled={isDeleting === play.id}
-                  className="text-gray-500 hover:text-red-400 p-1 transition-colors disabled:opacity-50" 
-                  title="Delete Score"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
+                {canEdit && (
+                  <button 
+                    onClick={() => play.id && handleDelete(play.id)}
+                    disabled={isDeleting === play.id}
+                    className="text-gray-500 hover:text-red-400 p-1 transition-colors disabled:opacity-50" 
+                    title="Delete Score"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                )}
               </li>
             ))}
             {sortedHistory.length === 0 && <p className="text-center text-gray-500 py-4">No scores recorded for this player on this map.</p>}

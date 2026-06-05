@@ -26,6 +26,8 @@ type DashboardProps = {
       teamName: string;
       isCompleted?: boolean;
       placement?: string | null;
+      currentUserId?: number;
+      currentUserRole?: string;
       players: { osuId: string; username: string; isAdmin: boolean; status: string }[];
     } | null;
     stages: { id: string; name: string }[];
@@ -160,12 +162,16 @@ export default function Dashboard({ initialData }: DashboardProps) {
         map={manualEntryMap}
         stage={selectedStage}
         teamPlayers={initialData.activeTournament?.players.filter(p => p.status === "ACCEPTED") || []}
+        currentUserId={initialData.activeTournament?.currentUserId?.toString()}
+        currentUserRole={initialData.activeTournament?.currentUserRole}
       />
       <PlayerScoreHistoryModal
         isOpen={!!viewingPlayer}
         onClose={() => setViewingPlayer(null)}
         playerData={viewingPlayer}
         map={selectedMap}
+        currentUserId={initialData.activeTournament?.currentUserId?.toString()}
+        currentUserRole={initialData.activeTournament?.currentUserRole}
       />
 
       {initialData.activeTournament ? (

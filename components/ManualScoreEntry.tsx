@@ -19,25 +19,29 @@ interface ManualScoreEntryProps {
   map: MappoolMap | null;
   stage: string;
   teamPlayers: { osuId: string; username: string; isAdmin: boolean }[];
+  currentUserId?: string;
+  currentUserRole?: string;
 }
 
-const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers }: ManualScoreEntryProps) => {
+const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUserId, currentUserRole }: ManualScoreEntryProps) => {
   const [scoreEntries, setScoreEntries] = useState<{ score: string; playedMod: string }[]>([{ score: "", playedMod: "NM" }]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | undefined>(undefined);
   const [scoreType, setScoreType] = useState<string>("PRACTICE");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  const isAdmin = currentUserRole === "CAPTAIN" || currentUserRole === "EDITOR";
+
   // Reset scores when modal is opened for a new map
   useEffect(() => {
     if (isOpen) {
       setScoreEntries([{ score: "", playedMod: "NM" }]);
-      setSelectedPlayerId(teamPlayers[0]?.osuId);
+      setSelectedPlayerId(isAdmin ? teamPlayers[0]?.osuId : currentUserId);
       setScoreType("PRACTICE");
       setFeedback(null);
       setIsSubmitting(false);
     }
-  }, [isOpen, teamPlayers]);
+  }, [isOpen, teamPlayers, isAdmin, currentUserId]);
 
   if (!isOpen || !map) {
     return null;
@@ -130,8 +134,8 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers }: ManualSc
                   id="player-select"
                   value={selectedPlayerId}
                   onChange={(e) => setSelectedPlayerId(e.target.value)}
-                  className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:ring-blue-500"
-                  disabled={teamPlayers.length === 0}
+                  className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50"
+                  disabled={teamPlayers.length === 0 || !isAdmin}
                 >
                   {teamPlayers.map(player => (
                       <option key={player.osuId} value={player.osuId}>{player.username}</option>

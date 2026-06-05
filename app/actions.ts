@@ -31,17 +31,17 @@ async function verifyTeamMember(teamId: string) {
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
   
-  if (!currentUser) return { authorized: false, error: "You must be logged in to perform this action.", currentUser: null };
+  if (!currentUser) return { authorized: false, error: "You must be logged in to perform this action.", currentUser: null, teamPlayer: null };
   
   const tp = await prisma.teamPlayer.findUnique({
     where: { teamId_playerId: { teamId, playerId: currentUser.id } }
   });
   
   if (!tp || tp.status !== "ACCEPTED") {
-    return { authorized: false, error: "Forbidden: You must be an accepted team member to perform this action.", currentUser };
+    return { authorized: false, error: "Forbidden: You must be an accepted team member to perform this action.", currentUser, teamPlayer: null };
   }
   
-  return { authorized: true, error: null, currentUser };
+  return { authorized: true, error: null, currentUser, teamPlayer: tp };
 }
 
 export async function createTournament(formData: FormData) {
@@ -467,6 +467,9 @@ export async function addManualScores(mappoolMapId: string, playerId: number, sc
   if (!map) return { error: "Map not found" };
   const auth = await verifyTeamMember(map.stage.tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
+  if (auth.teamPlayer?.role === "PLAYER" && playerId !== auth.currentUser?.id) {
+    return { error: "Forbidden: You can only add scores for yourself." };
+  }
   const currentUser = auth.currentUser;
 
   if (currentUser) {
@@ -509,8 +512,11 @@ export async function deleteScore(id: string) {
 
   const score = await prisma.score.findUnique({ where: { id }, include: { mappoolMap: { include: { stage: { include: { tournament: true } } } } } });
   if (!score) return { error: "Score not found" };
-  const auth = await verifyAdmin(score.mappoolMap.stage.tournament.teamId);
+  const auth = await verifyTeamMember(score.mappoolMap.stage.tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
+  if (auth.teamPlayer?.role === "PLAYER" && score.playerId !== auth.currentUser?.id) {
+    return { error: "Forbidden: You can only delete your own scores." };
+  }
   const currentUser = auth.currentUser;
 
   if (currentUser) {
@@ -522,6 +528,36 @@ export async function deleteScore(id: string) {
 
   await prisma.score.delete({
     where: { id }
+  });
+  
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function updateScoreType(id: string, newScoreType: string) {
+  if (!id || !newScoreType) {
+    return { error: "Missing required fields." };
+  }
+
+  const score = await prisma.score.findUnique({ where: { id }, include: { mappoolMap: { include: { stage: { include: { tournament: true } } } } } });
+  if (!score) return { error: "Score not found" };
+  const auth = await verifyTeamMember(score.mappoolMap.stage.tournament.teamId);
+  if (!auth.authorized) return { error: auth.error };
+  if (auth.teamPlayer?.role === "PLAYER" && score.playerId !== auth.currentUser?.id) {
+    return { error: "Forbidden: You can only edit your own scores." };
+  }
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`updateScore_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are updating scores too fast. Please wait a few seconds." };
+    }
+  }
+
+  await prisma.score.update({
+    where: { id },
+    data: { scoreType: newScoreType }
   });
   
   revalidatePath("/");
@@ -609,6 +645,7 @@ export async function importMatchScores(url: string, tournamentId: string, score
   const auth = await verifyTeamMember(tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
+  const isAdmin = auth.teamPlayer?.role !== "PLAYER";
 
   if (currentUser) {
     const { success } = await ratelimit.limit(`importMatchScores_${currentUser.id}`);
@@ -623,7 +660,9 @@ export async function importMatchScores(url: string, tournamentId: string, score
       if (m.beatmapId) validBeatmapIds.set(m.beatmapId, m.id);
     }
   }
-  const validPlayerIds = new Set(tournament.team.players.filter(p => p.status === "ACCEPTED").map(p => p.playerId));
+  const validPlayerIds = new Set(
+    tournament.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id)).map(p => p.playerId)
+  );
 
   const tokenData = await getOsuToken();
   if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
@@ -636,6 +675,15 @@ export async function importMatchScores(url: string, tournamentId: string, score
   const matchData = await matchRes.json();
   if (!matchData.events) return { error: "No events found in this match." };
 
+  // Fetch existing scores to prevent duplicates
+  const existingScores = await prisma.score.findMany({
+    where: { mappoolMapId: { in: Array.from(validBeatmapIds.values()) } },
+    select: { playerId: true, mappoolMapId: true, score: true, timestamp: true }
+  });
+  const existingSet = new Set(
+    existingScores.map(s => `${s.playerId}_${s.mappoolMapId}_${s.score}_${Math.floor(s.timestamp.getTime() / 1000)}`)
+  );
+
   const scoresToInsert = [];
   for (const event of matchData.events) {
     if (!event.game || !event.game.beatmap_id) continue;
@@ -644,7 +692,13 @@ export async function importMatchScores(url: string, tournamentId: string, score
 
     for (const score of event.game.scores) {
       if (!validPlayerIds.has(score.user_id) || score.score === 0) continue; // Skip opponents or aborted scores
-      scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId });
+      
+      const playDate = new Date(event.timestamp);
+      const uniqueKey = `${score.user_id}_${dbMapId}_${score.score}_${Math.floor(playDate.getTime() / 1000)}`;
+      if (!existingSet.has(uniqueKey)) {
+        scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId, timestamp: playDate });
+        existingSet.add(uniqueKey);
+      }
     }
   }
 
@@ -710,6 +764,7 @@ export async function importDbScores(formData: FormData) {
   const auth = await verifyTeamMember(tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
+  const isAdmin = auth.teamPlayer?.role !== "PLAYER";
 
   if (currentUser) {
     const { success } = await ratelimit.limit(`importDbScores_${currentUser.id}`);
@@ -743,7 +798,7 @@ export async function importDbScores(formData: FormData) {
   }
 
   const usernameToPlayerId = new Map();
-  for (const p of tournament.team.players.filter(p => p.status === "ACCEPTED")) {
+  for (const p of tournament.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id))) {
     // Normalize usernames by stripping spaces and underscores for a bulletproof match
     usernameToPlayerId.set(p.player.username.toLowerCase().replace(/[_ ]/g, ''), p.playerId);
   }
@@ -751,6 +806,15 @@ export async function importDbScores(formData: FormData) {
   const scoresToInsert = [];
   let matchedMapsCount = 0;
   let matchedMapScoresCount = 0;
+
+  // Fetch existing scores to prevent duplicates
+  const existingScores = await prisma.score.findMany({
+    where: { mappoolMapId: { in: Array.from(validBeatmapIds.values()) } },
+    select: { playerId: true, mappoolMapId: true, score: true, timestamp: true }
+  });
+  const existingSet = new Set(
+    existingScores.map(s => `${s.playerId}_${s.mappoolMapId}_${s.score}_${Math.floor(s.timestamp.getTime() / 1000)}`)
+  );
 
   try {
     const buffer = await file.arrayBuffer();
@@ -783,7 +847,7 @@ export async function importDbScores(formData: FormData) {
         reader.readBool(); // perfectCombo
         const mods = reader.readInt();
         reader.readString(); // empty
-        reader.readLong(); // timestamp
+        const timestampTicks = reader.readLong(); // timestamp
         reader.readInt(); // emptyInt
         reader.readLong(); // scoreId
 
@@ -811,7 +875,14 @@ export async function importDbScores(formData: FormData) {
               if (modAcronyms.length > 0) playedMod = modAcronyms.join("");
             }
 
-            scoresToInsert.push({ score: replayScore, accuracy, scoreType, playedMod, playerId, mappoolMapId: dbMapId });
+            // osu! timestamps are in Windows ticks (100-nanosecond intervals since 0001-01-01)
+            const playDate = new Date(Number(timestampTicks) / 10000 - 62135596800000);
+            const uniqueKey = `${playerId}_${dbMapId}_${replayScore}_${Math.floor(playDate.getTime() / 1000)}`;
+            
+            if (!existingSet.has(uniqueKey)) {
+              scoresToInsert.push({ score: replayScore, accuracy, scoreType, playedMod, playerId, mappoolMapId: dbMapId, timestamp: playDate });
+              existingSet.add(uniqueKey); // Prevent duplicates within the same file import
+            }
           }
         }
       }

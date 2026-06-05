@@ -115,6 +115,8 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       teamName: tournament.team.name,
       isCompleted: tournament.isCompleted,
       placement: tournament.placement,
+      currentUserId: userId,
+      currentUserRole: tournament.team.players.find(tp => tp.playerId === userId)?.role,
       players: tournament.team.players.map(tp => ({
         osuId: tp.player.id.toString(),
         username: tp.player.username,
