@@ -22,7 +22,7 @@ async function ProfileContent() {
         include: { 
           team: { 
             include: { 
-              tournaments: true,
+              tournaments: { include: { tournament: true } },
               players: { include: { player: true } }
             } 
           } 
@@ -75,10 +75,11 @@ async function ProfileContent() {
   // Extract all the tournaments from the teams the player is on
   const activeTeams = player.teams.filter(t => t.status === "ACCEPTED");
   const tournamentsWithTeams = activeTeams.flatMap(t => 
-    t.team.tournaments.map(tournament => ({
-      ...tournament,
+    t.team.tournaments.map(tt => ({
+      ...tt.tournament,
       teamId: t.team.id,
       teamName: t.team.name,
+      placement: tt.placement,
       roster: t.team.players.filter(tp => tp.status === "ACCEPTED").map(tp => ({
         username: tp.player.username,
         avatarUrl: tp.player.avatarUrl,

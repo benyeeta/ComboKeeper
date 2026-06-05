@@ -12,7 +12,7 @@ model Team {
   id          String       @id @default(uuid())
   name        String
   players     TeamPlayer[]
-  tournaments Tournament[]
+  tournaments TournamentTeam[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -35,13 +35,32 @@ model Tournament {
   acronym     String?
   format      String   @default("4v4")
   rosterSize  Int      @default(8)
-  placement   String?  // e.g., "1st Place", "Top 8"
   isCompleted Boolean  @default(false)
-  teamId      String
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   stages      Stage[]
+  teams       TournamentTeam[]
+  keepers     TournamentKeeper[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model TournamentKeeper {
+  tournamentId String
+  playerId     Int
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  player       Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@id([tournamentId, playerId])
+}
+
+model TournamentTeam {
+  tournamentId String
+  teamId       String
+  placement    String?
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  team         Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@id([tournamentId, teamId])
 }
 
 model Stage {
@@ -75,6 +94,7 @@ model Player {
   teams     TeamPlayer[]
   scores    Score[]
   notifications Notification[]
+  tournamentsKept TournamentKeeper[]
   createdAt DateTime @default(now())
 }
 

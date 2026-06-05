@@ -8,39 +8,51 @@ import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
 import { ratelimit } from "@/lib/ratelimit";
 import { z } from "zod";
 
-async function verifyAdmin(teamId: string) {
+async function verifyKeeper(tournamentId: string) {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
   
   if (!currentUser) return { authorized: false, error: "You must be logged in to perform this action.", currentUser: null };
   
-  const tp = await prisma.teamPlayer.findUnique({
-    where: { teamId_playerId: { teamId, playerId: currentUser.id } }
+  const tk = await prisma.tournamentKeeper.findUnique({
+    where: { tournamentId_playerId: { tournamentId, playerId: currentUser.id } }
   });
   
-  if (!tp || (tp.role !== "CAPTAIN" && tp.role !== "EDITOR")) {
-    return { authorized: false, error: "Forbidden: You must be a team Captain or Editor to perform this action.", currentUser };
+  if (!tk) {
+    return { authorized: false, error: "Forbidden: You must be a Tournament Keeper.", currentUser };
   }
   
   return { authorized: true, error: null, currentUser };
 }
 
-async function verifyTeamMember(teamId: string) {
+async function verifyTeamCaptain(teamId: string) {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value;
+  const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
+  if (!currentUser) return { authorized: false, error: "Not logged in", currentUser: null };
+  const tp = await prisma.teamPlayer.findUnique({ where: { teamId_playerId: { teamId, playerId: currentUser.id } } });
+  if (!tp || tp.status !== 'ACCEPTED' || tp.role !== 'CAPTAIN') return { authorized: false, error: "Forbidden: You must be a Team Captain.", currentUser };
+  return { authorized: true, error: null, currentUser, teamPlayer: tp };
+}
+
+async function verifyTournamentTeamMember(tournamentId: string) {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
   
   if (!currentUser) return { authorized: false, error: "You must be logged in to perform this action.", currentUser: null, teamPlayer: null };
   
-  const tp = await prisma.teamPlayer.findUnique({
-    where: { teamId_playerId: { teamId, playerId: currentUser.id } }
+  const tt = await prisma.tournamentTeam.findFirst({
+    where: { tournamentId, team: { players: { some: { playerId: currentUser.id, status: "ACCEPTED" } } } },
+    include: { team: { include: { players: true } } }
   });
   
-  if (!tp || tp.status !== "ACCEPTED") {
+  if (!tt) {
     return { authorized: false, error: "Forbidden: You must be an accepted team member to perform this action.", currentUser, teamPlayer: null };
   }
   
+  const tp = tt.team.players.find(p => p.playerId === currentUser.id);
   return { authorized: true, error: null, currentUser, teamPlayer: tp };
 }
 
@@ -48,23 +60,8 @@ export async function createTournament(formData: FormData) {
   const CreateTournamentSchema = z.object({
     name: z.string().min(1, "Tournament name is required").max(100, "Tournament name is too long"),
     acronym: z.string().max(20, "Acronym is too long").optional().catch(""),
-    teamName: z.string().min(1, "Team name is required").max(100, "Team name is too long"),
     format: z.string().min(1, "Format is required"),
-    rosterSize: z.coerce.number().min(1).max(32).default(8),
-    copyFromId: z.string().optional(),
-    players: z.string().optional().catch("").transform((val, ctx) => {
-      if (!val) return [];
-      try {
-        const parsed = JSON.parse(val);
-        return z.array(z.object({
-          username: z.string().min(1, "Username is required").max(50, "Username is too long"),
-          isAdmin: z.boolean()
-        })).parse(parsed);
-      } catch (e) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid players data format." });
-        return z.NEVER;
-      }
-    })
+    rosterSize: z.coerce.number().min(1).max(32).default(8)
   });
 
   const validatedFields = CreateTournamentSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -72,7 +69,7 @@ export async function createTournament(formData: FormData) {
     return { error: validatedFields.error.issues[0]?.message || "Validation failed." };
   }
 
-  const { name, acronym, teamName, format, rosterSize, players: parsedPlayers, copyFromId } = validatedFields.data;
+  const { name, acronym, format, rosterSize } = validatedFields.data;
 
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
@@ -85,57 +82,78 @@ export async function createTournament(formData: FormData) {
     }
   }
 
-  // 2. Create a new Team for this tournament workspace
-  const team = await prisma.team.create({
-    data: { name: teamName }
-  });
-
-  // 3. Create the new tournament
   const tournament = await prisma.tournament.create({
     data: {
       name,
       acronym: acronym || null,
       format,
       rosterSize,
-      isCompleted: false,
-      teamId: team.id,
+      isCompleted: false
     },
   });
 
-  // Get API token to fetch player IDs dynamically
-  let tokenData = null;
-  if (parsedPlayers.length > 0) {
-    const OSU_CLIENT_ID = process.env.OSU_CLIENT_ID;
-    const OSU_CLIENT_SECRET = process.env.OSU_CLIENT_SECRET;
-    if (OSU_CLIENT_ID && OSU_CLIENT_SECRET) {
-      const tokenRes = await fetch("https://osu.ppy.sh/oauth/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: OSU_CLIENT_ID, client_secret: OSU_CLIENT_SECRET, grant_type: "client_credentials", scope: "public" }),
-      });
-      tokenData = await tokenRes.json();
-    }
-  }
-
-  // Ensure the creator is safely recorded and elevated to CAPTAIN
   if (currentUser) {
-    // Add the creator to the list of players to be processed if they aren't already there.
-    if (!parsedPlayers.find(p => p.username.toLowerCase() === currentUser.username.toLowerCase())) {
-      parsedPlayers.push({ username: currentUser.username, isAdmin: true });
-    }
+    await prisma.player.upsert({
+      where: { id: currentUser.id },
+      update: { username: currentUser.username, avatarUrl: currentUser.avatar_url },
+      create: { id: currentUser.id, username: currentUser.username, avatarUrl: currentUser.avatar_url }
+    });
+    await prisma.tournamentKeeper.create({
+      data: { tournamentId: tournament.id, playerId: currentUser.id }
+    });
   }
 
-  // Verify all players before modifying DB to prevent accidental roster wipes
+  const stages = ["Qualifiers", "Round of 32", "Quarterfinals", "Semifinals", "Finals", "Grand Finals"];
+  for (const stageName of stages) {
+    await prisma.stage.create({
+      data: { name: stageName, tournamentId: tournament.id },
+    });
+  }
+
+  // Refresh the dashboard
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function registerTeam(formData: FormData) {
+  const teamName = formData.get("teamName") as string;
+  const tournamentId = formData.get("tournamentId") as string;
+  const playersJson = formData.get("players") as string;
+
+  if (!teamName || !tournamentId) return { error: "Missing required fields." };
+
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value;
+  const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`registerTeam_${currentUser.id}`);
+    if (!success) return { error: "You are registering teams too fast. Please wait." };
+  }
+
+  const PlayerSchema = z.array(z.object({
+    username: z.string().min(1).max(50),
+    isAdmin: z.boolean()
+  }));
+  let parsedPlayers: z.infer<typeof PlayerSchema> = [];
+  try { parsedPlayers = PlayerSchema.parse(JSON.parse(playersJson)); } 
+  catch (e) { return { error: "Invalid players data format." }; }
+
+  if (currentUser && !parsedPlayers.find(p => p.username.toLowerCase() === currentUser.username.toLowerCase())) {
+    parsedPlayers.push({ username: currentUser.username, isAdmin: true });
+  }
+
   const resolvedPlayers = [];
   for (const p of parsedPlayers) {
     if (!p.username) continue;
     const userData = await getCachedOsuUser(p.username);
     if (!userData) return { error: `Could not find osu! user: ${p.username}` };
-    
     resolvedPlayers.push({ userData, isAdmin: p.isAdmin });
   }
 
-  // 4. Add players to the newly created team
+  const team = await prisma.team.create({ data: { name: teamName } });
+  await prisma.tournamentTeam.create({ data: { tournamentId, teamId: team.id } });
+
   for (const rp of resolvedPlayers) {
     const isCreator = currentUser && rp.userData.id === currentUser.id;
     const player = await prisma.player.upsert({
@@ -148,89 +166,21 @@ export async function createTournament(formData: FormData) {
       data: { teamId: team.id, playerId: player.id, role: rp.isAdmin ? "CAPTAIN" : "PLAYER", status: isCreator ? "ACCEPTED" : "PENDING" }
     });
 
-    if (!isCreator && currentUser) {
-      if (prisma.notification) {
-        await prisma.notification.create({
-          data: {
-            userId: player.id,
-            message: `${currentUser.username} invited you to join the team ${teamName} for ${name}.`,
-            type: "TEAM_INVITE",
-            teamId: team.id
-          }
-        });
-      }
-    }
-  }
-
-  // Ensure the creator is safely recorded and elevated to CAPTAIN
-  if (currentUser) {
-    await prisma.player.upsert({
-      where: { id: currentUser.id },
-      update: { username: currentUser.username, avatarUrl: currentUser.avatar_url },
-      create: { id: currentUser.id, username: currentUser.username, avatarUrl: currentUser.avatar_url }
-    });
-    await prisma.teamPlayer.upsert({
-      where: { teamId_playerId: { teamId: team.id, playerId: currentUser.id } },
-      update: { role: "CAPTAIN", status: "ACCEPTED" },
-      create: { teamId: team.id, playerId: currentUser.id, role: "CAPTAIN", status: "ACCEPTED" }
-    });
-  }
-
-
-  // 5. Mappool Creation (Clone existing or start fresh)
-  if (copyFromId) {
-    const source = await prisma.tournament.findUnique({
-      where: { id: copyFromId },
-      include: { stages: { include: { maps: true } } }
-    });
-    if (source) {
-      for (const stage of source.stages) {
-        const newStage = await prisma.stage.create({
-          data: { name: stage.name, tournamentId: tournament.id }
-        });
-        for (const map of stage.maps) {
-          await prisma.mappoolMap.create({
-            data: { mapId: map.mapId, mod: map.mod, artist: map.artist, songName: map.songName, skill: map.skill, beatmapId: map.beatmapId, stageId: newStage.id }
-          });
+    if (!isCreator && currentUser && prisma.notification) {
+      const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
+      await prisma.notification.create({
+        data: {
+          userId: player.id,
+          message: `${currentUser.username} invited you to join ${teamName} for ${tournament?.name || "a tournament"}.`,
+          type: "TEAM_INVITE",
+          teamId: team.id
         }
-      }
-    }
-  } else {
-    // Create standard mappool stages for a blank tournament
-    const stages = ["Qualifiers", "Round of 32", "Quarterfinals", "Semifinals", "Finals", "Grand Finals"];
-    for (const stageName of stages) {
-      await prisma.stage.create({
-        data: { name: stageName, tournamentId: tournament.id },
       });
     }
   }
 
-  // Refresh the dashboard
   revalidatePath("/");
   return { success: true };
-}
-
-export async function checkDuplicateTournament(name: string) {
-  if (!name) return null;
-  
-  // Find all tournaments with the exact same name
-  const existings = await prisma.tournament.findMany({
-    where: { name },
-    include: { stages: { include: { maps: true } } }
-  });
-  
-  let bestMatch = null;
-  let maxMaps = 0;
-  
-  // Find the one that has the most maps filled out
-  for (const t of existings) {
-    const mapCount = t.stages.reduce((acc, s) => acc + s.maps.length, 0);
-    if (mapCount > maxMaps) { maxMaps = mapCount; bestMatch = t; }
-  }
-  
-  if (!bestMatch || maxMaps === 0) return null;
-  
-  return { id: bestMatch.id, name: bestMatch.name, mapCount: maxMaps, stages: bestMatch.stages.map(s => ({ name: s.name, mapCount: s.maps.length })).filter(s => s.mapCount > 0) };
 }
 
 export async function updateTeamRoster(formData: FormData) {
@@ -239,7 +189,7 @@ export async function updateTeamRoster(formData: FormData) {
 
   if (!teamId) return { error: "Team ID is required." };
 
-  const auth = await verifyAdmin(teamId);
+  const auth = await verifyTeamCaptain(teamId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
 
@@ -289,7 +239,7 @@ export async function updateTeamRoster(formData: FormData) {
   }
 
   // Fetch the tournament name to use in the notification
-  const tournament = await prisma.tournament.findFirst({ where: { teamId } });
+  const tournament = await prisma.tournament.findFirst({ where: { teams: { some: { teamId } } } });
   const tournamentName = tournament?.name || "a tournament";
 
   // 3. Add new players and update existing ones
@@ -344,9 +294,7 @@ export async function addMapsToStage(formData: FormData) {
 
   if (!tournamentId || !mapsJson) return { error: "Missing required fields" };
 
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
-  if (!tournament) return { error: "Tournament not found" };
-  const auth = await verifyAdmin(tournament.teamId);
+  const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
 
@@ -437,9 +385,9 @@ export async function addMapsToStage(formData: FormData) {
 }
 
 export async function deleteMap(id: string) {
-  const map = await prisma.mappoolMap.findUnique({ where: { id }, include: { stage: { include: { tournament: true } } } });
+  const map = await prisma.mappoolMap.findUnique({ where: { id }, include: { stage: true } });
   if (!map) return { error: "Map not found" };
-  const auth = await verifyAdmin(map.stage.tournament.teamId);
+  const auth = await verifyKeeper(map.stage.tournamentId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
 
@@ -461,10 +409,10 @@ export async function deleteMap(id: string) {
 export async function deleteMaps(ids: string[]) {
   if (!ids || ids.length === 0) return { error: "No maps selected for deletion." };
 
-  const maps = await prisma.mappoolMap.findMany({ where: { id: { in: ids } }, include: { stage: { include: { tournament: true } } } });
+  const maps = await prisma.mappoolMap.findMany({ where: { id: { in: ids } }, include: { stage: true } });
   if (maps.length === 0) return { error: "Maps not found" };
 
-  const auth = await verifyAdmin(maps[0].stage.tournament.teamId);
+  const auth = await verifyKeeper(maps[0].stage.tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
   if (auth.currentUser) {
@@ -487,7 +435,7 @@ export async function addManualScores(mappoolMapId: string, playerId: number, sc
 
   const map = await prisma.mappoolMap.findUnique({ where: { id: mappoolMapId }, include: { stage: { include: { tournament: true } } } });
   if (!map) return { error: "Map not found" };
-  const auth = await verifyTeamMember(map.stage.tournament.teamId);
+  const auth = await verifyTournamentTeamMember(map.stage.tournamentId);
   if (!auth.authorized) return { error: auth.error };
   if (auth.teamPlayer?.role === "PLAYER" && playerId !== auth.currentUser?.id) {
     return { error: "Forbidden: You can only add scores for yourself." };
@@ -532,9 +480,9 @@ export async function deleteScore(id: string) {
     return { error: "Score ID is missing." };
   }
 
-  const score = await prisma.score.findUnique({ where: { id }, include: { mappoolMap: { include: { stage: { include: { tournament: true } } } } } });
+  const score = await prisma.score.findUnique({ where: { id }, include: { mappoolMap: { include: { stage: true } } } });
   if (!score) return { error: "Score not found" };
-  const auth = await verifyTeamMember(score.mappoolMap.stage.tournament.teamId);
+  const auth = await verifyTournamentTeamMember(score.mappoolMap.stage.tournamentId);
   if (!auth.authorized) return { error: auth.error };
   if (auth.teamPlayer?.role === "PLAYER" && score.playerId !== auth.currentUser?.id) {
     return { error: "Forbidden: You can only delete your own scores." };
@@ -559,11 +507,11 @@ export async function deleteScore(id: string) {
 export async function deleteScores(ids: string[]) {
   if (!ids || ids.length === 0) return { error: "No scores selected for deletion." };
 
-  const scores = await prisma.score.findMany({ where: { id: { in: ids } }, include: { mappoolMap: { include: { stage: { include: { tournament: true } } } } } });
+  const scores = await prisma.score.findMany({ where: { id: { in: ids } }, include: { mappoolMap: { include: { stage: true } } } });
   if (scores.length === 0) return { error: "Scores not found" };
 
   // Verify based on the first score (assuming all belong to the same tournament)
-  const auth = await verifyTeamMember(scores[0].mappoolMap.stage.tournament.teamId);
+  const auth = await verifyTournamentTeamMember(scores[0].mappoolMap.stage.tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
   const isAdmin = auth.teamPlayer?.role === "CAPTAIN" || auth.teamPlayer?.role === "EDITOR";
@@ -595,9 +543,9 @@ export async function updateScoreType(id: string, newScoreType: string) {
     return { error: "Missing required fields." };
   }
 
-  const score = await prisma.score.findUnique({ where: { id }, include: { mappoolMap: { include: { stage: { include: { tournament: true } } } } } });
+  const score = await prisma.score.findUnique({ where: { id }, include: { mappoolMap: { include: { stage: true } } } });
   if (!score) return { error: "Score not found" };
-  const auth = await verifyTeamMember(score.mappoolMap.stage.tournament.teamId);
+  const auth = await verifyTournamentTeamMember(score.mappoolMap.stage.tournamentId);
   if (!auth.authorized) return { error: auth.error };
   if (auth.teamPlayer?.role === "PLAYER" && score.playerId !== auth.currentUser?.id) {
     return { error: "Forbidden: You can only edit your own scores." };
@@ -626,14 +574,16 @@ export async function finishTournament(formData: FormData) {
 
   if (!tournamentId) return { error: "Missing tournament ID." };
 
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
-  if (!tournament) return { error: "Tournament not found" };
-  const auth = await verifyAdmin(tournament.teamId);
+  const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
+  await prisma.tournamentTeam.updateMany({
+    where: { tournamentId },
+    data: { placement: placement || null }
+  });
   await prisma.tournament.update({
     where: { id: tournamentId },
-    data: { isCompleted: true, placement: placement || null }
+    data: { isCompleted: true }
   });
 
   revalidatePath("/");
@@ -645,31 +595,27 @@ export async function reopenTournament(formData: FormData) {
 
   if (!tournamentId) return { error: "Missing tournament ID." };
 
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
-  if (!tournament) return { error: "Tournament not found" };
-  const auth = await verifyAdmin(tournament.teamId);
+  const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
+  await prisma.tournamentTeam.updateMany({
+    where: { tournamentId },
+    data: { placement: null }
+  });
   await prisma.tournament.update({
     where: { id: tournamentId },
-    data: { isCompleted: false, placement: null }
+    data: { isCompleted: false }
   });
 
   revalidatePath("/");
   return { success: true };
 }
 
-export async function deleteTournament(tournamentId: string, teamId: string) {
-  const auth = await verifyAdmin(teamId);
+export async function deleteTournament(tournamentId: string) {
+  const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
   await prisma.tournament.delete({ where: { id: tournamentId } });
-
-  // If this was the only tournament for this team, delete the team too to prevent orphans
-  const remainingTournaments = await prisma.tournament.count({ where: { teamId } });
-  if (remainingTournaments === 0) {
-    await prisma.team.delete({ where: { id: teamId } });
-  }
 
   revalidatePath("/");
   return { success: true };
@@ -691,14 +637,14 @@ export async function importMatchScores(url: string, tournamentId: string, score
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
     include: {
-      team: { include: { players: true } },
+      teams: { include: { team: { include: { players: true } } } },
       stages: { include: { maps: true } }
     }
   });
 
   if (!tournament) return { error: "Active tournament not found." };
 
-  const auth = await verifyTeamMember(tournament.teamId);
+  const auth = await verifyTournamentTeamMember(tournamentId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
   const isAdmin = auth.teamPlayer?.role !== "PLAYER";
@@ -716,9 +662,12 @@ export async function importMatchScores(url: string, tournamentId: string, score
       if (m.beatmapId) validBeatmapIds.set(m.beatmapId, m.id);
     }
   }
-  const validPlayerIds = new Set(
-    tournament.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id)).map(p => p.playerId)
-  );
+  
+  let validPlayerIds = new Set();
+  const userTt = tournament.teams.find(tt => tt.team.players.some(p => p.playerId === currentUser?.id));
+  if (userTt) {
+    validPlayerIds = new Set(userTt.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id)).map(p => p.playerId));
+  }
 
   const tokenData = await getOsuToken();
   if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
@@ -816,10 +765,10 @@ export async function importDbScores(formData: FormData) {
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
     include: {
-      team: { 
-        include: { 
-          players: { include: { player: true } } 
-        } 
+      teams: {
+        include: {
+          team: { include: { players: { include: { player: true } } } }
+        }
       },
       stages: { include: { maps: true } }
     }
@@ -827,7 +776,7 @@ export async function importDbScores(formData: FormData) {
 
   if (!tournament) return { error: "Active tournament not found." };
 
-  const auth = await verifyTeamMember(tournament.teamId);
+  const auth = await verifyTournamentTeamMember(tournamentId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
   const isAdmin = auth.teamPlayer?.role !== "PLAYER";
@@ -864,9 +813,11 @@ export async function importDbScores(formData: FormData) {
   }
 
   const usernameToPlayerId = new Map();
-  for (const p of tournament.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id))) {
-    // Normalize usernames by stripping spaces and underscores for a bulletproof match
-    usernameToPlayerId.set(p.player.username.toLowerCase().replace(/[_ ]/g, ''), p.playerId);
+  const userTtDb = tournament.teams.find(tt => tt.team.players.some(p => p.playerId === currentUser?.id));
+  if (userTtDb) {
+    for (const p of userTtDb.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id))) {
+      usernameToPlayerId.set(p.player.username.toLowerCase().replace(/[_ ]/g, ''), p.playerId);
+    }
   }
 
   const scoresToInsert = [];
@@ -1084,9 +1035,7 @@ export async function leaveTeam(teamId: string) {
 export async function addStage(tournamentId: string, name: string) {
   if (!tournamentId || !name) return { error: "Missing required fields" };
   
-  const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
-  if (!tournament) return { error: "Tournament not found" };
-  const auth = await verifyAdmin(tournament.teamId);
+  const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
 
@@ -1109,9 +1058,9 @@ export async function addStage(tournamentId: string, name: string) {
 export async function deleteStage(stageId: string) {
   if (!stageId) return { error: "Missing stage ID" };
   
-  const stage = await prisma.stage.findUnique({ where: { id: stageId }, include: { tournament: true } });
+  const stage = await prisma.stage.findUnique({ where: { id: stageId } });
   if (!stage) return { error: "Stage not found" };
-  const auth = await verifyAdmin(stage.tournament.teamId);
+  const auth = await verifyKeeper(stage.tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
   await prisma.stage.delete({ where: { id: stageId } });
@@ -1126,10 +1075,10 @@ export async function updateStageMappool(formData: FormData) {
 
   if (!stageId || !mapsJson) return { error: "Missing required fields" };
 
-  const stage = await prisma.stage.findUnique({ where: { id: stageId }, include: { tournament: true } });
+  const stage = await prisma.stage.findUnique({ where: { id: stageId } });
   if (!stage) return { error: "Stage not found" };
 
-  const auth = await verifyAdmin(stage.tournament.teamId);
+  const auth = await verifyKeeper(stage.tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
   if (auth.currentUser) {

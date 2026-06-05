@@ -2,7 +2,12 @@ import prisma from '@/lib/prisma';
 import { MappoolMap, ScoreData } from '@/lib/types';
 
 export async function getTournamentData(userId: number, selectedTournamentId?: string) {
-  const userFilter = { team: { players: { some: { playerId: userId, status: "ACCEPTED" } } } };
+  const userFilter = { 
+    OR: [
+      { keepers: { some: { playerId: userId } } },
+      { teams: { some: { team: { players: { some: { playerId: userId, status: "ACCEPTED" } } } } } }
+    ]
+  };
 
   // 1. Fetch the requested tournament, or default to the currently active one
   const whereClause = selectedTournamentId ? { id: selectedTournamentId, ...userFilter } : { isCompleted: false, ...userFilter };
@@ -12,11 +17,13 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       include: {
-        team: {
+        keepers: true,
+        teams: {
+          where: { team: { players: { some: { playerId: userId, status: "ACCEPTED" } } } },
           include: {
-            players: {
-              include: { player: true }
-            }
+            team: {
+              include: { players: { include: { player: true } } }
+            } 
           }
         },
         stages: {
@@ -35,12 +42,15 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
     }),
     prisma.tournament.findMany({
       where: userFilter,
-      select: { id: true, name: true, acronym: true, isCompleted: true },
+      select: { id: true, name: true, acronym: true, isCompleted: true, keepers: { select: { playerId: true } } },
       orderBy: { createdAt: 'desc' }
     })
   ]);
 
   if (!tournament) return { mappool: {}, allScores: [], activeTournament: null, stages: [], allTournaments };
+
+  const isKeeper = tournament.keepers.some(k => k.playerId === userId);
+  const userTeam = tournament.teams[0]?.team;
 
   const mappool: Record<string, MappoolMap[]> = {};
   const allScores: ScoreData[] = [];
@@ -74,6 +84,7 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       const playersMap = new Map<number, any>();
       
       for (const s of map.scores) {
+        if (userTeam && !userTeam.players.some(p => p.playerId === s.playerId)) continue; // Only show my team's scores
         if (!playersMap.has(s.playerId)) {
           playersMap.set(s.playerId, {
             id: s.player.id,
@@ -112,18 +123,19 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       id: tournament.id,
       name: tournament.name,
       acronym: tournament.acronym,
-      teamId: tournament.teamId,
-      teamName: tournament.team.name,
+      isKeeper,
+      teamId: userTeam?.id,
+      teamName: userTeam?.name,
       isCompleted: tournament.isCompleted,
-      placement: tournament.placement,
+      placement: tournament.teams[0]?.placement,
       currentUserId: userId,
-      currentUserRole: tournament.team.players.find(tp => tp.playerId === userId)?.role,
-      players: tournament.team.players.map(tp => ({
+      currentUserRole: userTeam?.players.find(tp => tp.playerId === userId)?.role,
+      players: userTeam?.players.map(tp => ({
         osuId: tp.player.id.toString(),
         username: tp.player.username,
         isAdmin: tp.role === "CAPTAIN",
         status: tp.status
-      }))
+      })) || []
     },
     stages,
     allTournaments

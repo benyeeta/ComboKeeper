@@ -8,7 +8,6 @@ export default function ManageTournamentModal({
   onClose,
   tournamentId,
   tournamentName,
-  teamId,
   isCompleted,
   placement
 }: { 
@@ -16,7 +15,6 @@ export default function ManageTournamentModal({
   onClose: () => void;
   tournamentId: string;
   tournamentName: string;
-  teamId: string;
   isCompleted?: boolean;
   placement?: string | null;
 }) {
@@ -27,7 +25,7 @@ export default function ManageTournamentModal({
   const handleDelete = async () => {
     if (confirm(`Are you absolutely sure you want to delete ${tournamentName}? This will delete all stages, maps, and scores associated with it.`)) {
       setIsSubmitting(true);
-      await deleteTournament(tournamentId, teamId);
+      await deleteTournament(tournamentId);
       setIsSubmitting(false);
       onClose();
     }

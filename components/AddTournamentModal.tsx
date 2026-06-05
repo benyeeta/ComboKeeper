@@ -1,14 +1,12 @@
 "use client";
 
-import { createTournament, checkDuplicateTournament, getPopularTournaments } from "@/app/actions";
+import { createTournament, registerTeam, getPopularTournaments } from "@/app/actions";
 import { useState, useEffect } from "react";
 
 export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [players, setPlayers] = useState([{ username: "", isAdmin: true }]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [duplicateCandidate, setDuplicateCandidate] = useState<any>(null);
-  const [formDataCache, setFormDataCache] = useState<FormData | null>(null);
   const [mode, setMode] = useState<'choice' | 'clone' | 'new'>('choice');
   const [popularList, setPopularList] = useState<any[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string>("");
@@ -32,8 +30,6 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
   };
 
   const handleClose = () => {
-    setDuplicateCandidate(null);
-    setFormDataCache(null);
     setError("");
     setPlayers([{ username: "", isAdmin: true }]);
     setMode('choice');
@@ -61,72 +57,21 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
           setError("");
           setIsSubmitting(true);
           
-          if (mode === 'new' && !duplicateCandidate && !formData.get("forceBlank")) {
-            const exists = await checkDuplicateTournament(formData.get("name") as string);
-            if (exists) {
-              setDuplicateCandidate(exists);
-              setFormDataCache(formData);
-              setIsSubmitting(false);
-              return;
-            }
-          }
-
-          const result = await createTournament(formData);
+          const result = mode === 'new' ? await createTournament(formData) : await registerTeam(formData);
           setIsSubmitting(false);
           if (result?.error) setError(result.error);
           else handleClose();
         }} className="flex flex-col gap-4 overflow-y-auto pr-2">
           
-          {duplicateCandidate ? (
-            <div className="flex flex-col gap-4 py-2">
-              <input type="hidden" name="name" value={formDataCache?.get("name") as string || ""} />
-              <input type="hidden" name="acronym" value={formDataCache?.get("acronym") as string || ""} />
-              <input type="hidden" name="teamName" value={formDataCache?.get("teamName") as string || ""} />
-              <input type="hidden" name="format" value={formDataCache?.get("format") as string || ""} />
-              <input type="hidden" name="rosterSize" value={formDataCache?.get("rosterSize") as string || ""} />
-              <input type="hidden" name="players" value={formDataCache?.get("players") as string || ""} />
-              
-              <div className="bg-blue-900/30 border border-blue-500 rounded p-4 text-blue-200">
-                <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  Tournament Already Exists
-                </h3>
-                <p className="text-sm mb-3">
-                  We found an existing setup for <strong>{duplicateCandidate.name}</strong> with <strong>{duplicateCandidate.mapCount} maps</strong>. 
-                  Would you like to copy this mappool into your new tournament instead of adding them all manually?
-                </p>
-                <ul className="text-sm space-y-1 mb-4 bg-black/30 p-3 rounded">
-                  {duplicateCandidate.stages.map((s: any) => (
-                    <li key={s.name} className="flex justify-between text-gray-300">
-                      <span>{s.name}</span>
-                      <span className="font-mono">{s.mapCount} maps</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              
-              <div className="mt-2 flex justify-end gap-3 pt-4 border-t border-gray-700">
-                <button type="button" onClick={() => { setDuplicateCandidate(null); setFormDataCache(null); }} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors">
-                  Back
-                </button>
-                <button type="submit" name="forceBlank" value="true" disabled={isSubmitting} className="rounded border border-gray-600 px-4 py-2 text-sm font-bold text-gray-300 transition-colors hover:bg-gray-800 disabled:opacity-50">
-                  Create Blank
-                </button>
-                <button type="submit" name="copyFromId" value={duplicateCandidate.id} disabled={isSubmitting} className="rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50">
-                  {isSubmitting ? "Creating..." : "Copy Mappool"}
-                </button>
-              </div>
-            </div>
-          ) : (
             mode === 'choice' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                 <button type="button" onClick={() => setMode('clone')} className="flex flex-col items-center justify-center p-6 border-2 border-gray-700 rounded-lg hover:border-pink-500 hover:bg-gray-800 transition-colors text-left group">
-                  <span className="font-bold text-lg mb-2 text-white group-hover:text-pink-400">Join Existing Tournament</span>
-                  <span className="text-sm text-gray-400 text-center">Copy the mappool and settings from a tournament that is already happening.</span>
+                  <span className="font-bold text-lg mb-2 text-white group-hover:text-pink-400">Register Team</span>
+                  <span className="text-sm text-gray-400 text-center">Sign up a team for an existing tournament.</span>
                 </button>
                 <button type="button" onClick={() => setMode('new')} className="flex flex-col items-center justify-center p-6 border-2 border-gray-700 rounded-lg hover:border-blue-500 hover:bg-gray-800 transition-colors text-left group">
-                  <span className="font-bold text-lg mb-2 text-white group-hover:text-blue-400">Create Custom</span>
-                  <span className="text-sm text-gray-400 text-center">Set up a brand new tournament workspace from scratch.</span>
+                  <span className="font-bold text-lg mb-2 text-white group-hover:text-blue-400">Tournament Keeper</span>
+                  <span className="text-sm text-gray-400 text-center">Create a brand new tournament to manage maps and stages.</span>
                 </button>
               </div>
             ) : (
@@ -152,11 +97,7 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
                   const selectedSource = popularList.find(t => t.id === selectedSourceId);
                   return (
                     <div className="bg-gray-800 p-4 rounded border border-gray-700 mb-2">
-                      <input type="hidden" name="copyFromId" value={selectedSource.id} />
-                      <input type="hidden" name="name" value={selectedSource.name} />
-                      <input type="hidden" name="acronym" value={selectedSource.acronym || ""} />
-                      <input type="hidden" name="format" value={selectedSource.format} />
-                      <input type="hidden" name="rosterSize" value={selectedSource.rosterSize} />
+                      <input type="hidden" name="tournamentId" value={selectedSource.id} />
                       <p className="text-sm text-gray-400">You are joining:</p>
                       <p className="text-lg font-bold text-white">{selectedSource.name} {selectedSource.acronym ? `[${selectedSource.acronym}]` : ''}</p>
                       <p className="text-sm text-gray-400">{selectedSource.format} format • Max {selectedSource.rosterSize} players • {selectedSource.mapCount} Maps in pool</p>
@@ -194,7 +135,7 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
                   </div>
                 )}
 
-                {(mode === 'new' || (mode === 'clone' && selectedSourceId)) && (
+                {(mode === 'clone' && selectedSourceId) && (
                   <>
                     <div className="mt-2">
                       <label className="mb-1 block text-sm font-medium text-gray-400">Team Name</label>
@@ -243,12 +184,11 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
                   </button>
                   <button type="button" onClick={handleClose} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors">Cancel</button>
                   <button type="submit" disabled={isSubmitting || (mode === 'clone' && !selectedSourceId)} className="rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50 flex items-center gap-2">
-                    {isSubmitting ? "Creating..." : (mode === 'clone' ? "Join Tournament" : "Create Tournament")}
+                    {isSubmitting ? "Processing..." : (mode === 'clone' ? "Register Team" : "Create Tournament")}
                   </button>
                 </div>
               </>
             )
-          )}
         </form>
       </div>
     </div>

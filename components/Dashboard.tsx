@@ -23,8 +23,9 @@ type DashboardProps = {
       id: string; 
       name: string; 
       acronym: string | null;
-      teamId: string; 
-      teamName: string;
+      isKeeper: boolean;
+      teamId?: string; 
+      teamName?: string;
       isCompleted?: boolean;
       placement?: string | null;
       currentUserId?: number;
@@ -97,34 +98,33 @@ export default function Dashboard({ initialData }: DashboardProps) {
           </select>
           {initialData.activeTournament && (
             <>
-              <button 
-                onClick={() => setIsEditMappoolOpen(true)} 
-                className="rounded bg-gray-200 dark:bg-gray-700 px-3 py-1 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
-              >
-                Edit Mappool
-              </button>
-              <button 
-                onClick={() => setIsEditRosterOpen(true)}
-                className="rounded bg-gray-200 dark:bg-gray-700 px-3 py-1 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
-              >
-                Edit Roster
-              </button>
-              <button 
-                onClick={() => setIsManageTournamentOpen(true)}
-                className="rounded bg-gray-200 dark:bg-gray-700 px-3 py-1 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
-              >
-                Manage
-              </button>
+              {initialData.activeTournament.isKeeper && (
+                <>
+                  <button onClick={() => setIsEditMappoolOpen(true)} className="rounded bg-gray-200 dark:bg-gray-700 px-3 py-1 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Edit Mappool
+                  </button>
+                  <button onClick={() => setIsManageTournamentOpen(true)} className="rounded bg-gray-200 dark:bg-gray-700 px-3 py-1 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Manage
+                  </button>
+                </>
+              )}
+              {initialData.activeTournament.teamId && initialData.activeTournament.currentUserRole === "CAPTAIN" && (
+                <button onClick={() => setIsEditRosterOpen(true)} className="rounded bg-gray-200 dark:bg-gray-700 px-3 py-1 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">
+                  Edit Roster
+                </button>
+              )}
             </>
           )}
           <button onClick={() => setIsAddTournamentOpen(true)} className="rounded bg-gray-200 dark:bg-gray-700 px-3 py-1 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600">+ Add</button>
         </div>
-        <button
-          onClick={() => setisImportModalOpen(true)}
-          className="rounded-md bg-blue-600 px-4 py-2 font-bold text-white shadow-lg hover:bg-blue-700"
-        >
-          + Import Scores
-        </button>
+        {initialData.activeTournament?.teamId && (
+          <button
+            onClick={() => setisImportModalOpen(true)}
+            className="rounded-md bg-blue-600 px-4 py-2 font-bold text-white shadow-lg hover:bg-blue-700"
+          >
+            + Import Scores
+          </button>
+        )}
       </div>
 
       <AddDataModal 
@@ -133,12 +133,12 @@ export default function Dashboard({ initialData }: DashboardProps) {
         tournamentId={initialData.activeTournament?.id} 
       />
       <AddTournamentModal isOpen={isAddTournamentOpen} onClose={() => setIsAddTournamentOpen(false)} />
-      {initialData.activeTournament && (
+      {initialData.activeTournament?.teamId && (
         <EditRosterModal
           isOpen={isEditRosterOpen}
           onClose={() => setIsEditRosterOpen(false)}
           teamId={initialData.activeTournament.teamId}
-          teamName={initialData.activeTournament.teamName}
+          teamName={initialData.activeTournament.teamName || "Unknown Team"}
           initialPlayers={initialData.activeTournament.players}
           currentUsername={initialData.activeTournament.players.find(p => p.osuId === initialData.activeTournament?.currentUserId?.toString())?.username}
         />
@@ -149,7 +149,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
           onClose={() => setIsManageTournamentOpen(false)}
           tournamentId={initialData.activeTournament.id}
           tournamentName={initialData.activeTournament.name}
-          teamId={initialData.activeTournament.teamId}
           isCompleted={initialData.activeTournament.isCompleted}
           placement={initialData.activeTournament.placement}
         />

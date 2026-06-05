@@ -30,19 +30,26 @@ export async function GET() {
     await prisma.tournament.deleteMany();
     await prisma.teamPlayer.deleteMany();
     await prisma.team.deleteMany();
+    await prisma.tournamentTeam.deleteMany();
+    await prisma.tournamentKeeper.deleteMany();
 
-    // 1.5 Create a Team
-    const team = await prisma.team.create({
-      data: {
-        name: "ComboKeeper All-Stars"
-      }
-    });
-
-    // 2. Create the first Tournament
+    // 1.5 Create the first Tournament
     const tournament = await prisma.tournament.create({
       data: {
         name: "ComboKeeper Inaugural Tournament",
+        format: "4v4",
+        rosterSize: 8,
         isCompleted: false,
+      }
+    });
+
+    // 2. Create a Team and link to Tournament
+    const team = await prisma.team.create({
+      data: { name: "ComboKeeper All-Stars" }
+    });
+    await prisma.tournamentTeam.create({
+      data: {
+        tournamentId: tournament.id,
         teamId: team.id,
       }
     });
