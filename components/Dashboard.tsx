@@ -66,7 +66,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
     }
   };
 
-  return <>
+  return <div className="max-w-7xl mx-auto w-full flex flex-col flex-grow">
       {/* Page Header */}
       <div className="flex justify-between items-center mb-6">
         {/* TODO: Replace with a proper TournamentSelector component */}
@@ -197,7 +197,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
             )}
           </div>
 
-          <div className={`flex-grow mt-6 max-w-7xl mx-auto w-full transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className={`flex-grow mt-6 w-full transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
             <MappoolFeed
               stage={selectedStage}
               onMapSelect={setSelectedMap}
@@ -221,5 +221,5 @@ export default function Dashboard({ initialData }: DashboardProps) {
           <p className="max-w-md">You aren't currently viewing any tournament workspaces. Select an existing tournament from the dropdown above, or click "+ Add" to create a new one.</p>
         </div>
       )}
-  </>;
+  </div>;
 }
