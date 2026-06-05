@@ -26,6 +26,24 @@ async function verifyAdmin(teamId: string) {
   return { authorized: true, error: null, currentUser };
 }
 
+async function verifyTeamMember(teamId: string) {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value;
+  const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
+  
+  if (!currentUser) return { authorized: false, error: "You must be logged in to perform this action.", currentUser: null };
+  
+  const tp = await prisma.teamPlayer.findUnique({
+    where: { teamId_playerId: { teamId, playerId: currentUser.id } }
+  });
+  
+  if (!tp || tp.status !== "ACCEPTED") {
+    return { authorized: false, error: "Forbidden: You must be an accepted team member to perform this action.", currentUser };
+  }
+  
+  return { authorized: true, error: null, currentUser };
+}
+
 export async function createTournament(formData: FormData) {
   const CreateTournamentSchema = z.object({
     name: z.string().min(1, "Tournament name is required").max(100, "Tournament name is too long"),
@@ -447,7 +465,7 @@ export async function addManualScores(mappoolMapId: string, playerId: number, sc
 
   const map = await prisma.mappoolMap.findUnique({ where: { id: mappoolMapId }, include: { stage: { include: { tournament: true } } } });
   if (!map) return { error: "Map not found" };
-  const auth = await verifyAdmin(map.stage.tournament.teamId);
+  const auth = await verifyTeamMember(map.stage.tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
 
@@ -588,7 +606,7 @@ export async function importMatchScores(url: string, tournamentId: string, score
 
   if (!tournament) return { error: "Active tournament not found." };
 
-  const auth = await verifyAdmin(tournament.teamId);
+  const auth = await verifyTeamMember(tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
 
