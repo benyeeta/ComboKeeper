@@ -6,38 +6,39 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
 
   // 1. Fetch the requested tournament, or default to the currently active one
   const whereClause = selectedTournamentId ? { id: selectedTournamentId, ...userFilter } : { isCompleted: false, ...userFilter };
-  const tournament = await prisma.tournament.findFirst({
-    where: whereClause,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      team: {
-        include: {
-          players: {
-            include: { player: true }
+  
+  const [tournament, allTournaments] = await Promise.all([
+    prisma.tournament.findFirst({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        team: {
+          include: {
+            players: {
+              include: { player: true }
+            }
           }
-        }
-      },
-      stages: {
-        include: {
-          maps: {
-            include: {
-              scores: {
-                include: { player: true },
-                orderBy: { timestamp: 'desc' }
+        },
+        stages: {
+          include: {
+            maps: {
+              include: {
+                scores: {
+                  include: { player: true },
+                  orderBy: { timestamp: 'desc' }
+                }
               }
             }
           }
         }
       }
-    }
-  });
-
-  // Fetch all tournaments to populate the dashboard dropdown
-  const allTournaments = await prisma.tournament.findMany({
-    where: userFilter,
-    select: { id: true, name: true, acronym: true, isCompleted: true },
-    orderBy: { createdAt: 'desc' }
-  });
+    }),
+    prisma.tournament.findMany({
+      where: userFilter,
+      select: { id: true, name: true, acronym: true, isCompleted: true },
+      orderBy: { createdAt: 'desc' }
+    })
+  ]);
 
   if (!tournament) return { mappool: {}, allScores: [], activeTournament: null, stages: [], allTournaments };
 

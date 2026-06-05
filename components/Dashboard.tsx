@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MappoolMap, PlayerData, ScoreData } from "@/lib/types";
 import { addStage, deleteStage } from "@/app/actions";
@@ -43,6 +43,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isEditRosterOpen, setIsEditRosterOpen] = useState(false);
   const [isManageTournamentOpen, setIsManageTournamentOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   useEffect(() => {
@@ -75,11 +76,13 @@ export default function Dashboard({ initialData }: DashboardProps) {
             className="max-w-[200px] truncate rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-1 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
             value={initialData.activeTournament?.id || ""}
             onChange={(e) => {
-              if (e.target.value) {
-                router.push(`/?t=${e.target.value}`);
-              } else {
-                router.push("/");
-              }
+              startTransition(() => {
+                if (e.target.value) {
+                  router.push(`/?t=${e.target.value}`);
+                } else {
+                  router.push("/");
+                }
+              });
             }}
           >
             {!initialData.activeTournament && <option value="">No Active Tournament</option>}
@@ -194,7 +197,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
             )}
           </div>
 
-          <div className="flex-grow mt-6 max-w-7xl mx-auto w-full">
+          <div className={`flex-grow mt-6 max-w-7xl mx-auto w-full transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
             <MappoolFeed
               stage={selectedStage}
               onMapSelect={setSelectedMap}

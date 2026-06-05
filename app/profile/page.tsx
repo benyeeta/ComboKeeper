@@ -33,22 +33,25 @@ async function ProfileContent() {
 
   if (!player) return <div className="p-8">Player not found in database.</div>;
 
-  // 1. Fetch osu! API data for Global Rank, PP, and Country
-  const osuData = await getCachedOsuUser(player.id);
-
-  // 2. Aggregate Stats
   const matchScores = player.scores.filter(s => s.scoreType === "MATCH");
   const matchMapIds = [...new Set(matchScores.map(s => s.mappoolMapId))];
 
-  // Fetch all match scores from everyone on the maps this player played to calculate MVPs
-  const allMatchScoresOnTheseMaps = await prisma.score.findMany({
-    where: { mappoolMapId: { in: matchMapIds }, scoreType: "MATCH" }
-  });
+  // 1. Fetch osu! API data and the max scores for MVP calculation in PARALLEL
+  const [osuData, maxScoresData] = await Promise.all([
+    getCachedOsuUser(player.id),
+    matchMapIds.length > 0 ? prisma.score.groupBy({
+      by: ['mappoolMapId'],
+      _max: { score: true },
+      where: { mappoolMapId: { in: matchMapIds }, scoreType: "MATCH" }
+    }) : Promise.resolve([])
+  ]);
+
+  // 2. Aggregate Stats
+  const maxScoresMap = new Map(maxScoresData.map(s => [s.mappoolMapId, s._max?.score || 0]));
 
   let mvpCount = 0;
   for (const mapId of matchMapIds) {
-    const scoresForMap = allMatchScoresOnTheseMaps.filter(s => s.mappoolMapId === mapId);
-    const maxScore = Math.max(...scoresForMap.map(s => s.score));
+    const maxScore = maxScoresMap.get(mapId) || 0;
     const playerMaxOnMap = Math.max(...matchScores.filter(s => s.mappoolMapId === mapId).map(s => s.score));
     // If this player holds the max match score on this map across the database, they are MVP!
     if (playerMaxOnMap === maxScore && maxScore > 0) mvpCount++;
