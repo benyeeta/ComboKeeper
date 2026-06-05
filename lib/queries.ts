@@ -2,7 +2,7 @@ import prisma from '@/lib/prisma';
 import { MappoolMap, ScoreData } from '@/lib/types';
 
 export async function getTournamentData(userId: number, selectedTournamentId?: string) {
-  const userFilter = { team: { players: { some: { playerId: userId } } } };
+  const userFilter = { team: { players: { some: { playerId: userId, status: "ACCEPTED" } } } };
 
   // 1. Fetch the requested tournament, or default to the currently active one
   const whereClause = selectedTournamentId ? { id: selectedTournamentId, ...userFilter } : { isCompleted: false, ...userFilter };

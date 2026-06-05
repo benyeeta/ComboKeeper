@@ -25,6 +25,8 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers }: ManualSc
   const [scoreEntries, setScoreEntries] = useState<{ score: string; playedMod: string }[]>([{ score: "", playedMod: "NM" }]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | undefined>(undefined);
   const [scoreType, setScoreType] = useState<string>("PRACTICE");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Reset scores when modal is opened for a new map
   useEffect(() => {
@@ -32,6 +34,8 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers }: ManualSc
       setScoreEntries([{ score: "", playedMod: "NM" }]);
       setSelectedPlayerId(teamPlayers[0]?.osuId);
       setScoreType("PRACTICE");
+      setFeedback(null);
+      setIsSubmitting(false);
     }
   }, [isOpen, teamPlayers]);
 
@@ -76,14 +80,26 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers }: ManualSc
       .filter(e => !isNaN(e.score) && e.score > 0);
     
     if (validEntries.length > 0 && selectedPlayerId && map) {
+      setIsSubmitting(true);
+      setFeedback(null);
       try {
-        await addManualScores((map as any).dbId, parseInt(selectedPlayerId, 10), validEntries, scoreType);
+        const res = await addManualScores((map as any).dbId, parseInt(selectedPlayerId, 10), validEntries, scoreType);
+        
+        if (res?.error) {
+          setFeedback({ type: "error", text: res.error });
+        } else {
+          setFeedback({ type: "success", text: "Score(s) successfully added!" });
+          setTimeout(() => onClose(), 1500);
+        }
       } catch (error) {
         console.error("Failed to save scores:", error);
-        // Optionally, show an error message to the user
+        setFeedback({ type: "error", text: "An unexpected error occurred." });
+      } finally {
+        setIsSubmitting(false);
       }
+    } else {
+      setFeedback({ type: "error", text: "Please enter at least one valid score." });
     }
-    onClose();
   };
 
   return (
@@ -97,6 +113,13 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers }: ManualSc
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
+        
+        {feedback && (
+          <div className={`mb-4 px-3 py-2 rounded text-sm font-medium ${feedback.type === "error" ? "bg-red-900/50 text-red-300 border border-red-800" : "bg-green-900/50 text-green-300 border border-green-800"}`}>
+            {feedback.text}
+          </div>
+        )}
+
         <div className="space-y-4">
            <p className="text-sm text-gray-400 -mt-2">{`${map.artist} - ${map.songName}`}</p>
            
@@ -167,8 +190,12 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers }: ManualSc
             >
               + Add another score
             </button>
-            <button onClick={handleSave} className="w-full rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700">
-              Save {scoreEntries.filter(s => s.score).length || ''} Score(s)
+            <button 
+              onClick={handleSave} 
+              disabled={isSubmitting}
+              className="w-full rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSubmitting ? "Saving..." : `Save ${scoreEntries.filter(s => s.score).length || ''} Score(s)`}
             </button>
         </div>
       </div>

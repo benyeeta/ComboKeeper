@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { importMatchScores, importDbScores } from "@/app/actions";
 
 type Tab = "mp" | "db";
@@ -22,6 +22,12 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
   if (!isOpen) {
     return null;
   }
+
+  useEffect(() => {
+    if (isOpen) {
+      setFeedback(null);
+    }
+  }, [isOpen]);
 
   const TabButton = ({ label, tabName }: { label: string; tabName: Tab }) => (
     <button
@@ -48,6 +54,7 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
     else if (res?.message) {
       setFeedback({ type: "success", text: res.message });
       setUrl(""); // clear url on success
+      setTimeout(() => onClose(), 1500); // close modal after success
     }
     setIsLoading(false);
   };
@@ -70,6 +77,7 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
     else if (res?.message) {
       setFeedback({ type: "success", text: res.message });
       setDbFile(null); // clear file on success
+      setTimeout(() => onClose(), 1500); // close modal after success
     }
     setIsLoading(false);
   };

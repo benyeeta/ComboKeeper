@@ -689,7 +689,7 @@ export async function importDbScores(formData: FormData) {
 
   if (!tournament) return { error: "Active tournament not found." };
 
-  const auth = await verifyAdmin(tournament.teamId);
+  const auth = await verifyTeamMember(tournament.teamId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
 
@@ -846,6 +846,21 @@ export async function acceptInvite(notificationId: string, teamId: string) {
     where: { id: notificationId },
     data: { isRead: true, type: "INFO", message: "You accepted the team invitation." }
   });
+
+  // Notify the team captains of the acceptance
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+  const captains = await prisma.teamPlayer.findMany({ where: { teamId, role: "CAPTAIN", status: "ACCEPTED" } });
+  if (team && captains.length > 0 && prisma.notification) {
+    await prisma.notification.createMany({
+      data: captains.map(c => ({
+        userId: c.playerId,
+        message: `${currentUser.username} accepted the invitation to join ${team.name}.`,
+        type: "INFO",
+        teamId
+      }))
+    });
+  }
+
   revalidatePath("/");
 }
 
@@ -860,6 +875,21 @@ export async function rejectInvite(notificationId: string, teamId: string) {
     where: { id: notificationId },
     data: { isRead: true, type: "INFO", message: "You declined the team invitation." }
   });
+
+  // Notify the team captains of the rejection
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+  const captains = await prisma.teamPlayer.findMany({ where: { teamId, role: "CAPTAIN", status: "ACCEPTED" } });
+  if (team && captains.length > 0 && prisma.notification) {
+    await prisma.notification.createMany({
+      data: captains.map(c => ({
+        userId: c.playerId,
+        message: `${currentUser.username} declined the invitation to join ${team.name}.`,
+        type: "INFO",
+        teamId
+      }))
+    });
+  }
+
   revalidatePath("/");
 }
 
