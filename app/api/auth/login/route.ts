@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const OSU_CLIENT_ID = process.env.OSU_CLIENT_ID;
-  const REDIRECT_URI = process.env.OSU_REDIRECT_URI;
+  const OSU_CLIENT_ID = process.env.OSU_CLIENT_ID?.trim();
+  const REDIRECT_URI = process.env.OSU_REDIRECT_URI?.trim();
 
   if (!OSU_CLIENT_ID || !REDIRECT_URI) {
     console.error('[Auth Error] Missing required Environment Variables:', {
