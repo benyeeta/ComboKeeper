@@ -19,15 +19,15 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [dbFile, setDbFile] = useState<File | null>(null);
 
-  if (!isOpen) {
-    return null;
-  }
-
   useEffect(() => {
     if (isOpen) {
       setFeedback(null);
     }
   }, [isOpen]);
+
+  if (!isOpen) {
+    return null;
+  }
 
   const TabButton = ({ label, tabName }: { label: string; tabName: Tab }) => (
     <button
