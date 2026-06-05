@@ -20,7 +20,11 @@ export async function getOsuToken() {
     }),
   });
   
-  if (!tokenRes.ok) return null;
+  if (!tokenRes.ok) {
+    const errorText = await tokenRes.text();
+    console.error("[osu! API] Token Error:", tokenRes.status, errorText);
+    return null;
+  }
   return tokenRes.json();
 }
 
@@ -37,6 +41,10 @@ export async function getCachedOsuUser(identifier: string | number) {
     headers: { Authorization: `Bearer ${tokenData.access_token}` },
   });
   
-  if (!userRes.ok) return null;
+  if (!userRes.ok) {
+    const errorText = await userRes.text();
+    console.error(`[osu! API] User Error (${identifier}):`, userRes.status, errorText);
+    return null;
+  }
   return userRes.json();
 }

@@ -5,6 +5,11 @@ export async function GET() {
   const REDIRECT_URI = process.env.OSU_REDIRECT_URI;
 
   if (!OSU_CLIENT_ID || !REDIRECT_URI) {
+    console.error('[Auth Error] Missing required Environment Variables:', {
+      OSU_CLIENT_ID: !!OSU_CLIENT_ID,
+      OSU_REDIRECT_URI: !!REDIRECT_URI,
+    });
+
     return NextResponse.json(
       { error: 'Server configuration error.' },
       { status: 500 }
