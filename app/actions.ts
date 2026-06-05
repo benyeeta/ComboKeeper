@@ -1207,3 +1207,28 @@ export async function updateStageMappool(formData: FormData) {
   revalidatePath("/");
   return { success: true };
 }
+
+export async function getPopularTournaments() {
+  const allTournaments = await prisma.tournament.findMany({
+    where: { isCompleted: false }, // Only show active tournaments to join
+    include: { stages: { include: { _count: { select: { maps: true } } } } }
+  });
+
+  const bestMatches = new Map();
+  for (const t of allTournaments) {
+    const mapCount = t.stages.reduce((acc: number, s: any) => acc + s._count.maps, 0);
+    const existing = bestMatches.get(t.name);
+    if (!existing || existing.mapCount < mapCount) {
+      bestMatches.set(t.name, {
+        id: t.id,
+        name: t.name,
+        acronym: t.acronym,
+        format: t.format,
+        rosterSize: t.rosterSize,
+        mapCount
+      });
+    }
+  }
+
+  return Array.from(bestMatches.values()).sort((a: any, b: any) => b.mapCount - a.mapCount);
+}
