@@ -238,11 +238,9 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
                 )}
 
                 <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-gray-700">
-                  {mode !== 'choice' && (
-                    <button type="button" onClick={() => setMode('choice')} className="rounded px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors mr-auto">
-                      &larr; Back
-                    </button>
-                  )}
+                  <button type="button" onClick={() => setMode('choice')} className="rounded px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors mr-auto">
+                    &larr; Back
+                  </button>
                   <button type="button" onClick={handleClose} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors">Cancel</button>
                   <button type="submit" disabled={isSubmitting || (mode === 'clone' && !selectedSourceId)} className="rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50 flex items-center gap-2">
                     {isSubmitting ? "Creating..." : (mode === 'clone' ? "Join Tournament" : "Create Tournament")}

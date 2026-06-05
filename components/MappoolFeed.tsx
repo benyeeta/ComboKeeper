@@ -69,10 +69,11 @@ export default function MappoolFeed({
                   e.stopPropagation();
                   onAddScore(map);
                 }}
-                className="text-gray-500 hover:text-pink-400 transition-colors p-1"
+                className="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 hover:bg-pink-600 dark:hover:bg-pink-600 text-gray-700 dark:text-gray-200 hover:text-white px-2 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
                 title="Add Score"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                <span className="hidden sm:inline">Add</span>
               </button>
               
               <div className="w-6 flex justify-end">
@@ -110,7 +111,7 @@ function TopLineup({ mapId, stage, allScores }: { mapId: string; stage: string; 
 
   if (!mapScoreData || mapScoreData.players.length === 0) {
     return (
-      <div className="hidden sm:flex items-center gap-2">
+      <div className="hidden md:flex items-center gap-2">
         <p className="text-xs text-gray-500">No Lineup Data</p>
       </div>
     );
@@ -125,22 +126,19 @@ function TopLineup({ mapId, stage, allScores }: { mapId: string; stage: string; 
     .slice(0, 3);
 
   return (
-    <div className="hidden sm:flex items-center gap-3">
-      <div className="flex -space-x-3">
-        {topPlayers.map((player) => (
+    <div className="hidden md:flex items-center gap-2">
+      {topPlayers.map((player) => (
+        <div key={player.id} className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-1.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
           <Image
-            key={player.id}
             src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
             alt={player.username}
-            width={28}
-            height={28}
-            className="w-7 h-7 rounded-full border-2 border-gray-800"
+            width={20}
+            height={20}
+            className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 object-cover"
           />
-        ))}
-      </div>
-      <p className="text-xs text-gray-400 leading-tight max-w-[120px] truncate">
-        {topPlayers.map((p) => p.username).join(", ")}
-      </p>
+          <span className="text-xs text-gray-700 dark:text-gray-300 font-medium pr-1 max-w-[80px] truncate">{player.username}</span>
+        </div>
+      ))}
     </div>
   );
 }
