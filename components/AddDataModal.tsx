@@ -15,6 +15,7 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
   const [activeTab, setActiveTab] = useState<Tab>("mp");
   const [url, setUrl] = useState("");
   const [scoreType, setScoreType] = useState("MATCH");
+  const [overwrite, setOverwrite] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [dbFile, setDbFile] = useState<File | null>(null);
@@ -49,7 +50,7 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
     setIsLoading(true);
     setFeedback(null);
     
-    const res = await importMatchScores(url, tournamentId, scoreType);
+    const res = await importMatchScores(url, tournamentId, scoreType, overwrite);
     if (res?.error) setFeedback({ type: "error", text: res.error });
     else if (res?.message) {
       setFeedback({ type: "success", text: res.message });
@@ -109,6 +110,10 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
                   <option value="QUALIFIER_2">Qualifier (Run 2)</option>
                   <option value="PRACTICE">Practice</option>
                </select>
+            </div>
+            <div className="flex items-center gap-2 mb-2 mt-4">
+              <input type="checkbox" id="overwrite-checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} className="h-4 w-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-blue-500 focus:ring-offset-gray-900 cursor-pointer" />
+              <label htmlFor="overwrite-checkbox" className="text-sm font-medium text-gray-300 cursor-pointer">Overwrite existing duplicate scores</label>
             </div>
             <button disabled={isLoading} className="w-full rounded-md bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 mt-4">
               {isLoading ? "Importing..." : "Import Match"}

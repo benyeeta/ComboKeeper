@@ -2,7 +2,9 @@ import prisma from '@/lib/prisma';
 import { MappoolMap, ScoreData } from '@/lib/types';
 
 export async function getTournamentData(userId: number, selectedTournamentId?: string) {
-  const userFilter = { 
+  const isAdmin = process.env.ADMIN_OSU_ID ? userId === Number(process.env.ADMIN_OSU_ID) : false;
+
+  const userFilter = isAdmin ? {} : { 
     OR: [
       { keepers: { some: { playerId: userId } } },
       { teams: { some: { team: { players: { some: { playerId: userId, status: "ACCEPTED" } } } } } }
@@ -49,7 +51,7 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
 
   if (!tournament) return { mappool: {}, allScores: [], activeTournament: null, stages: [], allTournaments };
 
-  const isKeeper = tournament.keepers.some(k => k.playerId === userId);
+  const isKeeper = isAdmin || tournament.keepers.some(k => k.playerId === userId);
   const userTeam = tournament.teams[0]?.team;
 
   const mappool: Record<string, MappoolMap[]> = {};

@@ -15,6 +15,11 @@ async function verifyKeeper(tournamentId: string) {
   
   if (!currentUser) return { authorized: false, error: "You must be logged in to perform this action.", currentUser: null };
   
+  // Fallback to allow the global admin to act as a keeper for all tournaments
+  if (process.env.ADMIN_OSU_ID && currentUser.id === Number(process.env.ADMIN_OSU_ID)) {
+    return { authorized: true, error: null, currentUser };
+  }
+
   const tk = await prisma.tournamentKeeper.findUnique({
     where: { tournamentId_playerId: { tournamentId, playerId: currentUser.id } }
   });
@@ -621,7 +626,7 @@ export async function deleteTournament(tournamentId: string) {
   return { success: true };
 }
 
-export async function importMatchScores(url: string, tournamentId: string, scoreType: string) {
+export async function importMatchScores(url: string, tournamentId: string, scoreType: string, overwriteDuplicates: boolean = false) {
   if (!url || !tournamentId) return { error: "Missing required fields." };
 
   let matchId = "";
@@ -688,7 +693,7 @@ export async function importMatchScores(url: string, tournamentId: string, score
   const existingSet = new Set(
     existingScores.map(s => `${s.playerId}_${s.mappoolMapId}_${s.score}_${Math.floor(s.timestamp.getTime() / 1000)}`)
   );
-  const manualScoresToDelete = new Set<string>();
+  const scoresToDelete = new Set<string>();
 
   const scoresToInsert = [];
   for (const event of matchData.events) {
@@ -702,10 +707,16 @@ export async function importMatchScores(url: string, tournamentId: string, score
       const playDate = new Date(event.timestamp);
       const uniqueKey = `${score.user_id}_${dbMapId}_${score.score}_${Math.floor(playDate.getTime() / 1000)}`;
       if (!existingSet.has(uniqueKey)) {
-        // If there's an existing manual score (0 accuracy) with this exact score value, mark it for replacement
-        const manualDup = existingScores.find(s => s.accuracy === 0 && s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
-        if (manualDup) {
-          manualScoresToDelete.add(manualDup.id);
+            // Check if there is an existing score with the exact same value
+            const existingDup = existingScores.find(s => s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
+            
+            if (existingDup) {
+              if (existingDup.accuracy === 0 || overwriteDuplicates) {
+                scoresToDelete.add(existingDup.id);
+              } else {
+                // Skip importing to avoid duplicate entries for the same play
+                continue;
+              }
         }
 
         scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId, timestamp: playDate });
@@ -718,8 +729,8 @@ export async function importMatchScores(url: string, tournamentId: string, score
     return { error: "Match found, but no scores matched your current mappool and team roster." };
   }
 
-  if (manualScoresToDelete.size > 0) {
-    await prisma.score.deleteMany({ where: { id: { in: Array.from(manualScoresToDelete) } } });
+  if (scoresToDelete.size > 0) {
+    await prisma.score.deleteMany({ where: { id: { in: Array.from(scoresToDelete) } } });
   }
   await prisma.score.createMany({ data: scoresToInsert });
   revalidatePath("/");
