@@ -34,10 +34,10 @@ export async function GET(req: NextRequest) {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        client_id: Number(OSU_CLIENT_ID),
+      body: new URLSearchParams({
+        client_id: OSU_CLIENT_ID,
         client_secret: OSU_CLIENT_SECRET,
         code,
         grant_type: 'authorization_code',
@@ -46,6 +46,8 @@ export async function GET(req: NextRequest) {
     });
 
     if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('[osu! Token Error]', errorText);
       throw new Error('Failed to fetch access token');
     }
 
