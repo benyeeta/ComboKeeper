@@ -149,18 +149,23 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
                   {players.map((p, i) => (
                     <div key={i} className="flex items-center gap-2 bg-gray-800 p-2 rounded border border-gray-700">
                       <input type="text" placeholder="osu! Username" value={p.username} onChange={e => updatePlayer(i, 'username', e.target.value)} className="flex-1 rounded bg-gray-900 border border-gray-600 p-1.5 text-sm text-white focus:border-pink-500 focus:outline-none" required />
-                      <label className="flex items-center gap-1.5 text-xs text-gray-300 w-20 cursor-pointer">
+              <label className={`flex items-center gap-1.5 text-xs text-gray-300 w-20 ${i === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input 
                           type="checkbox" 
                           checked={p.isAdmin} 
+                  disabled={i === 0}
                           onChange={e => updatePlayer(i, 'isAdmin', e.target.checked)} 
-                          className="rounded border-gray-600 bg-gray-900 text-pink-500 focus:ring-pink-500 focus:ring-offset-gray-900" 
+                  className="rounded border-gray-600 bg-gray-900 text-pink-500 focus:ring-pink-500 focus:ring-offset-gray-900 disabled:opacity-50" 
                         />
                         Admin
                       </label>
-                      <button type="button" onClick={() => handleRemovePlayer(i)} className="text-gray-500 hover:text-red-400 p-1 transition-colors" title="Remove">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
+              {i === 0 ? (
+                <div className="w-7 h-7 flex-shrink-0"></div>
+              ) : (
+                <button type="button" onClick={() => handleRemovePlayer(i)} className="text-gray-500 hover:text-red-400 p-1 transition-colors flex-shrink-0" title="Remove">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+              )}
                     </div>
                   ))}
                   {players.length === 0 && <p className="text-xs text-gray-500 italic">No players added. You can add them later.</p>}

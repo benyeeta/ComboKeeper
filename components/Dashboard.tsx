@@ -140,6 +140,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
           teamId={initialData.activeTournament.teamId}
           teamName={initialData.activeTournament.teamName}
           initialPlayers={initialData.activeTournament.players}
+          currentUsername={initialData.activeTournament.players.find(p => p.osuId === initialData.activeTournament?.currentUserId?.toString())?.username}
         />
       )}
       {initialData.activeTournament && (
