@@ -173,9 +173,12 @@ export default function Dashboard({ initialData }: DashboardProps) {
       <EditMappoolModal
         isOpen={isEditMappoolOpen}
         onClose={() => setIsEditMappoolOpen(false)}
-        stageId={initialData.stages?.find(s => s.name === selectedStage)?.id || ""}
-        stageName={selectedStage}
-        mappool={initialData.mappool[selectedStage] || []}
+        stages={initialData.stages || []}
+        selectedStage={selectedStage}
+        onSelectStage={setSelectedStage}
+        onAddStage={handleAddStage}
+        onDeleteStage={handleDeleteStage}
+        mappool={initialData.mappool || {}}
       />
 
       {initialData.activeTournament ? (
