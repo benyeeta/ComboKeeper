@@ -17,7 +17,7 @@ export interface SessionData {
 export type DecryptedSession = SessionData & JWTPayload;
 
 export async function encrypt(payload: SessionData) {
-  return new SignJWT(payload)
+  return new SignJWT(payload as unknown as JWTPayload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")

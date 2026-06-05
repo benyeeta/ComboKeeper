@@ -18,7 +18,7 @@ export async function Header() {
   if (sessionCookie) {
     try {
       user = await decrypt(sessionCookie);
-      if (prisma.notification) {
+      if (user && prisma.notification) {
         notifications = await prisma.notification.findMany({
           where: { userId: user.id },
           orderBy: { createdAt: 'desc' },
