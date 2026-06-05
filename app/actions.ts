@@ -251,19 +251,68 @@ export async function updateTeamRoster(formData: FormData) {
   const existingTeamPlayers = await prisma.teamPlayer.findMany({ where: { teamId } });
   const existingIds = new Set(existingTeamPlayers.map(tp => tp.playerId));
 
-  // This was already fixed in the previous step, but the context is stale.
-  // The logic to verify players, then delete, then add/update is correct.
-  // The only bug was the `rp` vs `p` which I will fix.
-  // ... (code from previous step is assumed to be correct, just fixing the variable name)
-  // ...
+  // 1. Fetch osu! user data for all submitted players
+  const resolvedPlayers = [];
+  for (const p of parsedPlayers) {
+    if (!p.username) continue;
+    const userData = await getCachedOsuUser(p.username);
+    if (!userData) return { error: `Could not find osu! user: ${p.username}` };
+    resolvedPlayers.push({ userData, isAdmin: p.isAdmin });
+  }
 
-  // The bug is here in the `else` block.
-  // It should be `p.isAdmin` not `rp.isAdmin`.
-  // And in the `if` block.
-  // I will just re-paste the correct logic from the previous step, but with the variable names fixed.
-  // The logic in the context is completely broken.
-  // I will just fix the `rp` to `p` bug in the `updateTeamRoster` function.
-  // The user's problem is about `createTournament`, but I should fix both.
+  const newIds = new Set(resolvedPlayers.map(rp => rp.userData.id));
+
+  // 2. Remove players that are no longer in the submitted list
+  const toRemove = [...existingIds].filter(id => !newIds.has(id));
+  if (toRemove.length > 0) {
+    await prisma.teamPlayer.deleteMany({
+      where: { teamId, playerId: { in: toRemove } }
+    });
+  }
+
+  // Fetch the tournament name to use in the notification
+  const tournament = await prisma.tournament.findFirst({ where: { teamId } });
+  const tournamentName = tournament?.name || "a tournament";
+
+  // 3. Add new players and update existing ones
+  for (const rp of resolvedPlayers) {
+    const isCurrentUser = currentUser && rp.userData.id === currentUser.id;
+
+    const player = await prisma.player.upsert({
+      where: { id: rp.userData.id },
+      update: { username: rp.userData.username, avatarUrl: rp.userData.avatar_url },
+      create: { id: rp.userData.id, username: rp.userData.username, avatarUrl: rp.userData.avatar_url }
+    });
+
+    if (!existingIds.has(player.id)) {
+      // New player -> PENDING, and send a notification
+      await prisma.teamPlayer.create({
+        data: {
+          teamId,
+          playerId: player.id,
+          role: rp.isAdmin ? "CAPTAIN" : "PLAYER",
+          status: isCurrentUser ? "ACCEPTED" : "PENDING"
+        }
+      });
+
+      if (!isCurrentUser && currentUser && prisma.notification) {
+        await prisma.notification.create({
+          data: {
+            userId: player.id,
+            message: `${currentUser.username} invited you to join their team for ${tournamentName}.`,
+            type: "TEAM_INVITE",
+            teamId
+          }
+        });
+      }
+    } else {
+      // Existing player -> Update their role
+      await prisma.teamPlayer.update({
+        where: { teamId_playerId: { teamId, playerId: player.id } },
+        data: { role: rp.isAdmin ? "CAPTAIN" : "PLAYER" }
+      });
+    }
+  }
 
   revalidatePath("/");
   return { success: true };
