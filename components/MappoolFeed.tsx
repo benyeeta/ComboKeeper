@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { MappoolMap, Mod, ScoreData } from "@/lib/types";
-import { addMapsToStage, deleteMap } from "@/app/actions";
+import { addMapsToStage, deleteMaps } from "@/app/actions";
 import AnalyticsPanel from "./AnalyticsPanel";
 
 const MOD_COLORS: Record<string, string> = {
@@ -45,6 +45,9 @@ export default function MappoolFeed({
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMaps, setNewMaps] = useState([{ mod: 'NM', mapId: '', beatmapId: '' }]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
+  const [selectedMapIds, setSelectedMapIds] = useState<Set<string>>(new Set());
 
   const getNextMapId = (mod: string, skipIndex: number, currentNewMaps: typeof newMaps) => {
     const existingMapIds = currentMappool
@@ -106,10 +109,66 @@ export default function MappoolFeed({
     setNewMaps(updated);
   };
 
+  const toggleSelection = (dbId: string) => {
+    const newSet = new Set(selectedMapIds);
+    if (newSet.has(dbId)) newSet.delete(dbId);
+    else newSet.add(dbId);
+    setSelectedMapIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedMapIds.size === 0) return;
+    if (confirm(`Are you sure you want to delete ${selectedMapIds.size} map(s)?`)) {
+      setIsDeleting(true);
+      const res = await deleteMaps(Array.from(selectedMapIds));
+      setIsDeleting(false);
+      if (res?.error) alert(res.error);
+      else {
+        setIsBulkDeleteMode(false);
+        setSelectedMapIds(new Set());
+      }
+    }
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-4 flex flex-col gap-3 transition-colors duration-200">
       <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{stage ? `${stage} Mappool` : "Mappool"}</h2>
       <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2 mb-2">Click to view analytics, or use the + button to add a score.</p>
+      
+      {isEditMode && currentMappool.length > 0 && (
+        <div className="mb-3 flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-3">
+          <button
+            onClick={() => {
+              setIsBulkDeleteMode(!isBulkDeleteMode);
+              setSelectedMapIds(new Set());
+            }}
+            className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${isBulkDeleteMode ? 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-200' : 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 border border-red-200 dark:border-red-900/50'}`}
+          >
+            {isBulkDeleteMode ? "Cancel Deletion" : "Select & Delete Maps"}
+          </button>
+          {isBulkDeleteMode && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (selectedMapIds.size === currentMappool.length) setSelectedMapIds(new Set());
+                  else setSelectedMapIds(new Set(currentMappool.map(m => (m as any).dbId)));
+                }}
+                className="text-xs px-3 py-1.5 rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-medium transition-colors"
+              >
+                {selectedMapIds.size === currentMappool.length ? "Deselect All" : "Select All"}
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={selectedMapIds.size === 0 || isDeleting}
+                className="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-50 transition-colors"
+              >
+                {isDeleting ? "Deleting..." : `Delete Selected (${selectedMapIds.size})`}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {currentMappool.map((map, index) => {
         const isExpanded = selectedMap?.id === map.id;
         return (
@@ -121,6 +180,15 @@ export default function MappoolFeed({
               ${isExpanded ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
           >
           <div className="flex items-center gap-4 flex-grow overflow-hidden">
+            {isEditMode && isBulkDeleteMode && (
+              <input
+                type="checkbox"
+                checked={selectedMapIds.has((map as any).dbId)}
+                onChange={() => toggleSelection((map as any).dbId)}
+                onClick={(e) => e.stopPropagation()}
+                className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 dark:bg-gray-900 dark:border-gray-600 rounded focus:ring-red-500 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 ml-1 cursor-pointer"
+              />
+            )}
             <span className="font-bold text-lg w-12 flex-shrink-0">{map.id}</span>
             <div className="flex flex-col overflow-hidden">
               <span className="text-gray-900 dark:text-gray-200 font-medium truncate">{map.artist}</span>
@@ -130,20 +198,7 @@ export default function MappoolFeed({
           <div className="flex items-center gap-3">
             <TopLineup mapId={map.id} stage={stage} allScores={allScores} />
             <div className="flex items-center gap-1 flex-shrink-0 justify-end">
-              {isEditMode ? (
-                <button 
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    if (confirm(`Are you sure you want to delete ${map.id}?`)) {
-                      await deleteMap((map as any).dbId);
-                    }
-                  }}
-                  className="text-gray-500 hover:text-red-400 transition-colors p-1"
-                  title="Delete Map"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                </button>
-              ) : (
+              {!isEditMode && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();

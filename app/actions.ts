@@ -458,6 +458,28 @@ export async function deleteMap(id: string) {
   return { success: true };
 }
 
+export async function deleteMaps(ids: string[]) {
+  if (!ids || ids.length === 0) return { error: "No maps selected for deletion." };
+
+  const maps = await prisma.mappoolMap.findMany({ where: { id: { in: ids } }, include: { stage: { include: { tournament: true } } } });
+  if (maps.length === 0) return { error: "Maps not found" };
+
+  const auth = await verifyAdmin(maps[0].stage.tournament.teamId);
+  if (!auth.authorized) return { error: auth.error };
+
+  if (auth.currentUser) {
+    const { success } = await ratelimit.limit(`deleteMaps_${auth.currentUser.id}`);
+    if (!success) {
+      return { error: "You are deleting maps too fast. Please wait a few seconds." };
+    }
+  }
+
+  await prisma.mappoolMap.deleteMany({ where: { id: { in: ids } } });
+  
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function addManualScores(mappoolMapId: string, playerId: number, scores: { score: number; playedMod?: string }[], scoreType: string = "PRACTICE") {
   if (!mappoolMapId || !playerId || !scores || scores.length === 0) {
     return { error: "Missing required fields" };
@@ -528,6 +550,40 @@ export async function deleteScore(id: string) {
 
   await prisma.score.delete({
     where: { id }
+  });
+  
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function deleteScores(ids: string[]) {
+  if (!ids || ids.length === 0) return { error: "No scores selected for deletion." };
+
+  const scores = await prisma.score.findMany({ where: { id: { in: ids } }, include: { mappoolMap: { include: { stage: { include: { tournament: true } } } } } });
+  if (scores.length === 0) return { error: "Scores not found" };
+
+  // Verify based on the first score (assuming all belong to the same tournament)
+  const auth = await verifyTeamMember(scores[0].mappoolMap.stage.tournament.teamId);
+  if (!auth.authorized) return { error: auth.error };
+
+  const isAdmin = auth.teamPlayer?.role === "CAPTAIN" || auth.teamPlayer?.role === "EDITOR";
+
+  if (!isAdmin) {
+    const allOwnScores = scores.every(s => s.playerId === auth.currentUser?.id);
+    if (!allOwnScores) {
+      return { error: "Forbidden: You can only delete your own scores." };
+    }
+  }
+
+  if (auth.currentUser) {
+    const { success } = await ratelimit.limit(`deleteScores_${auth.currentUser.id}`);
+    if (!success) {
+      return { error: "You are deleting scores too fast. Please wait a few seconds." };
+    }
+  }
+
+  await prisma.score.deleteMany({
+    where: { id: { in: ids } }
   });
   
   revalidatePath("/");

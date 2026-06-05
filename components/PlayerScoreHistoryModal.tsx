@@ -1,7 +1,7 @@
 "use client";
 
 import { MappoolMap, PlayerData } from "@/lib/types";
-import { deleteScore, updateScoreType } from "@/app/actions";
+import { deleteScores, updateScoreType } from "@/app/actions";
 import { useState } from "react";
 
 interface PlayerScoreHistoryModalProps {
@@ -14,28 +14,43 @@ interface PlayerScoreHistoryModalProps {
 }
 
 const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUserId, currentUserRole }: PlayerScoreHistoryModalProps) => {
-  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
+  const [selectedScoreIds, setSelectedScoreIds] = useState<Set<string>>(new Set());
 
   if (!isOpen || !playerData || !map) {
     return null;
   }
 
-  const handleDelete = async (scoreId: string) => {
-    if (!scoreId) {
-      alert("Cannot delete: Score ID is missing. Please refresh the page to sync with the database.");
-      return;
-    }
+  const handleClose = () => {
+    setIsBulkDeleteMode(false);
+    setSelectedScoreIds(new Set());
+    onClose();
+  };
 
-    if (confirm("Are you sure you want to delete this score?")) {
-      setIsDeleting(scoreId);
-      await deleteScore(scoreId);
-      setIsDeleting(null);
-      onClose();
+  const toggleSelection = (id: string) => {
+    const newSet = new Set(selectedScoreIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedScoreIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedScoreIds.size === 0) return;
+    if (confirm(`Are you sure you want to delete ${selectedScoreIds.size} score(s)?`)) {
+      setIsDeleting(true);
+      const res = await deleteScores(Array.from(selectedScoreIds));
+      setIsDeleting(false);
+      if (res?.error) alert(res.error);
+      else {
+        setIsBulkDeleteMode(false);
+        setSelectedScoreIds(new Set());
+      }
     }
   };
 
   // Sort chronologically (newest first) to accurately show improvement over time
-  const sortedHistory = [...playerData.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const sortedHistory = [...playerData.history].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
 
   const isAdmin = currentUserRole === "CAPTAIN" || currentUserRole === "EDITOR";
   const isOwnScore = currentUserId && playerData.id.toString() === currentUserId;
@@ -74,15 +89,48 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
               <p className="text-sm text-gray-400">on <span className="font-semibold text-blue-400">{map.id}</span>: {map.songName}</p>
             </div>
           </div>
-          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+          <button onClick={handleClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
+        
+        {canEdit && (
+          <div className="mb-3 flex justify-between items-center border-b border-gray-700 pb-3">
+            <button
+              onClick={() => {
+                setIsBulkDeleteMode(!isBulkDeleteMode);
+                setSelectedScoreIds(new Set());
+              }}
+              className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${isBulkDeleteMode ? 'bg-gray-700 text-gray-200' : 'bg-red-900/30 text-red-400 hover:bg-red-900/50 border border-red-900/50'}`}
+            >
+              {isBulkDeleteMode ? "Cancel Deletion" : "Select & Delete Scores"}
+            </button>
+            {isBulkDeleteMode && (
+              <button
+                onClick={handleBulkDelete}
+                disabled={selectedScoreIds.size === 0 || isDeleting}
+                className="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white font-medium disabled:opacity-50 transition-colors"
+              >
+                {isDeleting ? "Deleting..." : `Delete Selected (${selectedScoreIds.size})`}
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="max-h-80 overflow-y-auto pr-2">
           <ul className="space-y-2">
             {sortedHistory.map((play) => (
               <li key={play.id || play.timestamp} className="flex justify-between items-center rounded-md bg-gray-800 p-3">
-                <div>
+                <div className="flex items-center gap-3">
+                  {isBulkDeleteMode && canEdit && (
+                    <input
+                      type="checkbox"
+                      checked={play.id ? selectedScoreIds.has(play.id) : false}
+                      onChange={() => play.id && toggleSelection(play.id)}
+                      className="w-4 h-4 text-red-600 bg-gray-900 border-gray-600 rounded focus:ring-red-500 focus:ring-offset-gray-800"
+                    />
+                  )}
+                  <div>
                   <div className="flex items-center">
                     <span className="font-mono text-lg">{play.score.toLocaleString('en-US').replace(/,/g, ' ')}</span>
                     {canEdit ? (
@@ -113,17 +161,8 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
                     )}
                   </div>
                   <span className="text-sm text-gray-400">{play.accuracy.toFixed(2)}%</span>
+                  </div>
                 </div>
-                {canEdit && (
-                  <button 
-                    onClick={() => play.id && handleDelete(play.id)}
-                    disabled={isDeleting === play.id}
-                    className="text-gray-500 hover:text-red-400 p-1 transition-colors disabled:opacity-50" 
-                    title="Delete Score"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
-                )}
               </li>
             ))}
             {sortedHistory.length === 0 && <p className="text-center text-gray-500 py-4">No scores recorded for this player on this map.</p>}
