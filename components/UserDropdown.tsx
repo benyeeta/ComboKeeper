@@ -1,62 +1,47 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
+import { useState, useRef, useEffect } from 'react';
+import type { SessionData } from '@/lib/session';
 
-type User = {
-  id: number;
-  username: string;
-  avatar_url: string;
-};
-
-export default function UserDropdown({ user }: { user: User }) {
+export default function UserDropdown({ user }: { user: SessionData }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close the dropdown when clicking anywhere outside of it
+  // Close the dropdown if the user clicks outside of it
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button 
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 hover:bg-gray-100 dark:hover:bg-gray-800 p-1 pr-2 rounded-md transition-colors"
+        className="flex items-center gap-2 focus:outline-none p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
       >
         <img
-          src={user.avatar_url}
-          alt={`${user.username}'s Avatar`}
-          width={32}
-          height={32}
-          className="w-8 h-8 rounded-full"
+          src={user.avatar_url || `https://a.ppy.sh/${user.id}`}
+          alt={`${user.username}'s avatar`}
+          className="w-9 h-9 rounded-full border border-gray-200 dark:border-gray-700 object-cover"
         />
-        <span className="hidden sm:inline text-gray-900 dark:text-white font-medium">{user.username}</span>
-        <svg className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-xl py-1 z-50">
-          <Link 
-            href="/profile" 
-            onClick={() => setIsOpen(false)}
-            className="block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
+        <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+          <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 mb-1">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{user.username}</p>
+          </div>
+          <a
+            href="/api/auth/logout"
+            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
-            Profile
-          </Link>
-          <Link 
-            href="/settings" 
-            onClick={() => setIsOpen(false)}
-            className="block px-4 py-2 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white transition-colors"
-          >
-            Settings
-          </Link>
+            Sign Out
+          </a>
         </div>
       )}
     </div>
