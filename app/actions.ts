@@ -850,8 +850,8 @@ export async function importDbScores(formData: FormData) {
         const n300 = reader.readShort();
         const n100 = reader.readShort();
         const n50 = reader.readShort();
-        reader.readShort(); // nGeki
-        reader.readShort(); // nKatu
+        const nGeki = reader.readShort();
+        const nKatu = reader.readShort();
         const nMiss = reader.readShort();
         const replayScore = reader.readInt();
         reader.readShort(); // maxCombo
@@ -869,8 +869,20 @@ export async function importDbScores(formData: FormData) {
           const normalizedName = playerName.toLowerCase().replace(/[_ ]/g, '');
           const playerId = usernameToPlayerId.get(normalizedName);
           if (playerId) {
-            const totalHits = n300 + n100 + n50 + nMiss;
-            const accuracy = totalHits > 0 ? ((n300 * 300 + n100 * 100 + n50 * 50) / (totalHits * 300)) * 100 : 0;
+            let accuracy = 0;
+            if (mode === 0) { // Standard
+              const totalHits = n300 + n100 + n50 + nMiss;
+              accuracy = totalHits > 0 ? ((n300 * 300 + n100 * 100 + n50 * 50) / (totalHits * 300)) * 100 : 0;
+            } else if (mode === 1) { // Taiko
+              const totalHits = n300 + n100 + nMiss;
+              accuracy = totalHits > 0 ? ((n300 * 300 + n100 * 150) / (totalHits * 300)) * 100 : 0;
+            } else if (mode === 2) { // Catch
+              const totalHits = n300 + n100 + n50 + nKatu + nMiss;
+              accuracy = totalHits > 0 ? ((n300 + n100 + n50) / totalHits) * 100 : 0;
+            } else if (mode === 3) { // Mania
+              const totalHits = nGeki + n300 + nKatu + n100 + n50 + nMiss;
+              accuracy = totalHits > 0 ? ((nGeki * 300 + n300 * 300 + nKatu * 200 + n100 * 100 + n50 * 50) / (totalHits * 300)) * 100 : 0;
+            }
             
             // Parse osu! bitmask to string
             let playedMod = "NM";
