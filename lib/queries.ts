@@ -54,6 +54,7 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       mod: m.mod as any,
       artist: m.artist,
       songName: m.songName,
+      beatmapId: m.beatmapId,
       skill: m.skill || undefined,
     } as any)).sort((a, b) => {
       const modOrder = ['NM', 'HD', 'HR', 'DT', 'FM', 'MM', 'TB'];

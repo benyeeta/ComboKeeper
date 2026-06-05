@@ -13,6 +13,7 @@ import PlayerScoreHistoryModal from "@/components/PlayerScoreHistoryModal";
 import AddTournamentModal from "@/components/AddTournamentModal";
 import EditRosterModal from "@/components/EditRosterModal";
 import ManageTournamentModal from "@/components/ManageTournamentModal";
+import EditMappoolModal from "@/components/EditMappoolModal";
 
 type DashboardProps = {
   initialData: {
@@ -42,7 +43,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const [manualEntryMap, setManualEntryMap] = useState<MappoolMap | null>(null);
   const [viewingPlayer, setViewingPlayer] = useState<PlayerData | null>(null);
   const [isAddTournamentOpen, setIsAddTournamentOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMappoolOpen, setIsEditMappoolOpen] = useState(false);
   const [isEditRosterOpen, setIsEditRosterOpen] = useState(false);
   const [isManageTournamentOpen, setIsManageTournamentOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -97,14 +98,10 @@ export default function Dashboard({ initialData }: DashboardProps) {
           {initialData.activeTournament && (
             <>
               <button 
-                onClick={() => setIsEditMode(!isEditMode)} 
-                className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
-                  isEditMode 
-                    ? "bg-pink-600 text-white hover:bg-pink-700" 
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600"
-                }`}
+                onClick={() => setIsEditMappoolOpen(true)} 
+                className="rounded bg-gray-200 dark:bg-gray-700 px-3 py-1 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
               >
-                {isEditMode ? "Done Editing" : "Edit Mappool"}
+                Edit Mappool
               </button>
               <button 
                 onClick={() => setIsEditRosterOpen(true)}
@@ -173,6 +170,13 @@ export default function Dashboard({ initialData }: DashboardProps) {
         currentUserId={initialData.activeTournament?.currentUserId?.toString()}
         currentUserRole={initialData.activeTournament?.currentUserRole}
       />
+      <EditMappoolModal
+        isOpen={isEditMappoolOpen}
+        onClose={() => setIsEditMappoolOpen(false)}
+        stageId={initialData.stages?.find(s => s.name === selectedStage)?.id || ""}
+        stageName={selectedStage}
+        mappool={initialData.mappool[selectedStage] || []}
+      />
 
       {initialData.activeTournament ? (
         <>
@@ -182,25 +186,23 @@ export default function Dashboard({ initialData }: DashboardProps) {
               selectedStage={selectedStage}
               setSelectedStage={setSelectedStage}
             />
-            {isEditMode && (
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={handleAddStage}
+                className="rounded-md bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 shadow-sm"
+              >
+                + Add Stage
+              </button>
+              {initialData.stages.length > 0 && (
                 <button
-                  onClick={handleAddStage}
-                  className="rounded-md bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-700 shadow-sm"
+                  onClick={handleDeleteStage}
+                  className="rounded-md bg-red-900/30 px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors border border-red-900/50"
+                  title="Delete current stage"
                 >
-                  + Add Stage
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
-                {initialData.stages.length > 0 && (
-                  <button
-                    onClick={handleDeleteStage}
-                    className="rounded-md bg-red-900/30 px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors border border-red-900/50"
-                    title="Delete current stage"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                  </button>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           <div className={`flex-grow mt-6 w-full transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -211,7 +213,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
               onAddScore={setManualEntryMap}
               mappool={initialData.mappool}
               allScores={initialData.allScores}
-              isEditMode={isEditMode}
               stageId={initialData.stages?.find(s => s.name === selectedStage)?.id}
               tournamentId={initialData.activeTournament.id}
               onViewPlayerScores={setViewingPlayer}

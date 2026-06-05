@@ -1119,3 +1119,91 @@ export async function deleteStage(stageId: string) {
   revalidatePath("/");
   return { success: true };
 }
+
+export async function updateStageMappool(formData: FormData) {
+  const stageId = formData.get("stageId") as string;
+  const mapsJson = formData.get("maps") as string;
+
+  if (!stageId || !mapsJson) return { error: "Missing required fields" };
+
+  const stage = await prisma.stage.findUnique({ where: { id: stageId }, include: { tournament: true } });
+  if (!stage) return { error: "Stage not found" };
+
+  const auth = await verifyAdmin(stage.tournament.teamId);
+  if (!auth.authorized) return { error: auth.error };
+
+  if (auth.currentUser) {
+    const { success } = await ratelimit.limit(`updateStageMappool_${auth.currentUser.id}`);
+    if (!success) {
+      return { error: "You are updating maps too fast. Please wait a few seconds." };
+    }
+  }
+
+  const MapsSchema = z.array(z.object({
+    dbId: z.string().optional(),
+    mod: z.string(),
+    mapId: z.string(),
+    beatmapId: z.string()
+  }));
+
+  let maps: z.infer<typeof MapsSchema> = [];
+  try {
+    maps = MapsSchema.parse(JSON.parse(mapsJson));
+  } catch (e) {
+    return { error: "Invalid maps data provided." };
+  }
+
+  const existingMaps = await prisma.mappoolMap.findMany({ where: { stageId } });
+
+  // 1. Delete maps removed from the modal
+  const keptDbIds = new Set(maps.filter(m => m.dbId).map(m => m.dbId));
+  const toDelete = existingMaps.filter(m => !keptDbIds.has(m.id)).map(m => m.id);
+  if (toDelete.length > 0) {
+    await prisma.mappoolMap.deleteMany({ where: { id: { in: toDelete } } });
+  }
+
+  // 2. Fetch metadata for newly added maps, or maps where the beatmapId was changed
+  const needsMetadata = maps.filter(m => {
+    if (!m.dbId) return true;
+    const existing = existingMaps.find(em => em.id === m.dbId);
+    return existing && existing.beatmapId?.toString() !== m.beatmapId;
+  });
+
+  const beatmapMetadata = new Map();
+  if (needsMetadata.length > 0) {
+    const tokenData = await getOsuToken();
+    if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
+
+    const beatmapIds = Array.from(new Set(needsMetadata.map(m => m.beatmapId)));
+    for (let i = 0; i < beatmapIds.length; i += 50) {
+      const chunk = beatmapIds.slice(i, i + 50);
+      const url = `https://osu.ppy.sh/api/v2/beatmaps?${chunk.map(id => `ids[]=${id}`).join('&')}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        for (const b of data.beatmaps) beatmapMetadata.set(b.id.toString(), b);
+      }
+    }
+  }
+
+  // 3. Process updates and additions
+  for (const map of maps) {
+    let artist, songName;
+    if (!map.dbId || needsMetadata.includes(map)) {
+      const bm = beatmapMetadata.get(map.beatmapId);
+      if (!bm || !bm.beatmapset) return { error: `Beatmap with ID ${map.beatmapId} not found.` };
+      artist = bm.beatmapset.artist;
+      songName = bm.beatmapset.title;
+    }
+
+    const payload = { mapId: map.mapId, mod: map.mod, ...(artist ? { artist, songName, beatmapId: parseInt(map.beatmapId, 10) } : {}) };
+    if (map.dbId) {
+      await prisma.mappoolMap.update({ where: { id: map.dbId }, data: payload });
+    } else {
+      await prisma.mappoolMap.create({ data: { stageId, ...payload, artist: artist!, songName: songName!, beatmapId: parseInt(map.beatmapId, 10) } });
+    }
+  }
+
+  revalidatePath("/");
+  return { success: true };
+}
