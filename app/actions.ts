@@ -678,11 +678,12 @@ export async function importMatchScores(url: string, tournamentId: string, score
   // Fetch existing scores to prevent duplicates
   const existingScores = await prisma.score.findMany({
     where: { mappoolMapId: { in: Array.from(validBeatmapIds.values()) } },
-    select: { playerId: true, mappoolMapId: true, score: true, timestamp: true }
+    select: { id: true, playerId: true, mappoolMapId: true, score: true, timestamp: true, accuracy: true }
   });
   const existingSet = new Set(
     existingScores.map(s => `${s.playerId}_${s.mappoolMapId}_${s.score}_${Math.floor(s.timestamp.getTime() / 1000)}`)
   );
+  const manualScoresToDelete = new Set<string>();
 
   const scoresToInsert = [];
   for (const event of matchData.events) {
@@ -696,6 +697,12 @@ export async function importMatchScores(url: string, tournamentId: string, score
       const playDate = new Date(event.timestamp);
       const uniqueKey = `${score.user_id}_${dbMapId}_${score.score}_${Math.floor(playDate.getTime() / 1000)}`;
       if (!existingSet.has(uniqueKey)) {
+        // If there's an existing manual score (0 accuracy) with this exact score value, mark it for replacement
+        const manualDup = existingScores.find(s => s.accuracy === 0 && s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
+        if (manualDup) {
+          manualScoresToDelete.add(manualDup.id);
+        }
+
         scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId, timestamp: playDate });
         existingSet.add(uniqueKey);
       }
@@ -706,6 +713,9 @@ export async function importMatchScores(url: string, tournamentId: string, score
     return { error: "Match found, but no scores matched your current mappool and team roster." };
   }
 
+  if (manualScoresToDelete.size > 0) {
+    await prisma.score.deleteMany({ where: { id: { in: Array.from(manualScoresToDelete) } } });
+  }
   await prisma.score.createMany({ data: scoresToInsert });
   revalidatePath("/");
   return { message: `Successfully imported ${scoresToInsert.length} scores!` };
@@ -810,11 +820,12 @@ export async function importDbScores(formData: FormData) {
   // Fetch existing scores to prevent duplicates
   const existingScores = await prisma.score.findMany({
     where: { mappoolMapId: { in: Array.from(validBeatmapIds.values()) } },
-    select: { playerId: true, mappoolMapId: true, score: true, timestamp: true }
+    select: { id: true, playerId: true, mappoolMapId: true, score: true, timestamp: true, accuracy: true }
   });
   const existingSet = new Set(
     existingScores.map(s => `${s.playerId}_${s.mappoolMapId}_${s.score}_${Math.floor(s.timestamp.getTime() / 1000)}`)
   );
+  const manualScoresToDelete = new Set<string>();
 
   try {
     const buffer = await file.arrayBuffer();
@@ -880,6 +891,12 @@ export async function importDbScores(formData: FormData) {
             const uniqueKey = `${playerId}_${dbMapId}_${replayScore}_${Math.floor(playDate.getTime() / 1000)}`;
             
             if (!existingSet.has(uniqueKey)) {
+              // If there's an existing manual score (0 accuracy) with this exact score value, mark it for replacement
+              const manualDup = existingScores.find(s => s.accuracy === 0 && s.playerId === playerId && s.mappoolMapId === dbMapId && s.score === replayScore);
+              if (manualDup) {
+                manualScoresToDelete.add(manualDup.id);
+              }
+
               scoresToInsert.push({ score: replayScore, accuracy, scoreType, playedMod, playerId, mappoolMapId: dbMapId, timestamp: playDate });
               existingSet.add(uniqueKey); // Prevent duplicates within the same file import
             }
@@ -897,6 +914,9 @@ export async function importDbScores(formData: FormData) {
     return { error: "No solo scores found for this tournament's mappool." };
   }
 
+  if (manualScoresToDelete.size > 0) {
+    await prisma.score.deleteMany({ where: { id: { in: Array.from(manualScoresToDelete) } } });
+  }
   await prisma.score.createMany({ data: scoresToInsert });
   revalidatePath("/");
   return { message: `Successfully imported ${scoresToInsert.length} solo scores!` };

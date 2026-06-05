@@ -34,7 +34,8 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
     }
   };
 
-  const sortedHistory = [...playerData.history].sort((a, b) => b.score - a.score);
+  // Sort chronologically (newest first) to accurately show improvement over time
+  const sortedHistory = [...playerData.history].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   const isAdmin = currentUserRole === "CAPTAIN" || currentUserRole === "EDITOR";
   const isOwnScore = currentUserId && playerData.id.toString() === currentUserId;
