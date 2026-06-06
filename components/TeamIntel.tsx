@@ -25,17 +25,23 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
     let totalStdDev = 0;
     let stdDevCount = 0;
 
+    let safePick = { id: "", dev: Infinity };
+    let coinflipPick = { id: "", dev: 0 };
+
     stageScores.forEach(mapData => {
-      let mapTotal = 0;
-      let mapCount = 0;
+      let playerAveragesTotal = 0;
+      let playersWithScoresCount = 0;
       let topScores: number[] = [];
       let allMapScores: number[] = [];
 
       mapData.players.forEach(p => {
         let maxForPlayer = 0;
+        let pTotal = 0;
+        let pCount = 0;
+
         p.history.forEach(h => {
-          mapTotal += h.score;
-          mapCount += 1;
+          pTotal += h.score;
+          pCount += 1;
           totalPlays += 1;
           allMapScores.push(h.score);
 
@@ -47,9 +53,14 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
           }
         });
         if (maxForPlayer > 0) topScores.push(maxForPlayer);
+
+        if (pCount > 0) {
+          playerAveragesTotal += (pTotal / pCount);
+          playersWithScoresCount += 1;
+        }
       });
 
-      const avg = mapCount > 0 ? mapTotal / mapCount : 0;
+      const avg = playersWithScoresCount > 0 ? playerAveragesTotal / playersWithScoresCount : 0;
       if (avg > bestMap.avg) bestMap = { id: mapData.mapId, avg };
       if (avg < worstMap.avg && avg > 0) worstMap = { id: mapData.mapId, avg };
 
@@ -66,6 +77,10 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
         const variance = allMapScores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / allMapScores.length;
         totalStdDev += Math.sqrt(variance);
         stdDevCount++;
+        
+        const stdDev = Math.sqrt(variance);
+        if (stdDev < safePick.dev) safePick = { id: mapData.mapId, dev: stdDev };
+        if (stdDev > coinflipPick.dev) coinflipPick = { id: mapData.mapId, dev: stdDev };
       }
     });
 
@@ -81,11 +96,13 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
       achilles: worstMap.avg < Infinity ? worstMap : null,
       nightOwls: totalPlays > 0 ? (nightOwlPlays / totalPlays) * 100 : 0,
       hiveMind: closestMap.spread < Infinity ? closestMap : null,
-      playstyle
+      playstyle,
+      safePick: safePick.dev < Infinity ? safePick : null,
+      coinflipPick: coinflipPick.dev > 0 ? coinflipPick : null,
     };
   }, [allScores, selectedStage]);
 
-  if (!intel || (!intel.fortress && !intel.achilles && intel.nightOwls === 0 && !intel.hiveMind && !intel.playstyle)) {
+  if (!intel || (!intel.fortress && !intel.achilles && intel.nightOwls === 0 && !intel.hiveMind && !intel.playstyle && !intel.safePick && !intel.coinflipPick)) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-8 text-center transition-colors duration-200">
         <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Not enough data</h3>
@@ -148,6 +165,22 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
             <span className="text-orange-600 dark:text-orange-400 font-bold mb-1">The Coinflip Team</span>
             <span className="text-sm text-gray-700 dark:text-gray-300">
               High risk, high reward. Scores fluctuate wildly by an average of ±{Math.round(intel.playstyle.dev).toLocaleString()} points.
+            </span>
+          </div>
+        )}
+        {intel.safePick && (
+          <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded border border-emerald-200 dark:border-emerald-800/50 flex flex-col shadow-sm">
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold mb-1">The Safe Pick</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="font-semibold">{intel.safePick.id}</span> has the lowest variance. Scores only fluctuate by ±{Math.round(intel.safePick.dev).toLocaleString()}.
+            </span>
+          </div>
+        )}
+        {intel.coinflipPick && intel.coinflipPick.dev > 50000 && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded border border-yellow-200 dark:border-yellow-800/50 flex flex-col shadow-sm">
+            <span className="text-yellow-600 dark:text-yellow-400 font-bold mb-1">The Coinflip Pick (Risky)</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">
+              <span className="font-semibold">{intel.coinflipPick.id}</span> is highly volatile. Scores fluctuate wildly by ±{Math.round(intel.coinflipPick.dev).toLocaleString()}.
             </span>
           </div>
         )}

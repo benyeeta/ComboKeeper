@@ -43,7 +43,7 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
           </div>
           
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Workspace</label>
+            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Tournament</label>
             <select 
               className="max-w-[250px] truncate rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
               value={initialData.activeTournament?.id || ""}

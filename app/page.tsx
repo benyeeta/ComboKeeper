@@ -36,7 +36,7 @@ export default function Home(props: { searchParams: Promise<{ t?: string }> }) {
     <Suspense fallback={
       <div className="flex-grow flex flex-col items-center justify-center mt-24 text-gray-500">
         <div className="w-12 h-12 border-4 border-pink-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-lg font-medium">Loading Workspace...</p>
+        <p className="text-lg font-medium">Loading Tournament...</p>
       </div>
     }>
       <DashboardLoader searchParams={props.searchParams} />
