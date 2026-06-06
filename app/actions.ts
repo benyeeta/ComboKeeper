@@ -763,19 +763,21 @@ export async function importMatchScores(url: string, tournamentId: string, score
       const playDate = new Date(event.timestamp);
       const uniqueKey = `${score.user_id}_${dbMapId}_${score.score}_${Math.floor(playDate.getTime() / 1000)}`;
       if (!existingSet.has(uniqueKey)) {
-            // Check if there is an existing score with the exact same value
-            const existingDup = existingScores.find(s => s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
+            // Find all existing scores with the exact same value
+            const existingDups = existingScores.filter(s => s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
             
-            if (existingDup) {
-              if (existingDup.accuracy === 0 || overwriteDuplicates) {
-                scoresToDelete.add(existingDup.id);
+            if (existingDups.length > 0) {
+              const hasDetailedScore = existingDups.some(s => s.accuracy > 0);
+              
+              if (!hasDetailedScore || overwriteDuplicates) {
+                existingDups.forEach(dup => scoresToDelete.add(dup.id));
               } else {
-                // Skip importing to avoid duplicate entries for the same play
+                // Skip importing because we already have a detailed score for this
                 continue;
               }
-        }
+            }
 
-        scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId, timestamp: playDate, matchId });
+        scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId, timestamp: playDate });
         existingSet.add(uniqueKey);
       }
     }
@@ -979,10 +981,19 @@ export async function importDbScores(formData: FormData) {
             const uniqueKey = `${playerId}_${dbMapId}_${replayScore}_${Math.floor(playDate.getTime() / 1000)}`;
             
             if (!existingSet.has(uniqueKey)) {
-              // If there's an existing manual score (0 accuracy) with this exact score value, mark it for replacement
-              const manualDup = existingScores.find(s => s.accuracy === 0 && s.playerId === playerId && s.mappoolMapId === dbMapId && s.score === replayScore);
-              if (manualDup) {
-                manualScoresToDelete.add(manualDup.id);
+              // Check if there is already a score with the exact same value
+              const existingDups = existingScores.filter(s => s.playerId === playerId && s.mappoolMapId === dbMapId && s.score === replayScore);
+              
+              if (existingDups.length > 0) {
+                const hasDetailedScore = existingDups.some(s => s.accuracy > 0);
+                if (hasDetailedScore) {
+                  // We already have a detailed score (from MP link or previous db import). 
+                  // Skip to avoid duplicates, as MP link scores are superior.
+                  continue;
+                }
+
+                // If there are existing manual scores (0 accuracy) with this exact score value, mark them for replacement
+                existingDups.forEach(dup => manualScoresToDelete.add(dup.id));
               }
 
               scoresToInsert.push({ score: replayScore, accuracy, scoreType, playedMod, playerId, mappoolMapId: dbMapId, timestamp: playDate });

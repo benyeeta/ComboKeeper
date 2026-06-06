@@ -49,6 +49,11 @@ export default function EditRosterModal({
     setPlayers(newPlayers);
   };
 
+  const handleToggleAllAdmins = () => {
+    const allAdmins = players.every(p => p.isAdmin);
+    setPlayers(players.map((p) => (!!currentUsername && p.username.toLowerCase() === currentUsername.toLowerCase()) ? p : { ...p, isAdmin: !allAdmins }));
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4 transition-opacity">
       <div className="w-full max-w-2xl rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl max-h-[90vh] flex flex-col">
@@ -80,7 +85,12 @@ export default function EditRosterModal({
 
           <div className="flex justify-between items-center mb-1">
             <label className="block text-sm font-medium text-gray-300">Team Players</label>
-            <button type="button" onClick={handleAddPlayer} className="text-xs font-bold text-pink-400 hover:text-pink-300 px-2 py-1 bg-pink-900/30 rounded transition-colors">+ Add Player</button>
+            <div className="flex items-center gap-2">
+              {players.length > 1 && (
+                <button type="button" onClick={handleToggleAllAdmins} className="text-xs font-bold text-gray-400 hover:text-gray-300 px-2 py-1 bg-gray-800 rounded transition-colors">{players.every(p => p.isAdmin) ? "Unselect All Admins" : "Select All Admins"}</button>
+              )}
+              <button type="button" onClick={handleAddPlayer} className="text-xs font-bold text-pink-400 hover:text-pink-300 px-2 py-1 bg-pink-900/30 rounded transition-colors">+ Add Player</button>
+            </div>
           </div>
           
           <div className="space-y-2">

@@ -45,20 +45,21 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
 
   const handleBulkDelete = async () => {
     if (selectedScoreIds.size === 0) return;
-    if (confirm(`Are you sure you want to delete ${selectedScoreIds.size} score(s)?`)) {
-      setIsDeleting(true);
-      const res = await deleteScores(Array.from(selectedScoreIds));
-      setIsDeleting(false);
-      if (res?.error) alert(res.error);
-      else {
-        setIsBulkDeleteMode(false);
-        setSelectedScoreIds(new Set());
-      }
+    setIsDeleting(true);
+    const res = await deleteScores(Array.from(selectedScoreIds));
+    setIsDeleting(false);
+    if (res?.error) alert(res.error);
+    else {
+      setIsBulkDeleteMode(false);
+      setSelectedScoreIds(new Set());
     }
   };
 
   // Sort chronologically (newest first) to accurately show improvement over time
   const sortedHistory = [...playerData.history].sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+
+  const validScoreIds = sortedHistory.map((p) => p.id).filter(Boolean) as string[];
+  const isAllSelected = selectedScoreIds.size === validScoreIds.length && validScoreIds.length > 0;
 
   const isAdmin = currentUserRole === "CAPTAIN" || currentUserRole === "EDITOR";
   const isOwnScore = currentUserId && playerData.id.toString() === currentUserId;
@@ -114,6 +115,16 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
               {isBulkDeleteMode ? "Cancel Deletion" : "Select & Delete Scores"}
             </button>
             {isBulkDeleteMode && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (isAllSelected) setSelectedScoreIds(new Set());
+                  else setSelectedScoreIds(new Set(validScoreIds));
+                }}
+                className="text-xs px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-white font-medium transition-colors"
+              >
+                {isAllSelected ? "Deselect All" : "Select All"}
+              </button>
               <button
                 onClick={handleBulkDelete}
                 disabled={selectedScoreIds.size === 0 || isDeleting}
@@ -121,6 +132,7 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
               >
                 {isDeleting ? "Deleting..." : `Delete Selected (${selectedScoreIds.size})`}
               </button>
+            </div>
             )}
           </div>
         )}
