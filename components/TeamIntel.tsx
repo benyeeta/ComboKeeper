@@ -58,7 +58,10 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
     let safePick = { id: "", dev: Infinity };
     let coinflipPick = { id: "", dev: 0 };
 
-      let mapStats: { id: string, avg: number, plays: number, dev: number }[] = [];
+    let mapStats: { id: string, avg: number, plays: number, dev: number }[] = [];
+    
+    let sumBuffs = 0;
+    let mapsWithBoth = 0;
 
     stageScores.forEach(mapData => {
       let playerAveragesTotal = 0;
@@ -66,6 +69,11 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
       let topScores: number[] = [];
       let allMapScores: number[] = [];
       let totalPlaysForMap = 0;
+
+      let mapMatchScore = 0;
+      let mapMatchPlays = 0;
+      let mapPracticeScore = 0;
+      let mapPracticePlays = 0;
 
       mapData.players.forEach(p => {
         let maxForPlayer = 0;
@@ -76,8 +84,16 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
           pTotal += h.score;
           pCount += 1;
           totalPlays += 1;
-            totalPlaysForMap += 1;
+          totalPlaysForMap += 1;
           allMapScores.push(h.score);
+
+          if (h.scoreType === 'MATCH') {
+            mapMatchScore += h.score;
+            mapMatchPlays += 1;
+          } else if (!h.scoreType || h.scoreType === 'PRACTICE') {
+            mapPracticeScore += h.score;
+            mapPracticePlays += 1;
+          }
 
           if (h.score > maxForPlayer) maxForPlayer = h.score;
 
@@ -93,6 +109,13 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
           playersWithScoresCount += 1;
         }
       });
+
+      if (mapMatchPlays > 0 && mapPracticePlays > 0) {
+        const mAvg = mapMatchScore / mapMatchPlays;
+        const pAvg = mapPracticeScore / mapPracticePlays;
+        sumBuffs += (mAvg - pAvg);
+        mapsWithBoth++;
+      }
 
       const avg = playersWithScoresCount > 0 ? playerAveragesTotal / playersWithScoresCount : 0;
       if (avg > bestMap.avg) bestMap = { id: mapData.mapId, avg };
@@ -121,6 +144,11 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
       mapStats.push({ id: mapData.mapId, avg, plays: totalPlaysForMap, dev: currentStdDev });
     });
 
+    let matchPerformance = null;
+    if (mapsWithBoth > 0) {
+      matchPerformance = { buff: sumBuffs / mapsWithBoth };
+    }
+
     const avgStdDev = stdDevCount > 0 ? totalStdDev / stdDevCount : null;
     let playstyle = null;
     if (avgStdDev !== null) {
@@ -141,11 +169,12 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
       playstyle,
       safePick: safePick.dev < Infinity ? safePick : null,
       coinflipPick: coinflipPick.dev > 0 ? coinflipPick : null,
-        mapsToPractice: mapsToPractice.length > 0 ? mapsToPractice : null,
+      mapsToPractice: mapsToPractice.length > 0 ? mapsToPractice : null,
+      matchPerformance,
     };
   }, [allScores, selectedStage]);
 
-  if (!intel || (!intel.fortress && !intel.achilles && intel.nightOwls === 0 && !intel.hiveMind && !intel.playstyle && !intel.safePick && !intel.coinflipPick && !intel.mapsToPractice)) {
+  if (!intel || (!intel.fortress && !intel.achilles && intel.nightOwls === 0 && !intel.hiveMind && !intel.playstyle && !intel.safePick && !intel.coinflipPick && !intel.mapsToPractice && !intel.matchPerformance)) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-8 text-center transition-colors duration-200">
         <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Not enough data</h3>
@@ -295,6 +324,17 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
               <span className="text-blue-600 dark:text-blue-400 font-bold mb-1">The Night Owls</span>
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 {intel.nightOwls.toFixed(1)}% of the team's scores are set between 12 AM and 5 AM. Remember to rest before matches!
+              </span>
+            </div>
+          )}
+
+          {intel.matchPerformance && (
+            <div className={`p-4 rounded border flex flex-col shadow-sm ${intel.matchPerformance.buff > 0 ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800/50' : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800/50'}`}>
+              <span className={`font-bold mb-1 ${intel.matchPerformance.buff > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                {intel.matchPerformance.buff > 0 ? 'Tournament Buff' : 'Tournament Nerves'}
+              </span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                The team averages <span className="font-semibold">{intel.matchPerformance.buff > 0 ? '+' : ''}{Math.round(intel.matchPerformance.buff).toLocaleString()}</span> points {intel.matchPerformance.buff > 0 ? 'higher' : 'lower'} in official matches compared to practice.
               </span>
             </div>
           )}

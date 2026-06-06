@@ -178,8 +178,8 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
 
   if (!mapScoreData || mapScoreData.players.length === 0) {
     return (
-      <div className="hidden md:flex items-center gap-2">
-        <p className="text-xs text-gray-500">No Lineup Data</p>
+      <div className="hidden md:flex items-center justify-end w-[280px] lg:w-[360px] xl:w-[420px]">
+        <p className="text-sm text-gray-500 italic pr-2">No Lineup Data</p>
       </div>
     );
   }
@@ -295,19 +295,19 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
   }
 
   return (
-    <div className="hidden md:flex items-center gap-2">
+    <div className="hidden md:grid grid-cols-3 gap-2 w-[280px] lg:w-[360px] xl:w-[420px]">
       {topPlayers.map((player) => (
-        <div key={player.id} className="flex items-center gap-1.5 bg-white dark:bg-gray-800 px-1.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+        <div key={player.id} className="flex items-center gap-2">
           <Image
             src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
             alt={player.username}
-            width={20}
-            height={20}
-            className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 object-cover"
+            width={24}
+            height={24}
+            className="w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"
           />
-          <span className="text-xs text-gray-700 dark:text-gray-300 font-medium pr-1 max-w-[80px] truncate">{player.username}</span>
-          {player.assignedMod && (player.assignedMod !== 'NM' || mapMod === 'MM' || mapMod === 'FM') && (
-            <span className={`text-[9px] font-bold px-1 rounded border ${
+          <span className="text-sm text-gray-800 dark:text-gray-200 font-semibold truncate">{player.username}</span>
+          {player.assignedMod && (mapMod === 'MM' || mapMod === 'FM') && (
+            <span className={`text-[10px] font-bold px-1 rounded border flex-shrink-0 ${
               player.assignedMod.includes('HD') ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
               player.assignedMod.includes('EZ') || player.assignedMod.includes('FL') ? 'bg-purple-900/50 text-purple-300 border-purple-800' :
               player.assignedMod.includes('DT') || player.assignedMod.includes('NC') ? 'bg-blue-900/50 text-blue-300 border-blue-800' :

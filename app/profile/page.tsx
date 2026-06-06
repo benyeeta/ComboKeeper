@@ -91,10 +91,26 @@ async function ProfileContent() {
   const tbScores = player.scores.filter(s => s.mappoolMap?.mod === "TB" && s.scoreType === "MATCH");
   const tbAvg = tbScores.length > 0 ? tbScores.reduce((a, b) => a + b.score, 0) / tbScores.length : null;
 
-  const practiceScores = player.scores.filter(s => s.scoreType === "PRACTICE" || !s.scoreType);
-  const practiceAvg = practiceScores.length > 0 ? practiceScores.reduce((a, b) => a + b.score, 0) / practiceScores.length : null;
-  const matchAvg = matchScores.length > 0 ? matchScores.reduce((a, b) => a + b.score, 0) / matchScores.length : null;
-  const tournamentBuff = (matchAvg !== null && practiceAvg !== null) ? matchAvg - practiceAvg : null;
+  let sumBuffs = 0;
+  let mapsWithBoth = 0;
+  const mapScoresGrouped: Record<string, { practice: number[], match: number[] }> = {};
+  
+  player.scores.forEach(s => {
+    if (!mapScoresGrouped[s.mappoolMapId]) mapScoresGrouped[s.mappoolMapId] = { practice: [], match: [] };
+    if (s.scoreType === "MATCH") mapScoresGrouped[s.mappoolMapId].match.push(s.score);
+    else if (!s.scoreType || s.scoreType === "PRACTICE") mapScoresGrouped[s.mappoolMapId].practice.push(s.score);
+  });
+
+  for (const data of Object.values(mapScoresGrouped)) {
+    if (data.practice.length > 0 && data.match.length > 0) {
+      const pAvg = data.practice.reduce((a, b) => a + b, 0) / data.practice.length;
+      const mAvg = data.match.reduce((a, b) => a + b, 0) / data.match.length;
+      sumBuffs += (mAvg - pAvg);
+      mapsWithBoth++;
+    }
+  }
+
+  const tournamentBuff = mapsWithBoth > 0 ? sumBuffs / mapsWithBoth : null;
 
   const mapScores: Record<string, number[]> = {};
   player.scores.forEach(s => {
@@ -224,10 +240,11 @@ async function ProfileContent() {
                 <span className="text-sm text-gray-700 dark:text-gray-300">Averages {Math.round(tbAvg).toLocaleString()} on Tiebreakers during matches.</span>
               </div>
             )}
-            {tournamentBuff !== null && tournamentBuff > 0 && (
+            {tournamentBuff !== null && (
               <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
-                <span className="text-green-500 font-bold mb-1">Tournament Buff</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Scores are +{Math.round(tournamentBuff).toLocaleString()} higher in matches vs practice.</span>
+                <span className={`font-bold mb-1 ${tournamentBuff > 0 ? 'text-green-500' : 'text-red-400'}`}>{tournamentBuff > 0 ? 'Tournament Buff' : 'Tournament Nerves'}</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300">Averages <span className="font-semibold">{tournamentBuff > 0 ? '+' : ''}{Math.round(tournamentBuff).toLocaleString()}</span> points {tournamentBuff > 0 ? 'higher' : 'lower'} in official matches vs practice.
+            </span>
               </div>
             )}
             {metronomeMap && (
@@ -242,7 +259,7 @@ async function ProfileContent() {
                 <span className="text-sm text-gray-700 dark:text-gray-300">Has achieved 100% accuracy {ssCount} time{ssCount > 1 ? 's' : ''}.</span>
               </div>
             )}
-            {!bestSkill && tbAvg === null && (tournamentBuff === null || tournamentBuff <= 0) && !metronomeMap && ssCount === 0 && (
+        {!bestSkill && tbAvg === null && tournamentBuff === null && !metronomeMap && ssCount === 0 && (
               <p className="text-sm text-gray-500 col-span-full">Play more maps and matches to earn personal trophies!</p>
             )}
           </div>

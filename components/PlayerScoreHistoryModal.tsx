@@ -167,8 +167,8 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
                         +{play.playedMod}
                       </span>
                     )}
-                    {play.matchId && (
-                      <a href={`https://osu.ppy.sh/community/matches/${play.matchId}`} target="_blank" rel="noopener noreferrer" className="ml-2 text-gray-500 hover:text-pink-400 transition-colors" title="View osu! MP Link">
+                    {(play as any).matchId && (
+                      <a href={`https://osu.ppy.sh/community/matches/${(play as any).matchId}`} target="_blank" rel="noopener noreferrer" className="ml-2 text-gray-500 hover:text-pink-400 transition-colors" title="View osu! MP Link">
                         <svg className="w-4 h-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </a>
                     )}
