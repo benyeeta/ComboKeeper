@@ -23,6 +23,8 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
   useEffect(() => {
     if (isOpen) {
       setFeedback(null);
+      setDbFile(null);
+      setUrl("");
     }
   }, [isOpen]);
 
@@ -124,7 +126,7 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
         return (
           <form onSubmit={handleDbImport} className="space-y-4">
             <p className="text-sm text-gray-400">
-              Drag and drop your osu! `scores.db` file to import all relevant solo plays. This is processed locally in your browser.
+              Drag and drop your osu! <code>scores.db</code> file to import all relevant solo plays. This is processed locally in your browser.
             </p>
 
             {feedback && (
@@ -141,16 +143,32 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
               }`}
             >
               <input type="file" accept=".db" onChange={(e) => setDbFile(e.target.files?.[0] || null)} className="hidden" id="db-file-upload" />
-              <label htmlFor="db-file-upload" className="cursor-pointer text-center w-full">
-                {dbFile ? (
+               {dbFile ? (
+                <div className="flex items-center gap-3">
                   <p className="text-pink-400 font-semibold">{dbFile.name}</p>
-                ) : (
-                  <>
-                    <p className="mt-1 text-sm text-gray-400"><span className="font-semibold text-blue-400">Upload a file</span> or drag and drop</p>
-                    <p className="text-xs text-gray-500">scores.db</p>
-                  </>
-                )}
-              </label>
+                  <button 
+                    type="button" 
+                    onClick={() => { 
+                      setDbFile(null); 
+                      const input = document.getElementById('db-file-upload') as HTMLInputElement;
+                      if (input) input.value = '';
+                    }} 
+                    className="text-pink-400 hover:text-pink-300 p-1 bg-pink-900/30 rounded-full transition-colors"
+                    title="Remove file"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              ) : (
+                <label htmlFor="db-file-upload" className="cursor-pointer text-center w-full">
+                  <p className="mt-1 text-sm text-gray-400"><span className="font-semibold text-blue-400">Upload a file</span> or drag and drop</p>
+                  <p className="text-xs text-gray-500">scores.db</p>
+                </label>
+              )}
+            </div>
+            <div className="text-xs text-gray-400 bg-gray-800/50 p-3 rounded-md border border-gray-700/50 space-y-1.5">
+              <p><strong className="text-gray-300 font-medium">Default Location:</strong> <code className="bg-gray-900 px-1 py-0.5 rounded border border-gray-700 select-all">%localappdata%\osu!\scores.db</code></p>
+              <p><strong className="text-gray-300 font-medium">Missing Scores?</strong> osu! updates this file periodically. Return to the main menu or close the game to force it to save your newest plays before uploading.</p>
             </div>
             <div className="space-y-2 mb-2">
                <label className="block text-sm font-medium text-gray-300">Score Type</label>

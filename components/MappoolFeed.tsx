@@ -207,7 +207,7 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
       return {
         ...p,
         _score: bestModPlay ? bestModPlay.score : (fallbackPlay?.score || 0),
-        assignedMod: bestModPlay ? bestModPlay.playedMod : (fallbackPlay?.playedMod || 'NM')
+        assignedMod: (bestModPlay ? bestModPlay.playedMod : fallbackPlay?.playedMod) || 'NM'
       };
     });
 

@@ -855,6 +855,7 @@ export async function importDbScores(formData: FormData) {
   const scoresToInsert = [];
   let matchedMapsCount = 0;
   let matchedMapScoresCount = 0;
+  let matchedPlayerScoresCount = 0;
 
   // Fetch existing scores to prevent duplicates
   const existingScores = await prisma.score.findMany({
@@ -908,6 +909,7 @@ export async function importDbScores(formData: FormData) {
           const normalizedName = playerName.toLowerCase().replace(/[_ ]/g, '');
           const playerId = usernameToPlayerId.get(normalizedName);
           if (playerId) {
+            matchedPlayerScoresCount++;
             let accuracy = 0;
             if (mode === 0) { // Standard
               const totalHits = n300 + n100 + n50 + nMiss;
@@ -961,6 +963,7 @@ export async function importDbScores(formData: FormData) {
 
   if (scoresToInsert.length === 0) {
     if (matchedMapsCount === 0) return { error: "No scores found. None of your local scores match the API checksums of the maps in this tournament." };
+    if (matchedPlayerScoresCount > 0) return { error: "No new scores found. All your local scores for this mappool have already been imported!" };
     if (matchedMapScoresCount > 0) return { error: `Found ${matchedMapScoresCount} local scores for the mappool, but your local player name doesn't match anyone on the active team roster!` };
     return { error: "No solo scores found for this tournament's mappool." };
   }
