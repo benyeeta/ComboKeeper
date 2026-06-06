@@ -49,7 +49,15 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
     })
   ]);
 
-  if (!tournament) return { mappool: {}, allScores: [], activeTournament: null, stages: [], allTournaments };
+  const mappedAllTournaments = allTournaments.map(t => ({
+    id: t.id,
+    name: t.name,
+    acronym: t.acronym,
+    isCompleted: t.isCompleted,
+    isKeeper: isAdmin || t.keepers.some(k => k.playerId === userId)
+  }));
+
+  if (!tournament) return { mappool: {}, allScores: [], activeTournament: null, stages: [], allTournaments: mappedAllTournaments };
 
   const isKeeper = isAdmin || tournament.keepers.some(k => k.playerId === userId);
   const userTeam = tournament.teams[0]?.team;
@@ -117,14 +125,6 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       }
     }
   }
-
-  const mappedAllTournaments = allTournaments.map(t => ({
-    id: t.id,
-    name: t.name,
-    acronym: t.acronym,
-    isCompleted: t.isCompleted,
-    isKeeper: isAdmin || t.keepers.some(k => k.playerId === userId)
-  }));
 
   return { 
     mappool, 
