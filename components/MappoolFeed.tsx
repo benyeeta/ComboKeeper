@@ -117,13 +117,11 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
     );
   }
 
-  let topPlayers: { id: number; username: string; avatarUrl: string; assignedMod?: string; history: any[] }[] = [];
+  let topPlayers: { id: number; username: string; avatarUrl: string; assignedMod?: string; history: any[]; _score?: number }[] = [];
 
-  if (mapMod === "FM" || mapMod === "MM") {
+  if (mapMod === "MM") {
     // Evaluate the optimal permutation of players for the standard HD, HR, and NM meta
     const requiredMods = ['HD', 'HR', 'NM'];
-    const numToAssign = Math.min(requiredMods.length, mapScoreData.players.length);
-    const modsToUse = requiredMods.slice(0, numToAssign);
 
     let bestLineup: any[] = [];
     let maxTotal = -1;
@@ -136,9 +134,22 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
       return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
     };
 
+    // Pad players to ensure we can always evaluate assigning all 3 required mods, even if the team has < 3 players currently.
+    // This prevents forcing HD/HR on teams with only 1-2 players and allows the algorithm to pick the best mods (e.g. NM/HD).
+    const playersToEvaluate = [...mapScoreData.players];
+    let dummyIdCounter = -1;
+    while (playersToEvaluate.length < 3) {
+      playersToEvaluate.push({
+        id: dummyIdCounter--,
+        username: "Dummy",
+        avatarUrl: "",
+        history: []
+      });
+    }
+
     // Pre-calculate best scores to ensure the recursive search remains instantly fast
     const playerBestScores = new Map();
-    for (const p of mapScoreData.players) {
+    for (const p of playersToEvaluate) {
       playerBestScores.set(p.id, {
         HD: getBestScore(p, 'HD'),
         HR: getBestScore(p, 'HR'),
@@ -147,19 +158,29 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
     }
 
     const findBestAssignment = (modIndex: number, currentAssignment: any[], currentScore: number, usedPlayers: Set<number>) => {
-      if (modIndex === modsToUse.length) {
+      if (modIndex === requiredMods.length) {
         if (currentScore > maxTotal) {
           maxTotal = currentScore;
           bestLineup = [...currentAssignment];
         }
         return;
       }
-      const reqMod = modsToUse[modIndex];
-      for (const p of mapScoreData.players) {
+      const reqMod = requiredMods[modIndex];
+      for (const p of playersToEvaluate) {
         if (!usedPlayers.has(p.id)) {
           const score = playerBestScores.get(p.id)[reqMod];
           usedPlayers.add(p.id);
-          currentAssignment.push({ ...p, assignedMod: reqMod, _score: score });
+          
+          let displayMod = reqMod;
+          let displayScore = score;
+          
+          if (score === 0) {
+            const fallbackPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : null;
+            displayMod = fallbackPlay?.playedMod || 'NM';
+            displayScore = fallbackPlay?.score || 0;
+          }
+
+          currentAssignment.push({ ...p, assignedMod: displayMod, _score: displayScore });
           findBestAssignment(modIndex + 1, currentAssignment, currentScore + score, usedPlayers);
           currentAssignment.pop();
           usedPlayers.delete(p.id);
@@ -170,18 +191,39 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
     findBestAssignment(0, [], 0, new Set());
 
     if (maxTotal > 0) {
-      topPlayers = bestLineup.sort((a, b) => b._score - a._score);
+      topPlayers = bestLineup
+        .filter(p => p.id >= 0) // Remove dummy players (real players have positive IDs from the database)
+        .sort((a, b) => b._score - a._score);
+    }
+  } else if (mapMod === "FM") {
+    // Because FM rules vary wildly, we just show each player's absolute best non-NM score 
+    // to give the captain a quick overview of who plays what mod the best.
+    const playerBestModScores = mapScoreData.players.map((p) => {
+      const modPlays = p.history.filter((h: any) => h.playedMod && h.playedMod !== 'NM');
+      const bestModPlay = modPlays.length > 0 ? modPlays.reduce((a, b) => (a.score > b.score ? a : b)) : null;
+      
+      const fallbackPlay = p.history.length > 0 ? p.history.reduce((a, b) => (a.score > b.score ? a : b)) : null;
+
+      return {
+        ...p,
+        _score: bestModPlay ? bestModPlay.score : (fallbackPlay?.score || 0),
+        assignedMod: bestModPlay ? bestModPlay.playedMod : (fallbackPlay?.playedMod || 'NM')
+      };
+    });
+
+    if (playerBestModScores.some(p => p._score && p._score > 0)) {
+      topPlayers = playerBestModScores.sort((a, b) => (b._score || 0) - (a._score || 0)).slice(0, 3);
     }
   }
 
   // Fallback sorting if the map isn't Mixed/Free mod or no one has logged mod-specific scores yet
   if (topPlayers.length === 0) {
     topPlayers = [...mapScoreData.players]
-      .sort((a, b) => {
-        const topScoreA = Math.max(...a.history.map((h: any) => h.score), 0);
-        const topScoreB = Math.max(...b.history.map((h: any) => h.score), 0);
-        return topScoreB - topScoreA;
+      .map((p) => {
+        const bestPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : { score: 0, playedMod: 'NM' };
+        return { ...p, _score: bestPlay.score, assignedMod: bestPlay.playedMod || 'NM' };
       })
+      .sort((a, b) => (b._score || 0) - (a._score || 0))
       .slice(0, 3);
   }
 
@@ -197,9 +239,15 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
             className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 object-cover"
           />
           <span className="text-xs text-gray-700 dark:text-gray-300 font-medium pr-1 max-w-[80px] truncate">{player.username}</span>
-          {player.assignedMod && player.assignedMod !== 'NM' && (
-            <span className={`text-[9px] font-bold px-1 rounded border ${player.assignedMod === 'HD' ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 'bg-red-900/50 text-red-300 border-red-800'}`}>
-              +{player.assignedMod}
+          {player.assignedMod && (player.assignedMod !== 'NM' || mapMod === 'MM' || mapMod === 'FM') && (
+            <span className={`text-[9px] font-bold px-1 rounded border ${
+              player.assignedMod.includes('HD') ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
+              player.assignedMod.includes('EZ') || player.assignedMod.includes('FL') ? 'bg-purple-900/50 text-purple-300 border-purple-800' :
+              player.assignedMod.includes('DT') || player.assignedMod.includes('NC') ? 'bg-blue-900/50 text-blue-300 border-blue-800' :
+              player.assignedMod === 'NM' ? 'bg-gray-600 text-gray-100 border-gray-500' :
+              'bg-red-900/50 text-red-300 border-red-800'
+            }`}>
+              {player.assignedMod === 'NM' ? 'NM' : `+${player.assignedMod}`}
             </span>
           )}
         </div>
