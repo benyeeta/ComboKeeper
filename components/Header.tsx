@@ -4,10 +4,7 @@ import UserDropdown from '@/components/UserDropdown';
 import NotificationBell from '@/components/NotificationBell';
 import prisma from '@/lib/prisma';
 import { decrypt } from '@/lib/session';
-
-const navItems = [
-  { name: 'Dashboard', href: '/' },
-];
+import NavLinks from '@/components/NavLinks';
 
 export async function Header() {
   const cookieStore = await cookies();
@@ -36,17 +33,7 @@ export async function Header() {
         <Link href="/" className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
           Combo<span className="text-pink-500">Keeper</span>
         </Link>
-        <nav className="hidden md:flex items-center gap-4">
-          {navItems.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white rounded-md px-3 py-2 text-sm font-medium transition-colors"
-            >
-              {item.name}
-            </Link>
-          ))}
-        </nav>
+        <NavLinks />
       </div>
       <div className="flex items-center gap-4">
         {user ? (

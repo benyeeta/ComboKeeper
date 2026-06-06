@@ -15,7 +15,6 @@ import EditRosterModal from "@/components/EditRosterModal";
 import ManageTournamentModal from "@/components/ManageTournamentModal";
 import EditMappoolModal from "@/components/EditMappoolModal";
 import ManageTeamModal from "@/components/ManageTeamModal";
-import TeamIntel from "@/components/TeamIntel";
 
 type DashboardProps = {
   initialData: {
@@ -240,10 +239,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
               setSelectedStage={setSelectedStage}
             />
           </div>
-
-          {initialData.activeTournament.teamId && (
-            <TeamIntel allScores={initialData.allScores} />
-          )}
 
           <div className={`flex-grow mt-6 w-full transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
             <MappoolFeed
