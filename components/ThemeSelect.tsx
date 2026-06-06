@@ -21,8 +21,12 @@ export default function ThemeSelect({
     setTheme(newTheme);
     
     // Optimistically update the DOM immediately for an instant visual transition!
-    if (newTheme === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
+    document.documentElement.classList.remove("dark", "osu");
+    if (newTheme === "osu") {
+      document.documentElement.classList.add("dark", "osu");
+    } else if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    }
     
     // Tell the server to save the new cookie
     const formData = new FormData();
@@ -40,6 +44,7 @@ export default function ThemeSelect({
       >
         <option value="dark">Dark Mode</option>
         <option value="light">Light Mode</option>
+      <option value="osu">osu! Theme</option>
       </select>
     </div>
   );

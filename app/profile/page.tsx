@@ -112,6 +112,28 @@ async function ProfileContent() {
 
   const tournamentBuff = mapsWithBoth > 0 ? sumBuffs / mapsWithBoth : null;
 
+  let nightOwlCount = 0;
+  let employedCount = 0;
+  let totalTimeScores = 0;
+  let practiceCount = 0;
+  let matchCountForGhost = 0;
+
+  player.scores.forEach(s => {
+    if (s.scoreType === "MATCH") matchCountForGhost++;
+    else practiceCount++;
+
+    if (s.timestamp) {
+      const hour = new Date(s.timestamp).getHours();
+      if (hour >= 0 && hour < 5) nightOwlCount++;
+      if (hour >= 16 && hour < 23) employedCount++;
+      totalTimeScores++;
+    }
+  });
+
+  const isNightOwl = totalTimeScores >= 10 && (nightOwlCount / totalTimeScores) >= 0.7;
+  const isEmployed = totalTimeScores >= 10 && (employedCount / totalTimeScores) >= 0.7;
+  const isGhost = (practiceCount >= 50) && (practiceCount / (practiceCount + matchCountForGhost) >= 0.9);
+
   const mapScores: Record<string, number[]> = {};
   player.scores.forEach(s => {
     if (!mapScores[s.mappoolMapId]) mapScores[s.mappoolMapId] = [];
@@ -119,7 +141,13 @@ async function ProfileContent() {
   });
   let minVariance = Infinity;
   let metronomeMap = null;
+  let maxPlays = 0;
+  let clickerMapId = null;
   for (const [mapId, scores] of Object.entries(mapScores)) {
+    if (scores.length > maxPlays) {
+      maxPlays = scores.length;
+      clickerMapId = player.scores.find(s => s.mappoolMapId === mapId)?.mappoolMap?.mapId || mapId;
+    }
     if (scores.length >= 5) {
       const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
       const variance = scores.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / scores.length;
@@ -127,6 +155,7 @@ async function ProfileContent() {
       if (stdDev < minVariance) { minVariance = stdDev; metronomeMap = player.scores.find(s => s.mappoolMapId === mapId)?.mappoolMap; }
     }
   }
+  const isClickerTrained = maxPlays >= 45;
 
   const ssCount = player.scores.filter(s => s.accuracy === 100).length;
 
@@ -259,7 +288,31 @@ async function ProfileContent() {
                 <span className="text-sm text-gray-700 dark:text-gray-300">Has achieved 100% accuracy {ssCount} time{ssCount > 1 ? 's' : ''}.</span>
               </div>
             )}
-        {!bestSkill && tbAvg === null && tournamentBuff === null && !metronomeMap && ssCount === 0 && (
+            {isNightOwl && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-indigo-400 font-bold mb-1">The Night Owl</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">The moonlight powers their pen. Set 70%+ of their scores past midnight.</span>
+              </div>
+            )}
+            {isEmployed && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-amber-600 font-bold mb-1">The Employed</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Clocked out and logged in. Set 70%+ of their scores during prime after-work hours.</span>
+              </div>
+            )}
+            {isClickerTrained && clickerMapId && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-orange-500 font-bold mb-1">Clicker Trained</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Responds perfectly to repetitive conditioning. Logged {maxPlays} attempts on {clickerMapId}.</span>
+              </div>
+            )}
+            {isGhost && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-gray-400 font-bold mb-1">The Ghost</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Grinds in absolute silence. 90%+ of scores logged in solo offline practice.</span>
+              </div>
+            )}
+            {!bestSkill && tbAvg === null && tournamentBuff === null && !metronomeMap && ssCount === 0 && !isNightOwl && !isEmployed && !isClickerTrained && !isGhost && (
               <p className="text-sm text-gray-500 col-span-full">Play more maps and matches to earn personal trophies!</p>
             )}
           </div>

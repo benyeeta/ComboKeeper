@@ -47,6 +47,7 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
 
     let bestMap = { id: "", avg: 0 };
     let worstMap = { id: "", avg: Infinity };
+    let highestMinMap = { id: "", min: 0 };
     let nightOwlPlays = 0;
     let totalPlays = 0;
     
@@ -127,6 +128,9 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
         if (spread < closestMap.spread) {
           closestMap = { id: mapData.mapId, spread };
         }
+        
+        const mapMin = Math.min(...topScores);
+        if (mapMin > highestMinMap.min) highestMinMap = { id: mapData.mapId, min: mapMin };
       }
 
         let currentStdDev = 0;
@@ -162,10 +166,10 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
         .slice(0, 3);
 
     return {
-      fortress: bestMap.avg > 0 ? bestMap : null,
+      fortress: highestMinMap.min > 0 ? highestMinMap : null,
       achilles: worstMap.avg < Infinity ? worstMap : null,
       nightOwls: totalPlays > 0 ? (nightOwlPlays / totalPlays) * 100 : 0,
-      hiveMind: closestMap.spread < Infinity ? closestMap : null,
+      hiveMind: closestMap.spread <= 20000 ? closestMap : null,
       playstyle,
       safePick: safePick.dev < Infinity ? safePick : null,
       coinflipPick: coinflipPick.dev > 0 ? coinflipPick : null,
@@ -182,6 +186,8 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
       </div>
     );
   }
+
+  const isQualifier = selectedStage.toLowerCase().includes('qual');
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-4 transition-colors duration-200">
@@ -228,47 +234,49 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
           </div>
         )}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 ${isQualifier ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-6`}>
         {/* Picks & Bans */}
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">What to Pick & Avoid</h3>
-          
-          {intel.fortress && (
-            <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded border border-green-200 dark:border-green-800/50 flex flex-col shadow-sm">
-              <span className="text-green-600 dark:text-green-400 font-bold mb-1">The Fortress (Auto-Pick)</span>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-semibold">{intel.fortress.id}</span> is the team's best map, averaging {Math.round(intel.fortress.avg).toLocaleString()}.
-              </span>
-            </div>
-          )}
-          
-          {intel.safePick && (
-            <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded border border-emerald-200 dark:border-emerald-800/50 flex flex-col shadow-sm">
-              <span className="text-emerald-600 dark:text-emerald-400 font-bold mb-1">The Safe Pick</span>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-semibold">{intel.safePick.id}</span> has the lowest variance. Scores only fluctuate by ±{Math.round(intel.safePick.dev).toLocaleString()}.
-              </span>
-            </div>
-          )}
+        {!isQualifier && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">What to Pick & Avoid</h3>
+            
+            {intel.fortress && (
+              <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded border border-green-200 dark:border-green-800/50 flex flex-col shadow-sm">
+                <span className="text-green-600 dark:text-green-400 font-bold mb-1">The Comfort Pick (The Fortress)</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  A guaranteed point. The lowest team score on <span className="font-semibold">{intel.fortress.id}</span> is still {Math.round(intel.fortress.min).toLocaleString()}.
+                </span>
+              </div>
+            )}
+            
+            {intel.safePick && (
+              <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded border border-emerald-200 dark:border-emerald-800/50 flex flex-col shadow-sm">
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold mb-1">The Safe Pick</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold">{intel.safePick.id}</span> has the lowest variance. Scores only fluctuate by ±{Math.round(intel.safePick.dev).toLocaleString()}.
+                </span>
+              </div>
+            )}
 
-          {intel.achilles && (
-            <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded border border-red-200 dark:border-red-800/50 flex flex-col shadow-sm">
-              <span className="text-red-600 dark:text-red-400 font-bold mb-1">Achilles' Heel (Auto-Ban)</span>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-semibold">{intel.achilles.id}</span> is the team's weakest map, averaging only {Math.round(intel.achilles.avg).toLocaleString()}.
-              </span>
-            </div>
-          )}
+            {intel.achilles && (
+              <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded border border-red-200 dark:border-red-800/50 flex flex-col shadow-sm">
+                <span className="text-red-600 dark:text-red-400 font-bold mb-1">The Veto Target (Achilles' Heel)</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Statistically the worst map. Average score: {Math.round(intel.achilles.avg).toLocaleString()}. Ban immediately.
+                </span>
+              </div>
+            )}
 
-          {intel.coinflipPick && intel.coinflipPick.dev > 50000 && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded border border-yellow-200 dark:border-yellow-800/50 flex flex-col shadow-sm">
-              <span className="text-yellow-600 dark:text-yellow-400 font-bold mb-1">The Coinflip Pick (Risky)</span>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-semibold">{intel.coinflipPick.id}</span> is highly volatile. Scores fluctuate wildly by ±{Math.round(intel.coinflipPick.dev).toLocaleString()}.
-              </span>
-            </div>
-          )}
-        </div>
+            {intel.coinflipPick && intel.coinflipPick.dev > 50000 && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded border border-yellow-200 dark:border-yellow-800/50 flex flex-col shadow-sm">
+                <span className="text-yellow-600 dark:text-yellow-400 font-bold mb-1">The Coinflip Pick (Risky)</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold">{intel.coinflipPick.id}</span> is highly volatile. Scores fluctuate wildly by ±{Math.round(intel.coinflipPick.dev).toLocaleString()}.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Maps to Practice */}
         <div className="flex flex-col gap-3">
@@ -296,7 +304,7 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
             <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded border border-purple-200 dark:border-purple-800/50 flex flex-col shadow-sm">
               <span className="text-purple-600 dark:text-purple-400 font-bold mb-1">The Hive Mind</span>
               <span className="text-sm text-gray-700 dark:text-gray-300">
-                Top 3 players are incredibly close on <span className="font-semibold">{intel.hiveMind.id}</span> (±{Math.round(intel.hiveMind.spread).toLocaleString()} spread).
+                Terrifyingly synchronized. Top 3 players are within {Math.round(intel.hiveMind.spread).toLocaleString()} points of each other on <span className="font-semibold">{intel.hiveMind.id}</span>.
               </span>
             </div>
           )}
@@ -305,16 +313,16 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
             <div className="bg-teal-50 dark:bg-teal-900/30 p-4 rounded border border-teal-200 dark:border-teal-800/50 flex flex-col shadow-sm">
               <span className="text-teal-600 dark:text-teal-400 font-bold mb-1">Consistent Performers</span>
               <span className="text-sm text-gray-700 dark:text-gray-300">
-                Extremely stable performance. Scores only fluctuate by an average of ±{Math.round(intel.playstyle.dev).toLocaleString()} points.
+                Statistically unshakable. Team-wide score variance is minimal (±{Math.round(intel.playstyle.dev).toLocaleString()}).
               </span>
             </div>
           )}
 
           {intel.playstyle && intel.playstyle.type === 'COINFLIP' && (
             <div className="bg-orange-50 dark:bg-orange-900/30 p-4 rounded border border-orange-200 dark:border-orange-800/50 flex flex-col shadow-sm">
-              <span className="text-orange-600 dark:text-orange-400 font-bold mb-1">High Risk, High Reward</span>
+              <span className="text-orange-600 dark:text-orange-400 font-bold mb-1">High Risk, High Reward (The Coinflip Team)</span>
               <span className="text-sm text-gray-700 dark:text-gray-300">
-                Overall scores fluctuate wildly by an average of ±{Math.round(intel.playstyle.dev).toLocaleString()} points. Try to stabilize averages.
+                Pure chaos. Either FCing the map or failing out entirely (±{Math.round(intel.playstyle.dev).toLocaleString()}).
               </span>
             </div>
           )}
