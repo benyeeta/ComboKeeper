@@ -126,7 +126,9 @@ export default function ManageTournamentModal({
   
           <div className="mb-6 pb-6 border-b border-gray-700">
             <h3 className="text-sm font-semibold text-gray-300 mb-3">Edit Details</h3>
-            <form action={async (formData) => {
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.currentTarget);
               setIsSubmitting(true);
               const res = await updateTournamentDetails(formData);
               setIsSubmitting(false);

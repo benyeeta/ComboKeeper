@@ -42,7 +42,9 @@ export default function ManageTeamModal({
 
         <div>
           <h3 className="text-sm font-semibold text-gray-300 mb-3">Team Placement</h3>
-          <form action={async (formData) => {
+          <form onSubmit={async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
             setIsSubmitting(true);
             await updateTeamPlacement(formData);
             setIsSubmitting(false);

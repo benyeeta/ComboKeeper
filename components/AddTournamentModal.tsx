@@ -61,7 +61,9 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
           </div>
         )}
 
-        <form action={async (formData) => {
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
           setError("");
           setIsSubmitting(true);
           

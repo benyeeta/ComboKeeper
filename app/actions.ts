@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { decrypt } from "@/lib/session";
 import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
 import { ratelimit } from "@/lib/ratelimit";
@@ -775,7 +775,7 @@ export async function importMatchScores(url: string, tournamentId: string, score
               }
         }
 
-        scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId, timestamp: playDate });
+        scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId, timestamp: playDate, matchId });
         existingSet.add(uniqueKey);
       }
     }
@@ -1324,11 +1324,13 @@ export async function submitFeedback(formData: FormData) {
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
 
-  if (currentUser) {
-    const { success } = await ratelimit.limit(`feedback_${currentUser.id}`);
-    if (!success) {
-      return { error: "You are submitting feedback too fast. Please wait." };
-    }
+  const headersList = await headers();
+  const ip = headersList.get("x-forwarded-for") || "anonymous";
+  const identifier = currentUser ? `feedback_${currentUser.id}` : `feedback_ip_${ip}`;
+
+  const { success } = await ratelimit.limit(identifier);
+  if (!success) {
+    return { error: "You are submitting feedback too fast. Please wait." };
   }
 
   const webhookUrl = process.env.FEEDBACK_WEBHOOK_URL;

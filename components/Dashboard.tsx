@@ -283,7 +283,10 @@ export default function Dashboard({ initialData }: DashboardProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
           <h2 className="text-xl font-semibold text-gray-400 mb-2">No Tournament Selected</h2>
-          <p className="max-w-md">You aren't currently viewing any tournaments. Select an existing tournament from the dropdown above, or click "+ Add" to create a new one.</p>
+          <p className="max-w-md mb-6">You aren't currently viewing any tournaments. Select an existing tournament from the dropdown above, or create a new one.</p>
+          <button onClick={() => setIsAddTournamentOpen(true)} className="rounded-md bg-pink-600 px-6 py-2.5 font-bold text-white hover:bg-pink-700 transition-colors shadow-md">
+            + Create or Join Tournament
+          </button>
         </div>
       )}
   </div>;

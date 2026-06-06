@@ -65,7 +65,9 @@ export default function EditRosterModal({
           </div>
         )}
 
-        <form action={async (formData) => {
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
           setError("");
           setIsSubmitting(true);
           const result = await updateTeamRoster(formData);
