@@ -28,6 +28,14 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) {
     return null;
   }
@@ -73,7 +81,7 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
     const formData = new FormData();
     formData.append("file", dbFile);
     formData.append("tournamentId", tournamentId);
-    formData.append("scoreType", scoreType);
+    formData.append("scoreType", "PRACTICE");
 
     const res = await importDbScores(formData);
     if (res?.error) setFeedback({ type: "error", text: res.error });
@@ -108,8 +116,9 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
                <label className="block text-sm font-medium text-gray-300">Score Type</label>
                <select value={scoreType} onChange={(e) => setScoreType(e.target.value)} className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:outline-none">
                   <option value="MATCH">In-Match</option>
-                  <option value="QUALIFIER_1">Qualifier (Run 1)</option>
-                  <option value="QUALIFIER_2">Qualifier (Run 2)</option>
+                  <option value="QUALIFIER">Qualifier (Auto-detect Both Runs)</option>
+                  <option value="QUALIFIER_1">Qualifier (Run 1 Only)</option>
+                  <option value="QUALIFIER_2">Qualifier (Run 2 Only)</option>
                   <option value="PRACTICE">Practice</option>
                </select>
             </div>
@@ -170,15 +179,6 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
               <p><strong className="text-gray-300 font-medium">Default Location:</strong> <code className="bg-gray-900 px-1 py-0.5 rounded border border-gray-700 select-all">%localappdata%\osu!\scores.db</code></p>
               <p><strong className="text-gray-300 font-medium">Missing Scores?</strong> osu! updates this file periodically. Return to the main menu or close the game to force it to save your newest plays before uploading.</p>
             </div>
-            <div className="space-y-2 mb-2">
-               <label className="block text-sm font-medium text-gray-300">Score Type</label>
-               <select value={scoreType} onChange={(e) => setScoreType(e.target.value)} className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:outline-none">
-                  <option value="MATCH">In-Match</option>
-                  <option value="QUALIFIER_1">Qualifier (Run 1)</option>
-                  <option value="QUALIFIER_2">Qualifier (Run 2)</option>
-                  <option value="PRACTICE">Practice</option>
-               </select>
-            </div>
             <button disabled={isLoading || !dbFile} className="w-full rounded-md bg-pink-600 px-4 py-2 font-semibold text-white hover:bg-pink-700 disabled:opacity-50 mt-4">
               {isLoading ? "Importing..." : "Process Local File"}
             </button>
@@ -188,7 +188,10 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="w-full max-w-lg rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl">
         <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-bold">Import Scores</h2>
           <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">

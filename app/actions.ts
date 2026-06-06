@@ -76,6 +76,22 @@ export async function createTournament(formData: FormData) {
 
   const { name, acronym, format, rosterSize } = validatedFields.data;
 
+  const existingName = await prisma.tournament.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } }
+  });
+  if (existingName) {
+    return { error: `A tournament with the name "${name}" already exists.` };
+  }
+
+  if (acronym) {
+    const existingAcronym = await prisma.tournament.findFirst({
+      where: { acronym: { equals: acronym, mode: "insensitive" } }
+    });
+    if (existingAcronym) {
+      return { error: `A tournament with the acronym "${acronym}" already exists.` };
+    }
+  }
+
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
@@ -609,6 +625,25 @@ export async function updateTournamentDetails(formData: FormData) {
   const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
+  const allTournaments = await prisma.tournament.findMany({
+    where: { id: { not: tournamentId } },
+    select: { name: true, acronym: true }
+  });
+
+  const nameNormalized = name.trim().toLowerCase();
+  const existingName = allTournaments.find(t => t.name.trim().toLowerCase() === nameNormalized);
+  if (existingName) {
+    return { error: `A tournament with the name "${existingName.name}" already exists.` };
+  }
+
+  if (acronym) {
+    const acronymNormalized = acronym.trim().toLowerCase();
+    const existingAcronym = allTournaments.find(t => t.acronym?.trim().toLowerCase() === acronymNormalized);
+    if (existingAcronym) {
+      return { error: `A tournament with the acronym "${existingAcronym.acronym}" already exists.` };
+    }
+  }
+
   await prisma.tournament.update({
     where: { id: tournamentId },
     data: { name, acronym: acronym || null, format }
@@ -790,7 +825,7 @@ class OsuDbReader {
 export async function importDbScores(formData: FormData) {
   const file = formData.get("file") as File;
   const tournamentId = formData.get("tournamentId") as string;
-  const scoreType = formData.get("scoreType") as string;
+  const scoreType = "PRACTICE";
 
   if (!file || !tournamentId) return { error: "Missing required fields." };
 
@@ -1268,7 +1303,8 @@ export async function removeTournamentKeeper(tournamentId: string, playerId: num
   if (!auth.authorized) return { error: auth.error };
 
   const count = await prisma.tournamentKeeper.count({ where: { tournamentId } });
-  if (count <= 1) return { error: "Cannot remove the last tournament keeper." };
+  const isGlobalAdmin = process.env.ADMIN_OSU_ID && auth.currentUser?.id === Number(process.env.ADMIN_OSU_ID);
+  if (count <= 1 && !isGlobalAdmin) return { error: "Cannot remove the last tournament keeper." };
 
   await prisma.tournamentKeeper.delete({
     where: { tournamentId_playerId: { tournamentId, playerId } }

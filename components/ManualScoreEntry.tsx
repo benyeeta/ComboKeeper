@@ -43,6 +43,14 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
     }
   }, [isOpen, teamPlayers, isAdmin, currentUserId]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !map) {
     return null;
   }
@@ -107,7 +115,10 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">
@@ -151,8 +162,8 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
                   className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:ring-blue-500"
                 >
                   <option value="PRACTICE">Practice</option>
-                  <option value="QUALIFIER_1">Qualifier (Run 1)</option>
-                  <option value="QUALIFIER_2">Qualifier (Run 2)</option>
+                  <option value="QUALIFIER_1">Qualifier (Run 1 Only)</option>
+                  <option value="QUALIFIER_2">Qualifier (Run 2 Only)</option>
                   <option value="MATCH">In-Match</option>
                 </select>
              </div>

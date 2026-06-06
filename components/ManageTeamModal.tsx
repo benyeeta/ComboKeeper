@@ -1,7 +1,7 @@
 "use client";
 
 import { updateTeamPlacement } from "@/app/actions";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function ManageTeamModal({ 
   isOpen, 
@@ -19,6 +19,14 @@ export default function ManageTeamModal({
   placement?: string | null;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 

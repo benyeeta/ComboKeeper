@@ -41,7 +41,19 @@ type DashboardProps = {
 };
 
 export default function Dashboard({ initialData }: DashboardProps) {
-  const [selectedStage, setSelectedStage] = useState<string>(initialData.stages?.[0]?.name || "");
+  const getDefaultStage = (stages: { id: string; name: string }[], mappool: Record<string, MappoolMap[]>) => {
+    if (!stages || stages.length === 0) return "";
+    for (let i = stages.length - 1; i >= 0; i--) {
+      const stageName = stages[i].name;
+      if (mappool && mappool[stageName] && mappool[stageName].length > 0) {
+        return stageName;
+      }
+    }
+    return stages[0].name;
+  };
+
+  const [selectedStage, setSelectedStage] = useState<string>(() => getDefaultStage(initialData.stages, initialData.mappool));
+  const [currentTournamentId, setCurrentTournamentId] = useState(initialData.activeTournament?.id);
   const [selectedMap, setSelectedMap] = useState<MappoolMap | null>(null);
   const [isImportModalOpen, setisImportModalOpen] = useState(false);
   const [manualEntryMap, setManualEntryMap] = useState<MappoolMap | null>(null);
@@ -58,10 +70,13 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const participatingTournaments = initialData.allTournaments?.filter(t => !t.isKeeper) || [];
 
   useEffect(() => {
-    if (initialData.stages && !initialData.stages.find(s => s.name === selectedStage)) {
-      setSelectedStage(initialData.stages[0]?.name || "");
+    if (initialData.activeTournament?.id !== currentTournamentId) {
+      setCurrentTournamentId(initialData.activeTournament?.id);
+      setSelectedStage(getDefaultStage(initialData.stages, initialData.mappool));
+    } else if (initialData.stages && !initialData.stages.find(s => s.name === selectedStage)) {
+      setSelectedStage(getDefaultStage(initialData.stages, initialData.mappool));
     }
-  }, [initialData.stages, selectedStage]);
+  }, [initialData.activeTournament?.id, currentTournamentId, initialData.stages, selectedStage, initialData.mappool]);
 
   const handleAddStage = async () => {
     const name = prompt("Enter new stage name (e.g. Group Stage, Round of 16):");

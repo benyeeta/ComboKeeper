@@ -8,6 +8,7 @@ import { ScoreData } from "@/lib/types";
 
 type TeamHubClientProps = {
   initialData: {
+    mappool?: Record<string, any[]>;
     allScores: ScoreData[];
     activeTournament: any;
     stages: { id: string; name: string }[];
@@ -16,7 +17,22 @@ type TeamHubClientProps = {
 };
 
 export default function TeamHubClient({ initialData }: TeamHubClientProps) {
-  const [selectedStage, setSelectedStage] = useState<string>(initialData.stages?.[0]?.name || "");
+  const getDefaultStage = (stages: { id: string; name: string }[], mappool?: Record<string, any[]>, allScores?: ScoreData[]) => {
+    if (!stages || stages.length === 0) return "";
+    for (let i = stages.length - 1; i >= 0; i--) {
+      const stageName = stages[i].name;
+      if (mappool && mappool[stageName] && mappool[stageName].length > 0) {
+        return stageName;
+      }
+      if (allScores && allScores.some(s => s.stage === stageName)) {
+        return stageName;
+      }
+    }
+    return stages[0].name;
+  };
+
+  const [selectedStage, setSelectedStage] = useState<string>(() => getDefaultStage(initialData.stages, initialData.mappool, initialData.allScores));
+  const [currentTournamentId, setCurrentTournamentId] = useState(initialData.activeTournament?.id);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -24,10 +40,13 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
   const managedTournaments = initialData.allTournaments?.filter(t => t.isKeeper) || [];
 
   useEffect(() => {
-    if (initialData.stages && !initialData.stages.find(s => s.name === selectedStage)) {
-      setSelectedStage(initialData.stages[0]?.name || "");
+    if (initialData.activeTournament?.id !== currentTournamentId) {
+      setCurrentTournamentId(initialData.activeTournament?.id);
+      setSelectedStage(getDefaultStage(initialData.stages, initialData.mappool, initialData.allScores));
+    } else if (initialData.stages && !initialData.stages.find(s => s.name === selectedStage)) {
+      setSelectedStage(getDefaultStage(initialData.stages, initialData.mappool, initialData.allScores));
     }
-  }, [initialData.stages, selectedStage]);
+  }, [initialData.activeTournament?.id, currentTournamentId, initialData.stages, selectedStage, initialData.mappool, initialData.allScores]);
 
   return (
     <div className="max-w-7xl mx-auto w-full flex flex-col flex-grow mt-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState, useMemo } from "react";
 import { MappoolMap, Mod, ScoreData } from "@/lib/types";
 import AnalyticsPanel from "./AnalyticsPanel";
 
@@ -39,10 +40,76 @@ export default function MappoolFeed({
 }: MappoolFeedProps) {
   const currentMappool = mappool[stage] || [];
 
+  const [hiddenPlayerIds, setHiddenPlayerIds] = useState<Set<number>>(new Set());
+
+  const uniquePlayers = useMemo(() => {
+    const playersMap = new Map<number, any>();
+    allScores.filter(s => s.stage === stage).forEach(mapData => {
+      mapData.players.forEach(p => {
+        if (!playersMap.has(p.id)) playersMap.set(p.id, p);
+      });
+    });
+    return Array.from(playersMap.values());
+  }, [allScores, stage]);
+
+  const filteredScores = useMemo(() => {
+    if (hiddenPlayerIds.size === 0) return allScores;
+    return allScores.map(mapData => ({
+      ...mapData,
+      players: mapData.players.filter(p => !hiddenPlayerIds.has(p.id))
+    }));
+  }, [allScores, hiddenPlayerIds]);
+
+  const togglePlayer = (id: number) => {
+    setHiddenPlayerIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-4 flex flex-col gap-3 transition-colors duration-200">
-      <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">{stage ? `${stage} Mappool` : "Mappool"}</h2>
-      <p className="text-xs text-gray-500 dark:text-gray-400 -mt-2 mb-2">Click to view analytics, or use the + button to add a score.</p>
+      <div className="flex flex-col gap-1 mb-1">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{stage ? `${stage} Mappool` : "Mappool"}</h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Click to view analytics, or use the + button to add a score.</p>
+      </div>
+
+      {uniquePlayers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mr-1">Roster:</span>
+          {uniquePlayers.map(p => {
+            const isHidden = hiddenPlayerIds.has(p.id);
+            return (
+              <button
+                key={p.id}
+                onClick={() => togglePlayer(p.id)}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  isHidden 
+                    ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-100' 
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 shadow-sm hover:border-pink-400 dark:hover:border-pink-500'
+                }`}
+                title={isHidden ? `Click to include ${p.username}` : `Click to hide ${p.username}`}
+              >
+                <Image 
+                  src={p.avatarUrl || `https://a.ppy.sh/${p.id}`} 
+                  alt={p.username}
+                  width={16}
+                  height={16}
+                  className={`w-4 h-4 rounded-full object-cover transition-all ${isHidden ? 'grayscale opacity-50' : ''}`} 
+                />
+                <span className={isHidden ? 'line-through' : ''}>{p.username}</span>
+              </button>
+            );
+          })}
+          <div className="flex items-center gap-2 ml-1 border-l pl-3 border-gray-300 dark:border-gray-700">
+            <button onClick={() => setHiddenPlayerIds(new Set())} className="text-[10px] uppercase tracking-wider font-bold text-pink-500 hover:text-pink-600 dark:text-pink-400 dark:hover:text-pink-300 transition-colors">Show All</button>
+            <span className="text-gray-300 dark:text-gray-600">|</span>
+            <button onClick={() => setHiddenPlayerIds(new Set(uniquePlayers.map(p => p.id)))} className="text-[10px] uppercase tracking-wider font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">Hide All</button>
+          </div>
+        </div>
+      )}
 
       {currentMappool.map((map, index) => {
         const isExpanded = selectedMap?.id === map.id;
@@ -62,7 +129,7 @@ export default function MappoolFeed({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <TopLineup mapId={map.id} stage={stage} allScores={allScores} mapMod={map.mod} />
+            <TopLineup mapId={map.id} stage={stage} allScores={filteredScores} mapMod={map.mod} />
             <div className="flex items-center gap-1 flex-shrink-0 justify-end">
               <button 
                 onClick={(e) => {
@@ -92,7 +159,7 @@ export default function MappoolFeed({
           </div>
           {isExpanded && (
             <div className={`bg-white dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-4 border-l-4 ${MOD_COLORS[map.mod] || "border-gray-500"}`}>
-              <AnalyticsPanel selectedMap={map} selectedStage={stage} onViewPlayerScores={onViewPlayerScores} allScores={allScores} />
+              <AnalyticsPanel selectedMap={map} selectedStage={stage} onViewPlayerScores={onViewPlayerScores} allScores={filteredScores} />
             </div>
           )}
         </div>

@@ -2,7 +2,7 @@
 
 import { MappoolMap, PlayerData } from "@/lib/types";
 import { deleteScores, updateScoreType } from "@/app/actions";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PlayerScoreHistoryModalProps {
   isOpen: boolean;
@@ -18,10 +18,6 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
   const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
   const [selectedScoreIds, setSelectedScoreIds] = useState<Set<string>>(new Set());
 
-  if (!isOpen || !playerData || !map) {
-    return null;
-  }
-
   const handleClose = () => {
     setIsBulkDeleteMode(false);
     setSelectedScoreIds(new Set());
@@ -34,6 +30,18 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
     else newSet.add(id);
     setSelectedScoreIds(newSet);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  if (!isOpen || !playerData || !map) {
+    return null;
+  }
 
   const handleBulkDelete = async () => {
     if (selectedScoreIds.size === 0) return;
