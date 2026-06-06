@@ -1,6 +1,6 @@
 "use client";
 
-import { finishTournament, reopenTournament, deleteTournament } from "@/app/actions";
+import { toggleTournamentStatus, deleteTournament } from "@/app/actions";
 import { useState } from "react";
 
 export default function ManageTournamentModal({ 
@@ -9,14 +9,12 @@ export default function ManageTournamentModal({
   tournamentId,
   tournamentName,
   isCompleted,
-  placement
 }: { 
   isOpen: boolean; 
   onClose: () => void;
   tournamentId: string;
   tournamentName: string;
   isCompleted?: boolean;
-  placement?: string | null;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,6 +29,12 @@ export default function ManageTournamentModal({
     }
   };
 
+  const handleToggleCompleted = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsSubmitting(true);
+    await toggleTournamentStatus(tournamentId, e.target.checked);
+    setIsSubmitting(false);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4 transition-opacity">
       <div className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl">
@@ -43,33 +47,18 @@ export default function ManageTournamentModal({
 
         <div className="mb-6 pb-6 border-b border-gray-700">
           <h3 className="text-sm font-semibold text-gray-300 mb-3">Tournament Status</h3>
-          {isCompleted ? (
-            <form action={async (formData) => {
-              setIsSubmitting(true);
-              await reopenTournament(formData);
-              setIsSubmitting(false);
-              onClose();
-            }} className="flex flex-col gap-3">
-              <p className="text-sm text-gray-400">This tournament is marked as finished (Placement: <span className="font-semibold text-white">{placement || "None"}</span>).</p>
-              <input type="hidden" name="tournamentId" value={tournamentId} />
-              <button type="submit" disabled={isSubmitting} className="w-full rounded border border-yellow-700 bg-yellow-900/30 px-4 py-2 text-sm font-bold text-yellow-500 transition-colors hover:bg-yellow-900/50 disabled:opacity-50">
-                Reopen Tournament
-              </button>
-            </form>
-          ) : (
-            <form action={async (formData) => {
-              setIsSubmitting(true);
-              await finishTournament(formData);
-              setIsSubmitting(false);
-              onClose();
-            }} className="flex gap-2">
-              <input type="hidden" name="tournamentId" value={tournamentId} />
-              <input type="text" name="placement" placeholder="Placement (e.g. 1st, Top 8)" className="flex-1 rounded-md border border-gray-700 bg-gray-800 p-2 text-sm text-white focus:border-pink-500 focus:outline-none" />
-              <button type="submit" disabled={isSubmitting} className="rounded bg-green-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-green-700 disabled:opacity-50">
-                Finish
-              </button>
-            </form>
-          )}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={isCompleted} 
+              onChange={handleToggleCompleted}
+              disabled={isSubmitting}
+              className="w-5 h-5 rounded border-gray-600 text-pink-500 focus:ring-pink-500 focus:ring-offset-gray-900 bg-gray-700 disabled:opacity-50 cursor-pointer"
+            />
+            <span className="text-sm font-medium text-gray-200">
+              Mark Tournament as Finished
+            </span>
+          </label>
         </div>
 
         <div>

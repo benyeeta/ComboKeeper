@@ -573,43 +573,34 @@ export async function updateScoreType(id: string, newScoreType: string) {
   return { success: true };
 }
 
-export async function finishTournament(formData: FormData) {
-  const tournamentId = formData.get("tournamentId") as string;
-  const placement = formData.get("placement") as string;
-
+export async function toggleTournamentStatus(tournamentId: string, isCompleted: boolean) {
   if (!tournamentId) return { error: "Missing tournament ID." };
 
   const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
-  await prisma.tournamentTeam.updateMany({
-    where: { tournamentId },
-    data: { placement: placement || null }
-  });
   await prisma.tournament.update({
     where: { id: tournamentId },
-    data: { isCompleted: true }
+    data: { isCompleted }
   });
 
   revalidatePath("/");
   return { success: true };
 }
 
-export async function reopenTournament(formData: FormData) {
+export async function updateTeamPlacement(formData: FormData) {
   const tournamentId = formData.get("tournamentId") as string;
+  const teamId = formData.get("teamId") as string;
+  const placement = formData.get("placement") as string;
 
-  if (!tournamentId) return { error: "Missing tournament ID." };
+  if (!tournamentId || !teamId) return { error: "Missing required fields." };
 
-  const auth = await verifyKeeper(tournamentId);
+  const auth = await verifyTeamCaptain(teamId);
   if (!auth.authorized) return { error: auth.error };
 
-  await prisma.tournamentTeam.updateMany({
-    where: { tournamentId },
-    data: { placement: null }
-  });
-  await prisma.tournament.update({
-    where: { id: tournamentId },
-    data: { isCompleted: false }
+  await prisma.tournamentTeam.update({
+    where: { tournamentId_teamId: { tournamentId, teamId } },
+    data: { placement: placement || null }
   });
 
   revalidatePath("/");

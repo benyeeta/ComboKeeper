@@ -14,6 +14,8 @@ import AddTournamentModal from "@/components/AddTournamentModal";
 import EditRosterModal from "@/components/EditRosterModal";
 import ManageTournamentModal from "@/components/ManageTournamentModal";
 import EditMappoolModal from "@/components/EditMappoolModal";
+import ManageTeamModal from "@/components/ManageTeamModal";
+import TeamIntel from "@/components/TeamIntel";
 
 type DashboardProps = {
   initialData: {
@@ -47,6 +49,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const [isEditMappoolOpen, setIsEditMappoolOpen] = useState(false);
   const [isEditRosterOpen, setIsEditRosterOpen] = useState(false);
   const [isManageTournamentOpen, setIsManageTournamentOpen] = useState(false);
+  const [isManageTeamOpen, setIsManageTeamOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -137,9 +140,14 @@ export default function Dashboard({ initialData }: DashboardProps) {
               {initialData.activeTournament.teamId && initialData.activeTournament.currentUserRole === "CAPTAIN" && (
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider mb-1">Team Tools</span>
-                  <button onClick={() => setIsEditRosterOpen(true)} className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm">
-                    Edit Roster
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setIsEditRosterOpen(true)} className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm">
+                      Edit Roster
+                    </button>
+                    <button onClick={() => setIsManageTeamOpen(true)} className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm">
+                      Manage Team
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -183,6 +191,15 @@ export default function Dashboard({ initialData }: DashboardProps) {
           tournamentId={initialData.activeTournament.id}
           tournamentName={initialData.activeTournament.name}
           isCompleted={initialData.activeTournament.isCompleted}
+        />
+      )}
+      {initialData.activeTournament?.teamId && (
+        <ManageTeamModal
+          isOpen={isManageTeamOpen}
+          onClose={() => setIsManageTeamOpen(false)}
+          tournamentId={initialData.activeTournament.id}
+          teamId={initialData.activeTournament.teamId}
+          teamName={initialData.activeTournament.teamName || "Unknown Team"}
           placement={initialData.activeTournament.placement}
         />
       )}
@@ -223,6 +240,10 @@ export default function Dashboard({ initialData }: DashboardProps) {
               setSelectedStage={setSelectedStage}
             />
           </div>
+
+          {initialData.activeTournament.teamId && (
+            <TeamIntel allScores={initialData.allScores} />
+          )}
 
           <div className={`flex-grow mt-6 w-full transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
             <MappoolFeed

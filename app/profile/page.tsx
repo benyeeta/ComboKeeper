@@ -72,6 +72,48 @@ async function ProfileContent() {
   const countryCode = osuData?.country?.code || "";
   const countryFlagUrl = countryCode ? `https://osu.ppy.sh/images/flags/${countryCode}.png` : "";
 
+  // Personal Trophies Calculation
+  const skillAverages: Record<string, { total: number; count: number }> = {};
+  player.scores.forEach(s => {
+    if (s.mappoolMap?.skill) {
+      if (!skillAverages[s.mappoolMap.skill]) skillAverages[s.mappoolMap.skill] = { total: 0, count: 0 };
+      skillAverages[s.mappoolMap.skill].total += s.score;
+      skillAverages[s.mappoolMap.skill].count += 1;
+    }
+  });
+  let bestSkill = null;
+  let bestSkillAvg = 0;
+  for (const [skill, data] of Object.entries(skillAverages)) {
+    const avg = data.total / data.count;
+    if (avg > bestSkillAvg) { bestSkillAvg = avg; bestSkill = skill; }
+  }
+
+  const tbScores = player.scores.filter(s => s.mappoolMap?.mod === "TB" && s.scoreType === "MATCH");
+  const tbAvg = tbScores.length > 0 ? tbScores.reduce((a, b) => a + b.score, 0) / tbScores.length : null;
+
+  const practiceScores = player.scores.filter(s => s.scoreType === "PRACTICE" || !s.scoreType);
+  const practiceAvg = practiceScores.length > 0 ? practiceScores.reduce((a, b) => a + b.score, 0) / practiceScores.length : null;
+  const matchAvg = matchScores.length > 0 ? matchScores.reduce((a, b) => a + b.score, 0) / matchScores.length : null;
+  const tournamentBuff = (matchAvg !== null && practiceAvg !== null) ? matchAvg - practiceAvg : null;
+
+  const mapScores: Record<string, number[]> = {};
+  player.scores.forEach(s => {
+    if (!mapScores[s.mappoolMapId]) mapScores[s.mappoolMapId] = [];
+    mapScores[s.mappoolMapId].push(s.score);
+  });
+  let minVariance = Infinity;
+  let metronomeMap = null;
+  for (const [mapId, scores] of Object.entries(mapScores)) {
+    if (scores.length >= 5) {
+      const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+      const variance = scores.reduce((a, b) => a + Math.pow(b - avg, 2), 0) / scores.length;
+      const stdDev = Math.sqrt(variance);
+      if (stdDev < minVariance) { minVariance = stdDev; metronomeMap = player.scores.find(s => s.mappoolMapId === mapId)?.mappoolMap; }
+    }
+  }
+
+  const ssCount = player.scores.filter(s => s.accuracy === 100).length;
+
   // Extract all the tournaments from the teams the player is on
   const activeTeams = player.teams.filter(t => t.status === "ACCEPTED");
   const tournamentsWithTeams = activeTeams.flatMap(t => 
@@ -164,6 +206,45 @@ async function ProfileContent() {
               <span className="text-gray-500 dark:text-gray-400 text-sm mb-1">Avg Match Acc</span>
               <span className="font-bold text-2xl text-green-500 dark:text-green-400">{avgMatchAcc}</span>
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 shadow-sm transition-colors duration-200 md:col-span-2">
+          <h2 className="text-xl font-semibold mb-4">Personal Trophies</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {bestSkill && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-pink-500 font-bold mb-1">The {bestSkill} Demon</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Highest average score in {bestSkill} ({Math.round(bestSkillAvg).toLocaleString()}).</span>
+              </div>
+            )}
+            {tbAvg !== null && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-blue-400 font-bold mb-1">Ice in the Veins</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Averages {Math.round(tbAvg).toLocaleString()} on Tiebreakers during matches.</span>
+              </div>
+            )}
+            {tournamentBuff !== null && tournamentBuff > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-green-500 font-bold mb-1">Tournament Buff</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Scores are +{Math.round(tournamentBuff).toLocaleString()} higher in matches vs practice.</span>
+              </div>
+            )}
+            {metronomeMap && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-purple-400 font-bold mb-1">The Metronome</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Incredibly consistent on {metronomeMap.mapId} (±{Math.round(minVariance).toLocaleString()}).</span>
+              </div>
+            )}
+            {ssCount > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-yellow-500 font-bold mb-1">The Purist / FC Machine</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Has achieved 100% accuracy {ssCount} time{ssCount > 1 ? 's' : ''}.</span>
+              </div>
+            )}
+            {!bestSkill && tbAvg === null && (tournamentBuff === null || tournamentBuff <= 0) && !metronomeMap && ssCount === 0 && (
+              <p className="text-sm text-gray-500 col-span-full">Play more maps and matches to earn personal trophies!</p>
+            )}
           </div>
         </div>
       </div>
