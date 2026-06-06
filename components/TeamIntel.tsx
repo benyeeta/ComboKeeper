@@ -5,11 +5,15 @@ import { useMemo } from "react";
 
 type TeamIntelProps = {
   allScores: ScoreData[];
+  selectedStage: string;
 };
 
-export default function TeamIntel({ allScores }: TeamIntelProps) {
+export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) {
   const intel = useMemo(() => {
     if (!allScores || allScores.length === 0) return null;
+
+    const stageScores = allScores.filter(s => s.stage === selectedStage);
+    if (stageScores.length === 0) return null;
 
     let bestMap = { id: "", avg: 0 };
     let worstMap = { id: "", avg: Infinity };
@@ -21,7 +25,7 @@ export default function TeamIntel({ allScores }: TeamIntelProps) {
     let totalStdDev = 0;
     let stdDevCount = 0;
 
-    allScores.forEach(mapData => {
+    stageScores.forEach(mapData => {
       let mapTotal = 0;
       let mapCount = 0;
       let topScores: number[] = [];
@@ -79,13 +83,13 @@ export default function TeamIntel({ allScores }: TeamIntelProps) {
       hiveMind: closestMap.spread < Infinity ? closestMap : null,
       playstyle
     };
-  }, [allScores]);
+  }, [allScores, selectedStage]);
 
   if (!intel || (!intel.fortress && !intel.achilles && intel.nightOwls === 0 && !intel.hiveMind && !intel.playstyle)) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-8 text-center transition-colors duration-200">
         <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Not enough data</h3>
-        <p className="text-sm text-gray-500 mt-2">Play more maps and matches as a team to generate intelligent insights here.</p>
+        <p className="text-sm text-gray-500 mt-2">Play more maps and matches as a team in <span className="font-semibold text-pink-400">{selectedStage}</span> to generate intelligent insights here.</p>
       </div>
     );
   }

@@ -136,6 +136,16 @@ export async function registerTeam(formData: FormData) {
     if (!success) return { error: "You are registering teams too fast. Please wait." };
   }
 
+  if (currentUser) {
+    const existingTeam = await prisma.tournamentTeam.findFirst({
+      where: {
+        tournamentId,
+        team: { players: { some: { playerId: currentUser.id } } }
+      }
+    });
+    if (existingTeam) return { error: "You are already on a team for this tournament." };
+  }
+
   const PlayerSchema = z.array(z.object({
     username: z.string().min(1).max(50),
     isAdmin: z.boolean()
@@ -582,6 +592,26 @@ export async function toggleTournamentStatus(tournamentId: string, isCompleted: 
   await prisma.tournament.update({
     where: { id: tournamentId },
     data: { isCompleted }
+  });
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function updateTournamentDetails(formData: FormData) {
+  const tournamentId = formData.get("tournamentId") as string;
+  const name = formData.get("name") as string;
+  const acronym = formData.get("acronym") as string;
+  const format = formData.get("format") as string;
+
+  if (!tournamentId || !name || !format) return { error: "Missing required fields." };
+
+  const auth = await verifyKeeper(tournamentId);
+  if (!auth.authorized) return { error: auth.error };
+
+  await prisma.tournament.update({
+    where: { id: tournamentId },
+    data: { name, acronym: acronym || null, format }
   });
 
   revalidatePath("/");
@@ -1182,4 +1212,124 @@ export async function getPopularTournaments() {
   }
 
   return Array.from(bestMatches.values()).sort((a: any, b: any) => b.mapCount - a.mapCount);
+}
+
+export async function getTournamentKeepers(tournamentId: string) {
+  const auth = await verifyKeeper(tournamentId);
+  if (!auth.authorized) return { error: auth.error };
+
+  const keepers = await prisma.tournamentKeeper.findMany({
+    where: { tournamentId },
+    include: { player: true }
+  });
+
+  return { keepers: keepers.map(k => ({ id: k.playerId, username: k.player.username, avatarUrl: k.player.avatarUrl })) };
+}
+
+export async function addTournamentKeeper(formData: FormData) {
+  const tournamentId = formData.get("tournamentId") as string;
+  const username = formData.get("username") as string;
+
+  if (!tournamentId || !username) return { error: "Missing required fields." };
+
+  const auth = await verifyKeeper(tournamentId);
+  if (!auth.authorized) return { error: auth.error };
+
+  const userData = await getCachedOsuUser(username);
+  if (!userData) return { error: `Could not find osu! user: ${username}` };
+
+  const player = await prisma.player.upsert({
+    where: { id: userData.id },
+    update: { username: userData.username, avatarUrl: userData.avatar_url },
+    create: { id: userData.id, username: userData.username, avatarUrl: userData.avatar_url }
+  });
+
+  const existing = await prisma.tournamentKeeper.findUnique({
+    where: { tournamentId_playerId: { tournamentId, playerId: player.id } }
+  });
+
+  if (existing) return { error: `${player.username} is already a keeper.` };
+
+  await prisma.tournamentKeeper.create({
+    data: { tournamentId, playerId: player.id }
+  });
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function removeTournamentKeeper(tournamentId: string, playerId: number) {
+  if (!tournamentId || !playerId) return { error: "Missing required fields." };
+
+  const auth = await verifyKeeper(tournamentId);
+  if (!auth.authorized) return { error: auth.error };
+
+  const count = await prisma.tournamentKeeper.count({ where: { tournamentId } });
+  if (count <= 1) return { error: "Cannot remove the last tournament keeper." };
+
+  await prisma.tournamentKeeper.delete({
+    where: { tournamentId_playerId: { tournamentId, playerId } }
+  });
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function submitFeedback(formData: FormData) {
+  const type = formData.get("type") as string || "Feedback";
+  const message = formData.get("message") as string;
+  const image = formData.get("image") as File | null;
+  if (!message) return { error: "Message is required." };
+
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value;
+  const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`feedback_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are submitting feedback too fast. Please wait." };
+    }
+  }
+
+  const webhookUrl = process.env.FEEDBACK_WEBHOOK_URL;
+  if (webhookUrl) {
+    let color = 0x95a5a6; // Gray for Other
+    if (type === "Bug") color = 0xe74c3c; // Red
+    else if (type === "Suggestion") color = 0x2ecc71; // Green
+
+    const embed: any = {
+      title: `New ${type}`,
+      description: message,
+      color: color,
+      author: {
+        name: currentUser ? currentUser.username : 'Anonymous',
+        icon_url: currentUser ? `https://a.ppy.sh/${currentUser.id}` : undefined
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    try {
+      if (image && image.size > 0) {
+        embed.image = { url: `attachment://image.png` };
+        const discordFormData = new FormData();
+        discordFormData.append('payload_json', JSON.stringify({ embeds: [embed] }));
+        discordFormData.append('file', image, 'image.png');
+
+        await fetch(webhookUrl, { method: "POST", body: discordFormData });
+      } else {
+        await fetch(webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ embeds: [embed] })
+        });
+      }
+    } catch (e) {
+      console.error("Failed to send feedback to webhook", e);
+    }
+  } else {
+    console.log(`[${type.toUpperCase()}] ${currentUser ? currentUser.username : 'Anonymous'}: ${message}`);
+  }
+
+  return { success: true };
 }

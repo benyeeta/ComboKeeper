@@ -24,6 +24,7 @@ type DashboardProps = {
       id: string; 
       name: string; 
       acronym: string | null;
+      format?: string;
       isKeeper: boolean;
       teamId?: string; 
       teamName?: string;
@@ -35,6 +36,7 @@ type DashboardProps = {
     } | null;
     stages: { id: string; name: string }[];
     allTournaments?: { id: string; name: string; acronym: string | null; isCompleted: boolean; isKeeper: boolean }[];
+    currentUser?: { id: number; username: string };
   };
 };
 
@@ -172,7 +174,11 @@ export default function Dashboard({ initialData }: DashboardProps) {
         onClose={() => setisImportModalOpen(false)} 
         tournamentId={initialData.activeTournament?.id} 
       />
-      <AddTournamentModal isOpen={isAddTournamentOpen} onClose={() => setIsAddTournamentOpen(false)} />
+      <AddTournamentModal 
+        isOpen={isAddTournamentOpen} 
+        onClose={() => setIsAddTournamentOpen(false)} 
+        currentUsername={initialData.currentUser?.username}
+      />
       {initialData.activeTournament?.teamId && (
         <EditRosterModal
           isOpen={isEditRosterOpen}
@@ -189,6 +195,8 @@ export default function Dashboard({ initialData }: DashboardProps) {
           onClose={() => setIsManageTournamentOpen(false)}
           tournamentId={initialData.activeTournament.id}
           tournamentName={initialData.activeTournament.name}
+          tournamentAcronym={initialData.activeTournament.acronym}
+          tournamentFormat={initialData.activeTournament.format}
           isCompleted={initialData.activeTournament.isCompleted}
         />
       )}

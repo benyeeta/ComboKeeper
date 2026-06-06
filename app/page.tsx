@@ -28,7 +28,7 @@ async function DashboardLoader({ searchParams }: { searchParams: Promise<{ t?: s
 
   const resolvedParams = await searchParams;
   const data = await getTournamentData(user.id, resolvedParams.t);
-  return <Dashboard initialData={data} />;
+  return <Dashboard initialData={{ ...data, currentUser: { id: user.id, username: user.username } } as any} />;
 }
 
 export default function Home(props: { searchParams: Promise<{ t?: string }> }) {

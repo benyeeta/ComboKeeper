@@ -3,8 +3,8 @@
 import { createTournament, registerTeam, getPopularTournaments } from "@/app/actions";
 import { useState, useEffect } from "react";
 
-export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const [players, setPlayers] = useState([{ username: "", isAdmin: true }]);
+export default function AddTournamentModal({ isOpen, onClose, currentUsername }: { isOpen: boolean; onClose: () => void; currentUsername?: string }) {
+  const [players, setPlayers] = useState([{ username: currentUsername || "", isAdmin: true }]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mode, setMode] = useState<'choice' | 'clone' | 'new'>('choice');
@@ -31,7 +31,7 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
 
   const handleClose = () => {
     setError("");
-    setPlayers([{ username: "", isAdmin: true }]);
+    setPlayers([{ username: currentUsername || "", isAdmin: true }]);
     setMode('choice');
     setSelectedSourceId("");
     onClose();
@@ -150,12 +150,12 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
                       <div className="space-y-2">
                         {players.map((p, i) => (
                           <div key={i} className="flex items-center gap-2 bg-gray-800 p-2 rounded border border-gray-700">
-                            <input type="text" placeholder="osu! Username" value={p.username} onChange={e => updatePlayer(i, 'username', e.target.value)} className="flex-1 rounded bg-gray-900 border border-gray-600 p-1.5 text-sm text-white focus:border-pink-500 focus:outline-none" required />
-                            <label className={`flex items-center gap-1.5 text-xs text-gray-300 w-20 ${i === 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                            <input type="text" placeholder="osu! Username" value={p.username} disabled={i === 0 && !!currentUsername} onChange={e => updatePlayer(i, 'username', e.target.value)} className={`flex-1 rounded bg-gray-900 border border-gray-600 p-1.5 text-sm text-white focus:border-pink-500 focus:outline-none ${i === 0 && !!currentUsername ? 'opacity-50 cursor-not-allowed' : ''}`} required />
+                            <label className={`flex items-center gap-1.5 text-xs text-gray-300 w-20 ${i === 0 && !!currentUsername ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                               <input 
                                 type="checkbox" 
                                 checked={p.isAdmin} 
-                                disabled={i === 0}
+                                disabled={i === 0 && !!currentUsername}
                                 onChange={e => updatePlayer(i, 'isAdmin', e.target.checked)} 
                                 className="rounded border-gray-600 bg-gray-900 text-pink-500 focus:ring-pink-500 focus:ring-offset-gray-900 disabled:opacity-50" 
                               />
