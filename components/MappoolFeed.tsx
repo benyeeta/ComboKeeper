@@ -62,7 +62,7 @@ export default function MappoolFeed({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <TopLineup mapId={map.id} stage={stage} allScores={allScores} />
+            <TopLineup mapId={map.id} stage={stage} allScores={allScores} mapMod={map.mod} />
             <div className="flex items-center gap-1 flex-shrink-0 justify-end">
               <button 
                 onClick={(e) => {
@@ -104,7 +104,7 @@ export default function MappoolFeed({
   );
 }
 
-function TopLineup({ mapId, stage, allScores }: { mapId: string; stage: string; allScores: ScoreData[] }) {
+function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: string; allScores: ScoreData[], mapMod: string }) {
   const mapScoreData = allScores.find(
     (data) => data.mapId === mapId && data.stage === stage
   );
@@ -117,13 +117,73 @@ function TopLineup({ mapId, stage, allScores }: { mapId: string; stage: string; 
     );
   }
 
-  const topPlayers = [...mapScoreData.players]
-    .sort((a, b) => {
-      const topScoreA = Math.max(...a.history.map((h) => h.score), 0);
-      const topScoreB = Math.max(...b.history.map((h) => h.score), 0);
-      return topScoreB - topScoreA;
-    })
-    .slice(0, 3);
+  let topPlayers: { id: number; username: string; avatarUrl: string; assignedMod?: string; history: any[] }[] = [];
+
+  if (mapMod === "FM" || mapMod === "MM") {
+    // Evaluate the optimal permutation of players for the standard HD, HR, and NM meta
+    const requiredMods = ['HD', 'HR', 'NM'];
+    const numToAssign = Math.min(requiredMods.length, mapScoreData.players.length);
+    const modsToUse = requiredMods.slice(0, numToAssign);
+
+    let bestLineup: any[] = [];
+    let maxTotal = -1;
+
+    const getBestScore = (player: any, reqMod: string) => {
+      const plays = player.history.filter((h: any) => {
+        if (reqMod === 'NM') return !h.playedMod || h.playedMod === 'NM';
+        return h.playedMod && h.playedMod.includes(reqMod); // Handles exact 'HD' or combined like 'HDHR'
+      });
+      return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
+    };
+
+    // Pre-calculate best scores to ensure the recursive search remains instantly fast
+    const playerBestScores = new Map();
+    for (const p of mapScoreData.players) {
+      playerBestScores.set(p.id, {
+        HD: getBestScore(p, 'HD'),
+        HR: getBestScore(p, 'HR'),
+        NM: getBestScore(p, 'NM'),
+      });
+    }
+
+    const findBestAssignment = (modIndex: number, currentAssignment: any[], currentScore: number, usedPlayers: Set<number>) => {
+      if (modIndex === modsToUse.length) {
+        if (currentScore > maxTotal) {
+          maxTotal = currentScore;
+          bestLineup = [...currentAssignment];
+        }
+        return;
+      }
+      const reqMod = modsToUse[modIndex];
+      for (const p of mapScoreData.players) {
+        if (!usedPlayers.has(p.id)) {
+          const score = playerBestScores.get(p.id)[reqMod];
+          usedPlayers.add(p.id);
+          currentAssignment.push({ ...p, assignedMod: reqMod, _score: score });
+          findBestAssignment(modIndex + 1, currentAssignment, currentScore + score, usedPlayers);
+          currentAssignment.pop();
+          usedPlayers.delete(p.id);
+        }
+      }
+    };
+
+    findBestAssignment(0, [], 0, new Set());
+
+    if (maxTotal > 0) {
+      topPlayers = bestLineup.sort((a, b) => b._score - a._score);
+    }
+  }
+
+  // Fallback sorting if the map isn't Mixed/Free mod or no one has logged mod-specific scores yet
+  if (topPlayers.length === 0) {
+    topPlayers = [...mapScoreData.players]
+      .sort((a, b) => {
+        const topScoreA = Math.max(...a.history.map((h: any) => h.score), 0);
+        const topScoreB = Math.max(...b.history.map((h: any) => h.score), 0);
+        return topScoreB - topScoreA;
+      })
+      .slice(0, 3);
+  }
 
   return (
     <div className="hidden md:flex items-center gap-2">
@@ -137,6 +197,11 @@ function TopLineup({ mapId, stage, allScores }: { mapId: string; stage: string; 
             className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 object-cover"
           />
           <span className="text-xs text-gray-700 dark:text-gray-300 font-medium pr-1 max-w-[80px] truncate">{player.username}</span>
+          {player.assignedMod && player.assignedMod !== 'NM' && (
+            <span className={`text-[9px] font-bold px-1 rounded border ${player.assignedMod === 'HD' ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 'bg-red-900/50 text-red-300 border-red-800'}`}>
+              +{player.assignedMod}
+            </span>
+          )}
         </div>
       ))}
     </div>
