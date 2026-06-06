@@ -118,6 +118,14 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
     }
   }
 
+  const mappedAllTournaments = allTournaments.map(t => ({
+    id: t.id,
+    name: t.name,
+    acronym: t.acronym,
+    isCompleted: t.isCompleted,
+    isKeeper: isAdmin || t.keepers.some(k => k.playerId === userId)
+  }));
+
   return { 
     mappool, 
     allScores,
@@ -140,6 +148,6 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       })) || []
     },
     stages,
-    allTournaments
+    allTournaments: mappedAllTournaments
   };
 }

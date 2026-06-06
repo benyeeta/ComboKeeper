@@ -63,7 +63,7 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
           else handleClose();
         }} className="flex flex-col gap-4 overflow-y-auto pr-2">
           
-            mode === 'choice' ? (
+            {mode === 'choice' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
                 <button type="button" onClick={() => setMode('clone')} className="flex flex-col items-center justify-center p-6 border-2 border-gray-700 rounded-lg hover:border-pink-500 hover:bg-gray-800 transition-colors text-left group">
                   <span className="font-bold text-lg mb-2 text-white group-hover:text-pink-400">Register Team</span>
@@ -188,7 +188,7 @@ export default function AddTournamentModal({ isOpen, onClose }: { isOpen: boolea
                   </button>
                 </div>
               </>
-            )
+            )}
         </form>
       </div>
     </div>
