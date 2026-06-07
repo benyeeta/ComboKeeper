@@ -15,19 +15,22 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
 
   useEffect(() => {
     if (isOpen) {
-      getPopularTournaments()
-        .then(res => {
+      const fetchTournaments = async () => {
+        try {
+          if (typeof getPopularTournaments !== 'function') return;
+          const res = await getPopularTournaments();
           if (Array.isArray(res)) {
             setPopularList(res);
           } else {
             setPopularList([]);
             if ((res as any)?.error) setError((res as any).error);
           }
-        })
-        .catch(err => {
+        } catch (err) {
           console.error(err);
           setPopularList([]);
-        });
+        }
+      };
+      fetchTournaments();
     }
   }, [isOpen]);
 
@@ -115,21 +118,22 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
                       required
                     >
                       <option value="">-- Choose a tournament --</option>
-                      {popularList.map(t => (
-                        <option key={t.id} value={t.id}>{t.name} {t.acronym ? `[${t.acronym}]` : ''} ({t.mapCount} maps)</option>
+                  {popularList.map((t, index) => (
+                    <option key={t?.id || index} value={t?.id}>{t?.name} {t?.acronym ? `[${t.acronym}]` : ''} ({t?.mapCount || 0} maps)</option>
                       ))}
                     </select>
                   </div>
                 )}
 
-                {mode === 'clone' && popularList.find(t => t.id === selectedSourceId) && (() => {
-                  const selectedSource = popularList.find(t => t.id === selectedSourceId);
+            {mode === 'clone' && (() => {
+              const selectedSource = popularList.find(t => t?.id?.toString() === selectedSourceId?.toString());
+              if (!selectedSource) return null;
                   return (
                     <div className="bg-gray-800 p-4 rounded border border-gray-700 mb-2">
                       <input type="hidden" name="tournamentId" value={selectedSource.id} />
                       <p className="text-sm text-gray-400">You are joining:</p>
-                      <p className="text-lg font-bold text-white">{selectedSource.name} {selectedSource.acronym ? `[${selectedSource.acronym}]` : ''}</p>
-                      <p className="text-sm text-gray-400">{selectedSource.format} format • Max {selectedSource.rosterSize} players • {selectedSource.mapCount} Maps in pool</p>
+                  <p className="text-lg font-bold text-white">{selectedSource.name} {selectedSource.acronym ? `[${selectedSource.acronym}]` : ''}</p>
+                  <p className="text-sm text-gray-400">{selectedSource.format || "1v1"} format • Max {selectedSource.rosterSize || 8} players • {selectedSource.mapCount || 0} Maps in pool</p>
                     </div>
                   );
                 })()}
