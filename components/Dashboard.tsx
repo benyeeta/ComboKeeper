@@ -69,6 +69,12 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const managedTournaments = initialData.allTournaments?.filter(t => t.isKeeper) || [];
   const participatingTournaments = initialData.allTournaments?.filter(t => !t.isKeeper) || [];
 
+  const activeManaged = managedTournaments.filter(t => !t.isCompleted);
+  const finishedManaged = managedTournaments.filter(t => t.isCompleted);
+  
+  const activeParticipating = participatingTournaments.filter(t => !t.isCompleted);
+  const finishedParticipating = participatingTournaments.filter(t => t.isCompleted);
+
   useEffect(() => {
     if (initialData.activeTournament?.id !== currentTournamentId) {
       setCurrentTournamentId(initialData.activeTournament?.id);
@@ -113,20 +119,38 @@ export default function Dashboard({ initialData }: DashboardProps) {
                 }}
               >
                 {!initialData.activeTournament && <option value="">No Active Tournament</option>}
-                {managedTournaments.length > 0 && (
-                  <optgroup label="Tournaments I Keep">
-                    {managedTournaments.map(t => (
+                {activeManaged.length > 0 && (
+                  <optgroup label="Active: Tournaments I Keep">
+                    {activeManaged.map(t => (
                       <option key={t.id} value={t.id}>
-                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name} {t.isCompleted ? "(Finished)" : ""}
+                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
                       </option>
                     ))}
                   </optgroup>
                 )}
-                {participatingTournaments.length > 0 && (
-                  <optgroup label="My Teams">
-                    {participatingTournaments.map(t => (
+                {activeParticipating.length > 0 && (
+                  <optgroup label="Active: My Teams">
+                    {activeParticipating.map(t => (
                       <option key={t.id} value={t.id}>
-                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name} {t.isCompleted ? "(Finished)" : ""}
+                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {finishedManaged.length > 0 && (
+                  <optgroup label="Finished: Tournaments I Keep">
+                    {finishedManaged.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {finishedParticipating.length > 0 && (
+                  <optgroup label="Finished: My Teams">
+                    {finishedParticipating.map(t => (
+                      <option key={t.id} value={t.id}>
+                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
                       </option>
                     ))}
                   </optgroup>
