@@ -103,10 +103,10 @@ export default function Dashboard({ initialData }: DashboardProps) {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex flex-col">
-            <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Tournament</label>
+            <label className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Tournament</label>
             <div className="flex items-center gap-2">
               <select 
-                className="max-w-[250px] truncate rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
+                className="max-w-[250px] truncate rounded-md border border-border-main bg-surface p-2 text-sm font-medium text-content shadow-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                 value={initialData.activeTournament?.id || ""}
                 onChange={(e) => {
                   startTransition(() => {
@@ -156,22 +156,22 @@ export default function Dashboard({ initialData }: DashboardProps) {
                   </optgroup>
                 )}
               </select>
-              <button onClick={() => setIsAddTournamentOpen(true)} className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm font-medium text-gray-800 dark:text-gray-200 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm" title="Join or Create Tournament">
+              <button onClick={() => setIsAddTournamentOpen(true)} className="rounded-md border border-border-main bg-surface p-2 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm" title="Join or Create Tournament">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
               </button>
             </div>
           </div>
 
           {initialData.activeTournament && (
-            <div className="flex flex-wrap items-center gap-4 lg:ml-2 lg:pl-4 lg:border-l border-gray-200 dark:border-gray-700">
+            <div className="flex flex-wrap items-center gap-4 lg:ml-2 lg:pl-4 lg:border-l border-border-main">
               {initialData.activeTournament.isKeeper && (
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-pink-500 uppercase tracking-wider mb-1">Keeper Tools</span>
+                  <span className="text-[10px] font-bold text-accent uppercase tracking-wider mb-1">Keeper Tools</span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setIsEditMappoolOpen(true)} className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm">
+                    <button onClick={() => setIsEditMappoolOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm">
                       Edit Mappool
                     </button>
-                    <button onClick={() => setIsManageTournamentOpen(true)} className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm">
+                    <button onClick={() => setIsManageTournamentOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm">
                       Manage
                     </button>
                   </div>
@@ -181,10 +181,10 @@ export default function Dashboard({ initialData }: DashboardProps) {
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider mb-1">Team Tools</span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setIsEditRosterOpen(true)} className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm">
+                    <button onClick={() => setIsEditRosterOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm">
                       Edit Roster
                     </button>
-                    <button onClick={() => setIsManageTeamOpen(true)} className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm">
+                    <button onClick={() => setIsManageTeamOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm">
                       Manage Team
                     </button>
                   </div>
@@ -304,13 +304,13 @@ export default function Dashboard({ initialData }: DashboardProps) {
           </div>
         </>
       ) : (
-        <div className="flex-grow flex flex-col items-center justify-center mt-24 text-center text-gray-500">
-          <svg className="w-16 h-16 mb-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="flex-grow flex flex-col items-center justify-center mt-24 text-center text-muted">
+          <svg className="w-16 h-16 mb-4 text-border-main" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          <h2 className="text-xl font-semibold text-gray-400 mb-2">No Tournament Selected</h2>
+          <h2 className="text-xl font-semibold text-muted mb-2">No Tournament Selected</h2>
           <p className="max-w-md mb-6">You aren't currently viewing any tournaments. Select an existing tournament from the dropdown above, or create a new one.</p>
-          <button onClick={() => setIsAddTournamentOpen(true)} className="rounded-md bg-pink-600 px-6 py-2.5 font-bold text-white hover:bg-pink-700 transition-colors shadow-md">
+          <button onClick={() => setIsAddTournamentOpen(true)} className="rounded-md bg-accent px-6 py-2.5 font-bold text-white hover:opacity-90 transition-colors shadow-md">
             + Create or Join Tournament
           </button>
         </div>

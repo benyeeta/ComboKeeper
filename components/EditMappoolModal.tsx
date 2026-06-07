@@ -171,7 +171,7 @@ export default function EditMappoolModal({ isOpen, onClose, stages, selectedStag
             <h2 className="text-xl font-bold">Edit Mappool</h2>
             <p className="text-sm text-gray-400">Managing maps for <span className="font-semibold text-pink-400">{selectedStage}</span></p>
           </div>
-          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -181,12 +181,12 @@ export default function EditMappoolModal({ isOpen, onClose, stages, selectedStag
             <button
               key={s.id}
               onClick={() => handleStageChange(s.name)}
-              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap transition-colors ${selectedStage === s.name ? 'bg-pink-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}
+              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap transition-colors ${selectedStage === s.name ? 'bg-pink-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white'}`}
             >
               {s.name}
             </button>
           ))}
-          <button onClick={onAddStage} className="px-3 py-1.5 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white whitespace-nowrap">
+          <button onClick={onAddStage} className="px-3 py-1.5 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors">
             + Add Stage
           </button>
           {stages.length > 0 && (
@@ -280,7 +280,7 @@ export default function EditMappoolModal({ isOpen, onClose, stages, selectedStag
             </div>
           ))}
           
-          <button onClick={addRow} className="w-full mt-2 rounded-md border border-gray-600 bg-gray-800 border-dashed px-4 py-3 text-sm font-semibold text-gray-400 hover:bg-gray-700 hover:text-gray-200 transition-colors">
+          <button onClick={addRow} className="w-full mt-2 rounded-md border border-gray-600 bg-gray-800 border-dashed px-4 py-3 text-sm font-semibold text-gray-400 hover:bg-white/5 hover:text-gray-200 transition-colors">
             + Add Map to Stage
           </button>
         </div>

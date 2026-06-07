@@ -112,33 +112,33 @@ export default function ManageTournamentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4 transition-opacity">
-      <div className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-md rounded-lg border border-border-main bg-background p-6 text-content shadow-xl flex flex-col max-h-[90vh]">
         <div className="mb-4 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-xl font-bold">Manage <span className="text-pink-400">{tournamentName}</span></h2>
-          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+          <h2 className="text-xl font-bold">Manage <span className="text-accent">{tournamentName}</span></h2>
+          <button onClick={onClose} className="rounded-full p-1 text-muted hover:bg-hover-overlay/10 hover:text-content transition-colors">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
 
         <div className="overflow-y-auto pr-2 flex-grow">
-          <div className="mb-6 pb-6 border-b border-gray-700">
-            <h3 className="text-sm font-semibold text-gray-300 mb-3">Tournament Status</h3>
+          <div className="mb-6 pb-6 border-b border-border-main">
+            <h3 className="text-sm font-semibold text-content mb-3">Tournament Status</h3>
             <label className="flex items-center gap-3 cursor-pointer">
               <input 
                 type="checkbox" 
                 checked={isCompleted} 
                 onChange={handleToggleCompleted}
                 disabled={isSubmitting}
-                className="w-5 h-5 rounded border-gray-600 text-pink-500 focus:ring-pink-500 focus:ring-offset-gray-900 bg-gray-700 disabled:opacity-50 cursor-pointer"
+                className="w-5 h-5 rounded border-border-main text-accent focus:ring-accent focus:ring-offset-background bg-surface disabled:opacity-50 cursor-pointer"
               />
-              <span className="text-sm font-medium text-gray-200">
+              <span className="text-sm font-medium text-content">
                 Mark Tournament as Finished
               </span>
             </label>
           </div>
   
-          <div className="mb-6 pb-6 border-b border-gray-700">
-            <h3 className="text-sm font-semibold text-gray-300 mb-3">Edit Details</h3>
+          <div className="mb-6 pb-6 border-b border-border-main">
+            <h3 className="text-sm font-semibold text-content mb-3">Edit Details</h3>
             <form onSubmit={async (e) => {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
@@ -150,17 +150,17 @@ export default function ManageTournamentModal({
             }} className="flex flex-col gap-3">
               <input type="hidden" name="tournamentId" value={tournamentId} />
               <div>
-                <label className="text-xs text-gray-400 block mb-1">Tournament Name</label>
-                <input type="text" name="name" defaultValue={tournamentName} className="w-full rounded bg-gray-800 border border-gray-600 p-2 text-sm text-white focus:border-pink-500 focus:outline-none" required />
+                <label className="text-xs text-muted block mb-1">Tournament Name</label>
+                <input type="text" name="name" defaultValue={tournamentName} className="w-full rounded bg-surface border border-border-main p-2 text-sm text-content focus:border-accent focus:outline-none" required />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Acronym</label>
-                  <input type="text" name="acronym" defaultValue={tournamentAcronym || ""} className="w-full rounded bg-gray-800 border border-gray-600 p-2 text-sm text-white focus:border-pink-500 focus:outline-none" />
+                  <label className="text-xs text-muted block mb-1">Acronym</label>
+                  <input type="text" name="acronym" defaultValue={tournamentAcronym || ""} className="w-full rounded bg-surface border border-border-main p-2 text-sm text-content focus:border-accent focus:outline-none" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 block mb-1">Format</label>
-                  <select name="format" value={format} onChange={(e) => setFormat(e.target.value)} className="w-full rounded bg-gray-800 border border-gray-600 p-2 text-sm text-white focus:border-pink-500 focus:outline-none" required>
+                  <label className="text-xs text-muted block mb-1">Format</label>
+                  <select name="format" value={format} onChange={(e) => setFormat(e.target.value)} className="w-full rounded bg-surface border border-border-main p-2 text-sm text-content focus:border-accent focus:outline-none" required>
                     <option value="1v1">1v1</option>
                     <option value="2v2">2v2</option>
                     <option value="3v3">3v3</option>
@@ -168,21 +168,21 @@ export default function ManageTournamentModal({
                   </select>
                 </div>
               </div>
-              <button type="submit" disabled={isSubmitting} className="w-full rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50">Save Changes</button>
+              <button type="submit" disabled={isSubmitting} className="w-full rounded bg-accent px-4 py-2 text-sm font-bold text-white transition-colors hover:opacity-90 disabled:opacity-50">Save Changes</button>
             </form>
           </div>
 
-          <div className="mb-6 pb-6 border-b border-gray-700">
-            <h3 className="text-sm font-semibold text-gray-300 mb-3">Tournament Keepers</h3>
+          <div className="mb-6 pb-6 border-b border-border-main">
+            <h3 className="text-sm font-semibold text-content mb-3">Tournament Keepers</h3>
             {isKeepersLoading ? (
-              <p className="text-sm text-gray-500">Loading keepers...</p>
+              <p className="text-sm text-muted">Loading keepers...</p>
             ) : (
               <div className="space-y-2 mb-3">
                 {keepers.map(k => (
-                  <div key={k.id} className="flex items-center justify-between bg-gray-800 p-2 rounded border border-gray-700">
+                  <div key={k.id} className="flex items-center justify-between bg-surface p-2 rounded border border-border-main">
                     <div className="flex items-center gap-2">
                       <img src={k.avatarUrl || `https://a.ppy.sh/${k.id}`} alt="" className="w-6 h-6 rounded-full object-cover" />
-                      <span className="text-sm font-medium text-gray-200">{k.username}</span>
+                      <span className="text-sm font-medium text-content">{k.username}</span>
                     </div>
                     <button type="button" onClick={() => handleRemoveKeeper(k.id)} disabled={isSubmitting || keepers.length <= 1} className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors">
                       Remove
@@ -192,14 +192,14 @@ export default function ManageTournamentModal({
               </div>
             )}
             <form onSubmit={handleAddKeeper} className="flex gap-2">
-              <input type="text" placeholder="osu! Username" value={newKeeperUsername} onChange={e => setNewKeeperUsername(e.target.value)} className="flex-1 rounded bg-gray-800 border border-gray-600 p-2 text-sm text-white focus:border-pink-500 focus:outline-none" />
-              <button type="submit" disabled={isSubmitting || !newKeeperUsername.trim()} className="rounded bg-pink-600 px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50">Add</button>
+              <input type="text" placeholder="osu! Username" value={newKeeperUsername} onChange={e => setNewKeeperUsername(e.target.value)} className="flex-1 rounded bg-surface border border-border-main p-2 text-sm text-content focus:border-accent focus:outline-none" />
+              <button type="submit" disabled={isSubmitting || !newKeeperUsername.trim()} className="rounded bg-accent px-3 py-2 text-sm font-bold text-white transition-colors hover:opacity-90 disabled:opacity-50">Add</button>
             </form>
           </div>
 
           <div>
             <h3 className="text-sm font-semibold text-red-400 mb-2">Danger Zone</h3>
-            <p className="text-xs text-gray-400 mb-3">Accidentally created this tournament? Delete it entirely.</p>
+            <p className="text-xs text-muted mb-3">Accidentally created this tournament? Delete it entirely.</p>
             <button onClick={handleDelete} disabled={isSubmitting} className="w-full rounded border border-red-900 bg-red-900/30 px-4 py-2 text-sm font-bold text-red-400 transition-colors hover:bg-red-900/50 disabled:opacity-50">Delete Tournament</button>
           </div>
         </div>

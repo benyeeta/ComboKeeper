@@ -91,7 +91,7 @@ export default function MappoolFeed({
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium border transition-colors ${
                   isHidden 
                     ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-100' 
-                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 shadow-sm hover:border-pink-400 dark:hover:border-pink-500'
+                    : 'bg-white dark:bg-white/5 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 shadow-sm hover:border-pink-400 dark:hover:border-pink-500'
                 }`}
                 title={isHidden ? `Click to include ${p.username}` : `Click to hide ${p.username}`}
               >
@@ -125,7 +125,7 @@ export default function MappoolFeed({
             onClick={() => onMapSelect(isExpanded ? null : map)}
             className={`flex items-center justify-between p-3 cursor-pointer transition-colors
               ${MOD_COLORS[map.mod] || "border-gray-500"} border-l-4
-              ${isExpanded ? 'bg-gray-200 dark:bg-gray-700' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}
+              ${isExpanded ? 'bg-gray-200 dark:bg-white/10' : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
           >
           <div className="flex items-center gap-4 flex-grow overflow-hidden">
             <span className="font-bold text-lg w-12 flex-shrink-0">{map.id}</span>

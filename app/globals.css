@@ -3,25 +3,53 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #f3f4f6; /* Off-white gray */
-  --foreground: #111827; /* Near black text */
+  /* Light Mode (Base) */
+  --bg-main: #f9fafb;
+  --bg-surface: #ffffff;
+  --border-main: #e5e7eb;
+  --text-main: #111827;
+  --text-muted: #6b7280;
+  --accent-main: #db2777;    /* pink-600 */
+  --hover-overlay: #000000;  /* black for hover */
+}
+
+/* Standard Dark Mode */
+.dark {
+  --bg-main: #111827;
+  --bg-surface: #1f2937;
+  --border-main: #374151;
+  --text-main: #ffffff;
+  --text-muted: #9ca3af;
+  --accent-main: #f472b6;    /* pink-400 */
+  --hover-overlay: #ffffff;  /* white for hover */
+}
+
+/* Custom Pink/Purple Theme */
+.dark.default {
+  --bg-main: #180a1e;
+  --bg-surface: #281432;
+  --border-main: #4a2b5e;
+  --text-main: #ffffff;
+  --text-muted: #d8b4e2;
+  --accent-main: #ec4899;    /* pink-500 */
+  --hover-overlay: #ffffff;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg-main);
+  --color-surface: var(--bg-surface);
+  --color-border-main: var(--border-main);
+  --color-content: var(--text-main);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent-main);
+  --color-hover-overlay: var(--hover-overlay);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/* Only apply dark mode colors when the .dark class is present */
-.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: var(--bg-main);
+  color: var(--text-main);
   font-family: var(--font-sans);
 }

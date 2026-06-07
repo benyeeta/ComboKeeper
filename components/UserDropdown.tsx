@@ -23,7 +23,7 @@ export default function UserDropdown({ user }: { user: SessionData }) {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 focus:outline-none p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="flex items-center gap-2 focus:outline-none p-1 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
       >
         <img
           src={user.avatar_url || `https://a.ppy.sh/${user.id}`}
@@ -40,20 +40,20 @@ export default function UserDropdown({ user }: { user: SessionData }) {
           <Link
             href="/profile"
             onClick={() => setIsOpen(false)}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
           >
             Profile
           </Link>
           <Link
             href="/settings"
             onClick={() => setIsOpen(false)}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
           >
             Settings
           </Link>
           <a
             href="/api/auth/logout"
-            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
           >
             Sign Out
           </a>

@@ -67,7 +67,7 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
       <div className="w-full max-w-2xl rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl max-h-[90vh] flex flex-col">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">Create New Tournament</h2>
-          <button onClick={handleClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+          <button onClick={handleClose} className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -97,11 +97,11 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
           
             {mode === 'choice' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                <button type="button" onClick={() => setMode('clone')} className="flex flex-col items-center justify-center p-6 border-2 border-gray-700 rounded-lg hover:border-pink-500 hover:bg-gray-800 transition-colors text-left group">
+                <button type="button" onClick={() => setMode('clone')} className="flex flex-col items-center justify-center p-6 border-2 border-gray-700 rounded-lg hover:border-pink-500 hover:bg-white/5 transition-colors text-left group">
                   <span className="font-bold text-lg mb-2 text-white group-hover:text-pink-400">Register Team</span>
                   <span className="text-sm text-gray-400 text-center">Sign up a team for an existing tournament.</span>
                 </button>
-                <button type="button" onClick={() => setMode('new')} className="flex flex-col items-center justify-center p-6 border-2 border-gray-700 rounded-lg hover:border-blue-500 hover:bg-gray-800 transition-colors text-left group">
+                <button type="button" onClick={() => setMode('new')} className="flex flex-col items-center justify-center p-6 border-2 border-gray-700 rounded-lg hover:border-blue-500 hover:bg-white/5 transition-colors text-left group">
                   <span className="font-bold text-lg mb-2 text-white group-hover:text-blue-400">Tournament Keeper</span>
                   <span className="text-sm text-gray-400 text-center">Create a brand new tournament to manage maps and stages.</span>
                 </button>
@@ -215,7 +215,7 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
                   <button type="button" onClick={() => setMode('choice')} className="rounded px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors mr-auto">
                     &larr; Back
                   </button>
-                  <button type="button" onClick={handleClose} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors">Cancel</button>
+                  <button type="button" onClick={handleClose} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors">Cancel</button>
                   <button type="submit" disabled={isSubmitting || (mode === 'clone' && !selectedSourceId)} className="rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50 flex items-center gap-2">
                     {isSubmitting ? "Processing..." : (mode === 'clone' ? "Register Team" : "Create Tournament")}
                   </button>

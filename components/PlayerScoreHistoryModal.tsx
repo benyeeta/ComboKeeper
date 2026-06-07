@@ -104,7 +104,7 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
               <p className="text-sm text-gray-400">on <span className="font-semibold text-blue-400">{map.id}</span>: {map.songName}</p>
             </div>
           </div>
-          <button onClick={handleClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+          <button onClick={handleClose} className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>

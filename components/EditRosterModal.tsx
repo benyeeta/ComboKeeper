@@ -59,7 +59,7 @@ export default function EditRosterModal({
       <div className="w-full max-w-2xl rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl max-h-[90vh] flex flex-col">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-bold">Edit Roster: <span className="text-pink-400">{teamName}</span></h2>
-          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -118,7 +118,7 @@ export default function EditRosterModal({
           </div>
 
           <div className="mt-4 flex justify-end gap-3 pt-4 border-t border-gray-700">
-            <button type="button" onClick={onClose} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors">Cancel</button>
             <button type="submit" disabled={isSubmitting} className="rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50 flex items-center gap-2">
               {isSubmitting ? "Saving..." : "Save Roster"}
             </button>

@@ -62,7 +62,7 @@ export default function FeedbackModal() {
           <div className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-bold">Submit Feedback</h2>
-              <button onClick={() => setIsOpen(false)} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+              <button onClick={() => setIsOpen(false)} className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -90,12 +90,12 @@ export default function FeedbackModal() {
                   type="file" 
                   accept="image/*" 
                   onChange={(e) => setImage(e.target.files?.[0] || null)}
-                  className="w-full text-sm text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-gray-800 file:text-gray-300 hover:file:bg-gray-700 hover:file:text-white cursor-pointer transition-colors"
+                  className="w-full text-sm text-gray-400 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-gray-800 file:text-gray-300 hover:file:bg-white/10 hover:file:text-white cursor-pointer transition-colors"
                 />
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setIsOpen(false)} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 transition-colors">Cancel</button>
+                <button type="button" onClick={() => setIsOpen(false)} className="rounded px-4 py-2 text-sm font-medium text-gray-300 hover:bg-white/10 transition-colors">Cancel</button>
                 <button type="submit" disabled={isSubmitting || !message.trim()} className="rounded bg-pink-600 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-pink-700 disabled:opacity-50">
                   {isSubmitting ? "Submitting..." : "Submit"}
                 </button>

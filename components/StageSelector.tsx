@@ -21,7 +21,7 @@ export default function StageSelector({
             className={`${
               stage === selectedStage
                 ? "bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm border border-gray-200 dark:border-gray-700"
-                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white"
+                : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white"
             } rounded-md px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap`}
           >
             {stage}

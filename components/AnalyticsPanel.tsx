@@ -112,7 +112,7 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {leaderboardData ? (
                   leaderboardData.map((player) => (
-                    <tr key={player.name} onClick={() => onViewPlayerScores(player)} className="cursor-pointer group hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <tr key={player.name} onClick={() => onViewPlayerScores(player)} className="cursor-pointer group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-0">
                         <div className="flex items-center gap-3 text-left transition-colors group-hover:text-pink-400">
                           <div className="flex-shrink-0">

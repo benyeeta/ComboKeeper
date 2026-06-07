@@ -24,7 +24,7 @@ function NavLinksContent() {
           <Link
             key={item.name}
             href={`${item.href}${suffix}`}
-            className={`${isActive ? "text-pink-500 font-semibold" : "text-gray-600 dark:text-gray-300"} hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 dark:hover:text-white rounded-md px-3 py-2 text-sm font-medium transition-colors`}
+            className={`${isActive ? "text-pink-500 font-semibold" : "text-gray-600 dark:text-gray-300"} hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-white/10 dark:hover:text-white rounded-md px-3 py-2 text-sm font-medium transition-colors`}
           >
             {item.name}
           </Link>

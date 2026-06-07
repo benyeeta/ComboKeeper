@@ -124,7 +124,7 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
           <h2 className="text-xl font-bold">
             Add Score for <span className="text-blue-400">{map.id}</span>
           </h2>
-          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-700 hover:text-white">
+          <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -193,7 +193,7 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
                     placeholder="e.g., 987 654"
                     className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:ring-blue-500"
                   />
-                  <button onClick={() => removeScoreRow(index)} className="p-1 text-gray-500 hover:text-red-400 rounded-full hover:bg-gray-700">
+                  <button onClick={() => removeScoreRow(index)} className="p-1 text-gray-500 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors">
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -201,7 +201,7 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
             </div>
             <button
               onClick={addScoreRow}
-              className="w-full rounded-md border border-gray-600 bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-gray-700"
+              className="w-full rounded-md border border-gray-600 bg-gray-800 px-4 py-2 text-sm font-semibold text-gray-300 hover:bg-white/10 transition-colors"
             >
               + Add another score
             </button>
