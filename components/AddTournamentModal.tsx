@@ -1,7 +1,7 @@
 "use client";
 
 import { createTournament, registerTeam, getPopularTournaments } from "@/app/actions";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 export default function AddTournamentModal({ isOpen, onClose, currentUsername }: { isOpen: boolean; onClose: () => void; currentUsername?: string }) {
@@ -12,6 +12,14 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
   const [popularList, setPopularList] = useState<any[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string>("");
   const router = useRouter();
+
+  const handleClose = useCallback(() => {
+    setError("");
+    setPlayers([{ username: currentUsername || "", isAdmin: true }]);
+    setMode('choice');
+    setSelectedSourceId("");
+    onClose();
+  }, [currentUsername, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -34,6 +42,14 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    if (isOpen) window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleClose]);
+
   if (!isOpen) return null;
 
   const handleAddPlayer = () => setPlayers([...players, { username: "", isAdmin: false }]);
@@ -45,22 +61,6 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
     newPlayers[index] = { ...newPlayers[index], [field]: value };
     setPlayers(newPlayers);
   };
-
-  const handleClose = () => {
-    setError("");
-    setPlayers([{ username: currentUsername || "", isAdmin: true }]);
-    setMode('choice');
-    setSelectedSourceId("");
-    onClose();
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
-    };
-    if (isOpen) window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentUsername]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4 transition-opacity">
@@ -84,14 +84,20 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
           setError("");
           setIsSubmitting(true);
           
-          const result = mode === 'new' ? await createTournament(formData) : await registerTeam(formData);
-          setIsSubmitting(false);
-          if (result?.error) setError(result.error);
-          else {
-            handleClose();
-            if ((result as any).tournamentId) {
-              router.push(`/?t=${(result as any).tournamentId}`);
+          try {
+            const result = mode === 'new' ? await createTournament(formData) : await registerTeam(formData);
+            setIsSubmitting(false);
+            if (result?.error) setError(result.error);
+            else {
+              handleClose();
+              if ((result as any).tournamentId) {
+                router.push(`/?t=${(result as any).tournamentId}`);
+              }
             }
+          } catch (err) {
+            console.error(err);
+            setError("An unexpected error occurred. Please try again.");
+            setIsSubmitting(false);
           }
         }} className="flex flex-col gap-4 overflow-y-auto pr-2">
           

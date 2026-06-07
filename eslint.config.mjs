@@ -1,10 +1,11 @@
-import next from "eslint-config-next";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const nextConfig = require("eslint-config-next/core-web-vitals");
 
 /** @type {import('eslint').Linter.FlatConfig[]} */
-const config = [
-  {
-    ...next,
-    // You can add any custom rules here in the future
-  },
+const eslintConfig = [
+  ...(Array.isArray(nextConfig) ? nextConfig : [nextConfig]),
 ];
-export default config;
+
+export default eslintConfig;
