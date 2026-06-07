@@ -6,7 +6,7 @@ export default function ThemeInitializer() {
   useEffect(() => {
     const theme = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1] || "default";
     document.documentElement.classList.remove("dark", "default");
-    if (theme === "default") {
+    if (theme === "default" || theme === "osu") {
       document.documentElement.classList.add("dark", "default");
     } else if (theme === "dark") {
       document.documentElement.classList.add("dark");

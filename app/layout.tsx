@@ -29,7 +29,7 @@ export default async function RootLayout({
               try {
                 let theme = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1] || "default";
               document.documentElement.classList.remove("dark", "default");
-              if (theme === "default") {
+              if (theme === "default" || theme === "osu") {
                 document.documentElement.classList.add("dark", "default");
               } else if (theme === "dark") {
                 document.documentElement.classList.add("dark");
@@ -42,6 +42,10 @@ export default async function RootLayout({
         html.default {
           --background: #111111;
           --foreground: #ffffff;
+        }
+        html.default body {
+          background-color: #111111 !important;
+          color: #ffffff !important;
         }
         html.default .bg-gray-900, html.default .dark\\:bg-gray-900 { background-color: #1a171a !important; }
         html.default .bg-gray-800, html.default .dark\\:bg-gray-800 { background-color: #262024 !important; }
