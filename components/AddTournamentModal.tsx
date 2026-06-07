@@ -21,7 +21,7 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
             setPopularList(res);
           } else {
             setPopularList([]);
-            if (res?.error) setError(res.error);
+            if ((res as any)?.error) setError((res as any).error);
           }
         })
         .catch(err => {
