@@ -15,7 +15,19 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
 
   useEffect(() => {
     if (isOpen) {
-      getPopularTournaments().then(res => setPopularList(res || []));
+      getPopularTournaments()
+        .then(res => {
+          if (Array.isArray(res)) {
+            setPopularList(res);
+          } else {
+            setPopularList([]);
+            if (res?.error) setError(res.error);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          setPopularList([]);
+        });
     }
   }, [isOpen]);
 

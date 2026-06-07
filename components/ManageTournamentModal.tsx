@@ -29,10 +29,15 @@ export default function ManageTournamentModal({
   useEffect(() => {
     if (isOpen) {
       setIsKeepersLoading(true);
-      getTournamentKeepers(tournamentId).then(res => {
-        if (res.keepers) setKeepers(res.keepers);
-        setIsKeepersLoading(false);
-      });
+      getTournamentKeepers(tournamentId)
+        .then(res => {
+          if (res?.keepers) setKeepers(res.keepers);
+          setIsKeepersLoading(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setIsKeepersLoading(false);
+        });
       setFormat(tournamentFormat || "1v1");
     }
   }, [isOpen, tournamentId, tournamentFormat]);
@@ -57,8 +62,14 @@ export default function ManageTournamentModal({
   };
 
   const handleToggleCompleted = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    if (checked) {
+      if (!confirm("Are you sure you want to mark this tournament as finished? You can always uncheck this later if needed.")) {
+        return;
+      }
+    }
     setIsSubmitting(true);
-    await toggleTournamentStatus(tournamentId, e.target.checked);
+    await toggleTournamentStatus(tournamentId, checked);
     setIsSubmitting(false);
   };
 
