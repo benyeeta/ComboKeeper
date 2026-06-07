@@ -11,9 +11,10 @@ interface PlayerScoreHistoryModalProps {
   map: MappoolMap | null;
   currentUserId?: string;
   currentUserRole?: string;
+  activeTournament?: any;
 }
 
-const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUserId, currentUserRole }: PlayerScoreHistoryModalProps) => {
+const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUserId, currentUserRole, activeTournament }: PlayerScoreHistoryModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isBulkDeleteMode, setIsBulkDeleteMode] = useState(false);
   const [selectedScoreIds, setSelectedScoreIds] = useState<Set<string>>(new Set());
@@ -83,6 +84,8 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
     }
   };
 
+  const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === playerData?.id.toString() && ap.isAdmin);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity">
       <div className="w-full max-w-md rounded-lg border border-gray-700 bg-gray-900 p-6 text-white shadow-xl">
@@ -94,7 +97,10 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
               className="h-10 w-10 rounded-full border-2 border-gray-800"
             />
             <div>
-              <h2 className="text-xl font-bold">{playerData.username}'s Scores</h2>
+              <h2 className="text-xl font-bold flex items-center">
+                {playerData.username}'s Scores
+                {isCaptain && <span className="ml-2 text-sm text-pink-400" title="Captain">♔</span>}
+              </h2>
               <p className="text-sm text-gray-400">on <span className="font-semibold text-blue-400">{map.id}</span>: {map.songName}</p>
             </div>
           </div>

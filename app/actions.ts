@@ -133,7 +133,7 @@ export async function createTournament(formData: FormData) {
 
   // Refresh the dashboard
   revalidatePath("/");
-  return { success: true };
+  return { success: true, tournamentId: tournament.id };
 }
 
 export async function registerTeam(formData: FormData) {
@@ -211,7 +211,7 @@ export async function registerTeam(formData: FormData) {
   }
 
   revalidatePath("/");
-  return { success: true };
+  return { success: true, tournamentId };
 }
 
 export async function updateTeamRoster(formData: FormData) {
@@ -611,7 +611,7 @@ export async function toggleTournamentStatus(tournamentId: string, isCompleted: 
   });
 
   revalidatePath("/");
-  return { success: true };
+  return { success: true, tournamentId };
 }
 
 export async function updateTournamentDetails(formData: FormData) {

@@ -21,9 +21,9 @@ export default function ThemeSelect({
     setTheme(newTheme);
     
     // Optimistically update the DOM immediately for an instant visual transition!
-    document.documentElement.classList.remove("dark", "osu");
-    if (newTheme === "osu") {
-      document.documentElement.classList.add("dark", "osu");
+    document.documentElement.classList.remove("dark", "default");
+    if (newTheme === "default") {
+      document.documentElement.classList.add("dark", "default");
     } else if (newTheme === "dark") {
       document.documentElement.classList.add("dark");
     }
@@ -42,9 +42,9 @@ export default function ThemeSelect({
         onChange={handleChange}
         className="rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 p-2 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none"
       >
+        <option value="default">Default Theme</option>
         <option value="dark">Dark Mode</option>
         <option value="light">Light Mode</option>
-      <option value="osu">osu! Theme</option>
       </select>
     </div>
   );

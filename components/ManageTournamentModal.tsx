@@ -24,6 +24,7 @@ export default function ManageTournamentModal({
   const [keepers, setKeepers] = useState<{id: number, username: string, avatarUrl: string|null}[]>([]);
   const [isKeepersLoading, setIsKeepersLoading] = useState(true);
   const [newKeeperUsername, setNewKeeperUsername] = useState("");
+  const [format, setFormat] = useState(tournamentFormat || "1v1");
 
   useEffect(() => {
     if (isOpen) {
@@ -32,8 +33,9 @@ export default function ManageTournamentModal({
         if (res.keepers) setKeepers(res.keepers);
         setIsKeepersLoading(false);
       });
+      setFormat(tournamentFormat || "1v1");
     }
-  }, [isOpen, tournamentId]);
+  }, [isOpen, tournamentId, tournamentFormat]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -147,7 +149,7 @@ export default function ManageTournamentModal({
                 </div>
                 <div>
                   <label className="text-xs text-gray-400 block mb-1">Format</label>
-                  <select name="format" defaultValue={tournamentFormat || "1v1"} className="w-full rounded bg-gray-800 border border-gray-600 p-2 text-sm text-white focus:border-pink-500 focus:outline-none" required>
+                  <select name="format" value={format} onChange={(e) => setFormat(e.target.value)} className="w-full rounded bg-gray-800 border border-gray-600 p-2 text-sm text-white focus:border-pink-500 focus:outline-none" required>
                     <option value="1v1">1v1</option>
                     <option value="2v2">2v2</option>
                     <option value="3v3">3v3</option>

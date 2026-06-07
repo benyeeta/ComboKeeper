@@ -7,6 +7,7 @@ type AnalyticsPanelProps = {
   selectedStage: string;
   onViewPlayerScores: (player: PlayerData) => void;
   allScores: ScoreData[];
+  activeTournament?: any;
 };
 
 /**
@@ -33,7 +34,7 @@ function calculateTrimmedMean(scores: number[], percent: number): number | null 
   return sum / trimmedScores.length;
 }
 
-export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlayerScores, allScores }: AnalyticsPanelProps) {
+export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlayerScores, allScores, activeTournament }: AnalyticsPanelProps) {
   if (!selectedMap) return null;
 
   // Memoize the processed leaderboard data to avoid re-computation on every render.
@@ -81,6 +82,7 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
         averageScore: average !== null ? Math.round(average).toLocaleString() : 'min 2 plays',
         bestMatchScore: bestMatch.score > 0 ? bestMatch.score.toLocaleString() : '-',
         perfDiff: perfDiff !== null ? Math.round(perfDiff) : null,
+        isCaptain: activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isAdmin) || false,
       };
     });
 
@@ -90,7 +92,7 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
       const scoreB = parseInt(b.score.replace(/,/g, ''), 10);
       return scoreB - scoreA;
     });
-  }, [selectedMap, selectedStage]);
+  }, [selectedMap, selectedStage, allScores, activeTournament]);
 
   return (
     <div className="flow-root">
@@ -116,7 +118,10 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
                           <div className="flex-shrink-0">
                             <Image src={player.avatarUrl} alt={player.name} width={32} height={32} className="w-8 h-8 rounded-full" />
                           </div>
-                          <span className="font-medium">{player.name}</span>
+                          <span className={player.isCaptain ? "font-bold" : "font-medium"}>
+                            {player.name}
+                            {player.isCaptain && <span className="ml-1 text-[10px] text-pink-400" title="Captain">♔</span>}
+                          </span>
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600 dark:text-gray-300">

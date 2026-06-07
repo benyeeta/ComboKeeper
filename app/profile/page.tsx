@@ -36,13 +36,21 @@ async function ProfileContent() {
   const matchScores = player.scores.filter(s => s.scoreType === "MATCH");
   const matchMapIds = [...new Set(matchScores.map(s => s.mappoolMapId))];
 
+  const activeTeams = player.teams.filter(t => t.status === "ACCEPTED");
+  const activeTeamPlayerIds = [...new Set(activeTeams.flatMap(t => t.team.players.filter(tp => tp.status === "ACCEPTED").map(p => p.playerId)))];
+  const playerMapIds = [...new Set(player.scores.map(s => s.mappoolMapId))];
+
   // 1. Fetch osu! API data and the max scores for MVP calculation in PARALLEL
-  const [osuData, maxScoresData] = await Promise.all([
+  const [osuData, maxScoresData, teamScores] = await Promise.all([
     getCachedOsuUser(player.id),
     matchMapIds.length > 0 ? prisma.score.groupBy({
       by: ['mappoolMapId'],
       _max: { score: true },
       where: { mappoolMapId: { in: matchMapIds }, scoreType: "MATCH" }
+    }) : Promise.resolve([]),
+    playerMapIds.length > 0 ? prisma.score.findMany({
+      where: { mappoolMapId: { in: playerMapIds }, playerId: { in: activeTeamPlayerIds } },
+      select: { mappoolMapId: true, playerId: true, score: true, timestamp: true }
     }) : Promise.resolve([])
   ]);
 
@@ -159,8 +167,78 @@ async function ProfileContent() {
 
   const ssCount = player.scores.filter(s => s.accuracy === 100).length;
 
+  let supportCount = 0;
+  let carryCount = 0;
+  let scouterCount = 0;
+
+  const teamScoresByMap = new Map<string, { playerId: number, score: number, timestamp: Date | null }[]>();
+  teamScores.forEach(ts => {
+    if (!teamScoresByMap.has(ts.mappoolMapId)) teamScoresByMap.set(ts.mappoolMapId, []);
+    teamScoresByMap.get(ts.mappoolMapId)!.push(ts);
+  });
+
+  let lowestAvgMap = { id: "", avg: Infinity };
+
+  for (const [mapId, scores] of teamScoresByMap.entries()) {
+    const validScores = scores.filter(s => s.timestamp);
+    if (validScores.length > 0) {
+      const earliestScore = validScores.reduce((min, s) => s.timestamp! < min.timestamp! ? s : min, validScores[0]);
+      if (earliestScore.playerId === player.id) scouterCount++;
+    }
+
+    const playerMaxes = new Map<number, number>();
+    scores.forEach(s => {
+      const current = playerMaxes.get(s.playerId) || 0;
+      if (s.score > current) playerMaxes.set(s.playerId, s.score);
+    });
+
+    const sortedPlayerMaxes = Array.from(playerMaxes.entries()).sort((a, b) => b[1] - a[1]);
+    const playerRankIndex = sortedPlayerMaxes.findIndex(p => p[0] === player.id);
+    
+    if (playerRankIndex === 0) carryCount++;
+    else if (playerRankIndex === 1 || playerRankIndex === 2) supportCount++;
+
+    if (sortedPlayerMaxes.length > 1) { 
+      const avg = sortedPlayerMaxes.reduce((sum, p) => sum + p[1], 0) / sortedPlayerMaxes.length;
+      if (avg < lowestAvgMap.avg) {
+        lowestAvgMap = { id: mapId, avg };
+      }
+    }
+  }
+
+  const isSupportMain = supportCount >= 5 && supportCount > carryCount;
+  const isScouter = scouterCount >= 5;
+  
+  let isCaptainsAnchor = false;
+  let anchorMapId = null;
+  if (lowestAvgMap.avg < Infinity) {
+    const lowestAvgScores = teamScoresByMap.get(lowestAvgMap.id) || [];
+    const maxOnLowest = lowestAvgScores.reduce((max, s) => s.score > max.score ? s : max, { score: -1, playerId: -1, timestamp: null });
+    if (maxOnLowest.playerId === player.id) {
+      isCaptainsAnchor = true;
+      anchorMapId = player.scores.find(s => s.mappoolMapId === lowestAvgMap.id)?.mappoolMap?.mapId || "their worst map";
+    }
+  }
+
+  let isSlave = false;
+  let slaveMapCount = 0;
+  const matchScoresByDay = new Map<string, Set<string>>();
+  matchScores.forEach(s => {
+    if (s.timestamp) {
+      const day = s.timestamp.toISOString().split('T')[0];
+      if (!matchScoresByDay.has(day)) matchScoresByDay.set(day, new Set());
+      matchScoresByDay.get(day)!.add(s.mappoolMapId);
+    }
+  });
+  for (const maps of matchScoresByDay.values()) {
+    if (maps.size >= 8) {
+      isSlave = true;
+      slaveMapCount = maps.size;
+      break;
+    }
+  }
+
   // Extract all the tournaments from the teams the player is on
-  const activeTeams = player.teams.filter(t => t.status === "ACCEPTED");
   const tournamentsWithTeams = activeTeams.flatMap(t => 
     t.team.tournaments.map(tt => ({
       ...tt.tournament,
@@ -312,7 +390,31 @@ async function ProfileContent() {
                 <span className="text-sm text-gray-700 dark:text-gray-300">Grinds in absolute silence. 90%+ of scores logged in solo offline practice.</span>
               </div>
             )}
-            {!bestSkill && tbAvg === null && tournamentBuff === null && !metronomeMap && ssCount === 0 && !isNightOwl && !isEmployed && !isClickerTrained && !isGhost && (
+            {isSupportMain && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-emerald-500 font-bold mb-1">The Support Main</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">The backbone of the lobby. Consistently holding the line with top 3 finishes and providing critical utility to the team.</span>
+              </div>
+            )}
+            {isCaptainsAnchor && anchorMapId && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-cyan-500 font-bold mb-1">Captain's Anchor</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Keeping the pirate ship afloat and saving the crew from sinking. Hard-carrying the team's worst map ({anchorMapId}).</span>
+              </div>
+            )}
+            {isSlave && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-red-500 font-bold mb-1">The Slave</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">This player is a slave to their team. Played a grueling {slaveMapCount} maps in a single match session.</span>
+              </div>
+            )}
+            {isScouter && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-lime-500 font-bold mb-1">The Scouter</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">First on the frontline. Scouting the pool before anyone else on {scouterCount} maps.</span>
+              </div>
+            )}
+            {!bestSkill && tbAvg === null && tournamentBuff === null && !metronomeMap && ssCount === 0 && !isNightOwl && !isEmployed && !isClickerTrained && !isGhost && !isSupportMain && !isCaptainsAnchor && !isSlave && !isScouter && (
               <p className="text-sm text-gray-500 col-span-full">Play more maps and matches to earn personal trophies!</p>
             )}
           </div>

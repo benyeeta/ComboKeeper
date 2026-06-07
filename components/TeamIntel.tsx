@@ -7,9 +7,10 @@ import Image from "next/image";
 type TeamIntelProps = {
   allScores: ScoreData[];
   selectedStage: string;
+  activeTournament?: any;
 };
 
-export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) {
+export default function TeamIntel({ allScores, selectedStage, activeTournament }: TeamIntelProps) {
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState<Set<number>>(new Set());
 
   const uniquePlayers = useMemo(() => {
@@ -64,6 +65,11 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
     let sumBuffs = 0;
     let mapsWithBoth = 0;
 
+    let captainTotalScore = 0;
+    let captainMapsCount = 0;
+    let crewTotalScore = 0;
+    let crewMapsCount = 0;
+
     stageScores.forEach(mapData => {
       let playerAveragesTotal = 0;
       let playersWithScoresCount = 0;
@@ -76,10 +82,16 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
       let mapPracticeScore = 0;
       let mapPracticePlays = 0;
 
+      const isMM = mapData.mapId.toUpperCase().startsWith('MM');
+      const isFM = mapData.mapId.toUpperCase().startsWith('FM');
+
       mapData.players.forEach(p => {
         let maxForPlayer = 0;
+        let bestFMScore = 0;
         let pTotal = 0;
         let pCount = 0;
+
+        const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isAdmin);
 
         p.history.forEach(h => {
           pTotal += h.score;
@@ -97,19 +109,81 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
           }
 
           if (h.score > maxForPlayer) maxForPlayer = h.score;
+          if (h.playedMod && h.playedMod !== 'NM' && h.score > bestFMScore) bestFMScore = h.score;
 
           if (h.timestamp) {
             const hour = new Date(h.timestamp).getHours();
             if (hour >= 0 && hour < 5) nightOwlPlays++;
           }
         });
-        if (maxForPlayer > 0) topScores.push(maxForPlayer);
+        
+        if (!isMM) {
+          const scoreToPush = isFM ? (bestFMScore > 0 ? bestFMScore : maxForPlayer) : maxForPlayer;
+          if (scoreToPush > 0) topScores.push(scoreToPush);
+        }
 
         if (pCount > 0) {
           playerAveragesTotal += (pTotal / pCount);
           playersWithScoresCount += 1;
+
+          if (isCaptain) {
+            captainTotalScore += (pTotal / pCount);
+            captainMapsCount += 1;
+          } else {
+            crewTotalScore += (pTotal / pCount);
+            crewMapsCount += 1;
+          }
         }
       });
+
+      if (isMM) {
+        const requiredMods = ['HD', 'HR', 'NM'];
+        let maxTotal = -1;
+        let bestScores: number[] = [];
+
+        const getBestScore = (player: any, reqMod: string) => {
+          const plays = player.history.filter((h: any) => {
+            if (reqMod === 'NM') return !h.playedMod || h.playedMod === 'NM';
+            return h.playedMod && h.playedMod.includes(reqMod);
+          });
+          return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
+        };
+
+        const playersToEvaluate = [...mapData.players];
+        let dummyIdCounter = -1;
+        while (playersToEvaluate.length < 3) {
+          playersToEvaluate.push({ id: dummyIdCounter--, username: "Dummy", avatarUrl: "", history: [] } as any);
+        }
+
+        const playerBestScores = new Map();
+        for (const p of playersToEvaluate) {
+          playerBestScores.set(p.id, { HD: getBestScore(p, 'HD'), HR: getBestScore(p, 'HR'), NM: getBestScore(p, 'NM') });
+        }
+
+        const findBestAssignment = (modIndex: number, currentScores: number[], currentTotal: number, usedPlayers: Set<number>) => {
+          if (modIndex === requiredMods.length) {
+            if (currentTotal > maxTotal) { maxTotal = currentTotal; bestScores = [...currentScores]; }
+            return;
+          }
+          const reqMod = requiredMods[modIndex];
+          for (const p of playersToEvaluate) {
+            if (!usedPlayers.has(p.id)) {
+              let score = playerBestScores.get(p.id)[reqMod];
+              usedPlayers.add(p.id);
+              if (score === 0) {
+                const fallbackPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : null;
+                score = fallbackPlay?.score || 0;
+              }
+              currentScores.push(score);
+              findBestAssignment(modIndex + 1, currentScores, currentTotal + score, usedPlayers);
+              currentScores.pop();
+              usedPlayers.delete(p.id);
+            }
+          }
+        };
+        findBestAssignment(0, [], 0, new Set());
+        topScores = bestScores.filter(s => s > 0);
+      }
 
       if (mapMatchPlays > 0 && mapPracticePlays > 0) {
         const mAvg = mapMatchScore / mapMatchPlays;
@@ -153,6 +227,15 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
       matchPerformance = { buff: sumBuffs / mapsWithBoth };
     }
 
+    let mutiny = false;
+    if (captainMapsCount >= 3 && crewMapsCount >= 3) {
+      const captainAvg = captainTotalScore / captainMapsCount;
+      const crewAvg = crewTotalScore / crewMapsCount;
+      if (crewAvg > captainAvg) {
+        mutiny = true;
+      }
+    }
+
     const avgStdDev = stdDevCount > 0 ? totalStdDev / stdDevCount : null;
     let playstyle = null;
     if (avgStdDev !== null) {
@@ -161,9 +244,13 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
     }
 
       const mapsToPractice = mapStats
-        .filter(m => m.id !== bestMap.id && m.id !== worstMap.id && m.id !== safePick.id && m.id !== coinflipPick.id)
-        .sort((a, b) => a.plays - b.plays || a.avg - b.avg)
+      .filter(m => m.id !== bestMap.id && m.id !== worstMap.id && m.id !== safePick.id && m.id !== coinflipPick.id && !m.id.toUpperCase().includes('TB'))
+      .sort((a, b) => a.avg - b.avg)
         .slice(0, 3);
+
+    const pickOrder = mapStats
+      .filter(m => m.avg > 0 && !m.id.toUpperCase().includes('TB'))
+      .sort((a, b) => b.avg - a.avg);
 
     return {
       fortress: highestMinMap.min > 0 ? highestMinMap : null,
@@ -175,10 +262,12 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
       coinflipPick: coinflipPick.dev > 0 ? coinflipPick : null,
       mapsToPractice: mapsToPractice.length > 0 ? mapsToPractice : null,
       matchPerformance,
+      pickOrder: pickOrder.length > 0 ? pickOrder : null,
+      mutiny,
     };
   }, [allScores, selectedStage]);
 
-  if (!intel || (!intel.fortress && !intel.achilles && intel.nightOwls === 0 && !intel.hiveMind && !intel.playstyle && !intel.safePick && !intel.coinflipPick && !intel.mapsToPractice && !intel.matchPerformance)) {
+  if (!intel || (!intel.fortress && !intel.achilles && intel.nightOwls === 0 && !intel.hiveMind && !intel.playstyle && !intel.safePick && !intel.coinflipPick && !intel.mapsToPractice && !intel.matchPerformance && !intel.pickOrder && !intel.mutiny)) {
     return (
       <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-8 text-center transition-colors duration-200">
         <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Not enough data</h3>
@@ -204,6 +293,7 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mr-1">Roster:</span>
             {uniquePlayers.map(p => {
               const isHidden = hiddenPlayerIds.has(p.id);
+            const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isAdmin);
               return (
                 <button
                   key={p.id}
@@ -222,7 +312,10 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
                     height={16}
                     className={`w-4 h-4 rounded-full object-cover transition-all ${isHidden ? 'grayscale opacity-50' : ''}`} 
                   />
-                  <span className={isHidden ? 'line-through' : ''}>{p.username}</span>
+                <span className={`${isHidden ? 'line-through' : ''} ${isCaptain ? 'font-bold' : ''}`}>
+                  {p.username}
+                  {isCaptain && <span className="ml-1 text-[10px] text-pink-400" title="Captain">♔</span>}
+                </span>
                 </button>
               );
             })}
@@ -234,7 +327,7 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
           </div>
         )}
       </div>
-      <div className={`grid grid-cols-1 ${isQualifier ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-6`}>
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${isQualifier ? 'lg:grid-cols-2' : 'xl:grid-cols-4 lg:grid-cols-3'} gap-6`}>
         {/* Picks & Bans */}
         {!isQualifier && (
           <div className="flex flex-col gap-3">
@@ -258,6 +351,15 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
               </div>
             )}
 
+            {intel.coinflipPick && intel.coinflipPick.dev > 50000 && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded border border-yellow-200 dark:border-yellow-800/50 flex flex-col shadow-sm">
+                <span className="text-yellow-600 dark:text-yellow-400 font-bold mb-1">The Coinflip Pick (Risky)</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold">{intel.coinflipPick.id}</span> is highly volatile. Scores fluctuate wildly by ±{Math.round(intel.coinflipPick.dev).toLocaleString()}.
+                </span>
+              </div>
+            )}
+
             {intel.achilles && (
               <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded border border-red-200 dark:border-red-800/50 flex flex-col shadow-sm">
                 <span className="text-red-600 dark:text-red-400 font-bold mb-1">The Veto Target (Achilles' Heel)</span>
@@ -266,13 +368,32 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
                 </span>
               </div>
             )}
+          </div>
+        )}
 
-            {intel.coinflipPick && intel.coinflipPick.dev > 50000 && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded border border-yellow-200 dark:border-yellow-800/50 flex flex-col shadow-sm">
-                <span className="text-yellow-600 dark:text-yellow-400 font-bold mb-1">The Coinflip Pick (Risky)</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">{intel.coinflipPick.id}</span> is highly volatile. Scores fluctuate wildly by ±{Math.round(intel.coinflipPick.dev).toLocaleString()}.
-                </span>
+        {/* Recommended Pick Order */}
+        {!isQualifier && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pick Priority</h3>
+            
+            {intel.pickOrder ? (
+              <div className="bg-gray-50 dark:bg-gray-800/50 rounded border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col h-full">
+                {intel.pickOrder.slice(0, 6).map((map, i) => (
+                  <div key={map.id} className="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700 last:border-0 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+                    <span className="font-bold text-gray-800 dark:text-gray-200">
+                      <span className={`${i === 0 ? 'text-pink-500' : i < 3 ? 'text-pink-400/80' : 'text-gray-400'} mr-2`}>#{i + 1}</span>
+                      {map.id}
+                    </span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{Math.round(map.avg).toLocaleString()}</span>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">Avg Score</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col shadow-sm items-center justify-center text-center h-full min-h-[100px]">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Not enough data to rank picks.</span>
               </div>
             )}
           </div>
@@ -286,7 +407,7 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
             <div key={map.id} className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col shadow-sm">
               <span className="text-gray-800 dark:text-gray-200 font-bold mb-1">Priority #{i + 1}: {map.id}</span>
               <span className="text-sm text-gray-600 dark:text-gray-400">
-                {map.plays === 0 ? "No plays recorded yet. Needs immediate attention!" : `Only ${map.plays} plays recorded. Team averages ${Math.round(map.avg).toLocaleString()}.`}
+                {map.plays === 0 ? "No plays recorded yet. Needs immediate attention!" : `Team is struggling here. Averaging ${Math.round(map.avg).toLocaleString()} across ${map.plays} plays.`}
               </span>
             </div>
           )) : (
@@ -343,6 +464,15 @@ export default function TeamIntel({ allScores, selectedStage }: TeamIntelProps) 
               </span>
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 The team averages <span className="font-semibold">{intel.matchPerformance.buff > 0 ? '+' : ''}{Math.round(intel.matchPerformance.buff).toLocaleString()}</span> points {intel.matchPerformance.buff > 0 ? 'higher' : 'lower'} in official matches compared to practice.
+              </span>
+            </div>
+          )}
+
+          {intel.mutiny && (
+            <div className="bg-rose-50 dark:bg-rose-900/30 p-4 rounded border border-rose-200 dark:border-rose-800/50 flex flex-col shadow-sm">
+              <span className="text-rose-600 dark:text-rose-400 font-bold mb-1">The Mutiny</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                The crew is outperforming the captain this week. A full-scale mutiny is brewing on the leaderboard.
               </span>
             </div>
           )}

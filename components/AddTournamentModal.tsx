@@ -2,6 +2,7 @@
 
 import { createTournament, registerTeam, getPopularTournaments } from "@/app/actions";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AddTournamentModal({ isOpen, onClose, currentUsername }: { isOpen: boolean; onClose: () => void; currentUsername?: string }) {
   const [players, setPlayers] = useState([{ username: currentUsername || "", isAdmin: true }]);
@@ -10,6 +11,7 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
   const [mode, setMode] = useState<'choice' | 'clone' | 'new'>('choice');
   const [popularList, setPopularList] = useState<any[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string>("");
+  const router = useRouter();
 
   useEffect(() => {
     if (isOpen) {
@@ -70,7 +72,12 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
           const result = mode === 'new' ? await createTournament(formData) : await registerTeam(formData);
           setIsSubmitting(false);
           if (result?.error) setError(result.error);
-          else handleClose();
+          else {
+            handleClose();
+            if ((result as any).tournamentId) {
+              router.push(`/?t=${(result as any).tournamentId}`);
+            }
+          }
         }} className="flex flex-col gap-4 overflow-y-auto pr-2">
           
             {mode === 'choice' ? (

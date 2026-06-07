@@ -27,10 +27,10 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                let theme = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1] || "dark";
-              document.documentElement.classList.remove("dark", "osu");
-              if (theme === "osu") {
-                document.documentElement.classList.add("dark", "osu");
+                let theme = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1] || "default";
+              document.documentElement.classList.remove("dark", "default");
+              if (theme === "default") {
+                document.documentElement.classList.add("dark", "default");
               } else if (theme === "dark") {
                 document.documentElement.classList.add("dark");
               }
@@ -39,23 +39,23 @@ export default async function RootLayout({
           }}
         />
       <style dangerouslySetInnerHTML={{ __html: `
-        html.osu {
+        html.default {
           --background: #111111;
           --foreground: #ffffff;
         }
-        html.osu .bg-gray-900, html.osu .dark\\:bg-gray-900 { background-color: #1a171a !important; }
-        html.osu .bg-gray-800, html.osu .dark\\:bg-gray-800 { background-color: #262024 !important; }
-        html.osu .bg-gray-700, html.osu .dark\\:bg-gray-700 { background-color: #382e32 !important; }
-        html.osu .border-gray-800, html.osu .dark\\:border-gray-800 { border-color: #33292d !important; }
-        html.osu .border-gray-700, html.osu .dark\\:border-gray-700 { border-color: #403439 !important; }
-        html.osu .border-gray-600, html.osu .dark\\:border-gray-600 { border-color: #52434a !important; }
+        html.default .bg-gray-900, html.default .dark\\:bg-gray-900 { background-color: #1a171a !important; }
+        html.default .bg-gray-800, html.default .dark\\:bg-gray-800 { background-color: #262024 !important; }
+        html.default .bg-gray-700, html.default .dark\\:bg-gray-700 { background-color: #382e32 !important; }
+        html.default .border-gray-800, html.default .dark\\:border-gray-800 { border-color: #33292d !important; }
+        html.default .border-gray-700, html.default .dark\\:border-gray-700 { border-color: #403439 !important; }
+        html.default .border-gray-600, html.default .dark\\:border-gray-600 { border-color: #52434a !important; }
         
-        html.osu .text-pink-400, html.osu .dark\\:text-pink-400 { color: #ff66aa !important; }
-        html.osu .text-pink-500, html.osu .dark\\:text-pink-500 { color: #ff66aa !important; }
-        html.osu .bg-pink-600, html.osu .dark\\:bg-pink-600 { background-color: #ff66aa !important; }
-        html.osu .hover\\:bg-pink-700:hover, html.osu .dark\\:hover\\:bg-pink-700:hover { background-color: #e55c99 !important; }
-        html.osu .border-pink-500, html.osu .focus\\:border-pink-500:focus { border-color: #ff66aa !important; }
-        html.osu .ring-pink-500, html.osu .focus\\:ring-pink-500:focus { --tw-ring-color: #ff66aa !important; }
+        html.default .text-pink-400, html.default .dark\\:text-pink-400 { color: #ff66aa !important; }
+        html.default .text-pink-500, html.default .dark\\:text-pink-500 { color: #ff66aa !important; }
+        html.default .bg-pink-600, html.default .dark\\:bg-pink-600 { background-color: #ff66aa !important; }
+        html.default .hover\\:bg-pink-700:hover, html.default .dark\\:hover\\:bg-pink-700:hover { background-color: #fc4496 !important; }
+        html.default .border-pink-500, html.default .focus\\:border-pink-500:focus { border-color: #ff66aa !important; }
+        html.default .ring-pink-500, html.default .focus\\:ring-pink-500:focus { --tw-ring-color: #ff66aa !important; }
       `}} />
       </head>
       <body className="h-full flex flex-col bg-background text-foreground transition-colors duration-200">

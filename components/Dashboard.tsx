@@ -241,6 +241,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
         map={selectedMap}
         currentUserId={initialData.activeTournament?.currentUserId?.toString()}
         currentUserRole={initialData.activeTournament?.currentUserRole}
+        activeTournament={initialData.activeTournament}
       />
       <EditMappoolModal
         isOpen={isEditMappoolOpen}
@@ -274,6 +275,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
               stageId={initialData.stages?.find(s => s.name === selectedStage)?.id}
               tournamentId={initialData.activeTournament.id}
               onViewPlayerScores={setViewingPlayer}
+              activeTournament={initialData.activeTournament}
             />
           </div>
         </>

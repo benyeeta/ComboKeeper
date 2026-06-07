@@ -25,6 +25,7 @@ type MappoolFeedProps = {
   stageId?: string;
   tournamentId?: string;
   onViewPlayerScores: (player: any) => void;
+  activeTournament?: any;
 };
 
 export default function MappoolFeed({ 
@@ -36,7 +37,8 @@ export default function MappoolFeed({
   allScores,
   stageId,
   tournamentId,
-  onViewPlayerScores
+  onViewPlayerScores,
+  activeTournament
 }: MappoolFeedProps) {
   const currentMappool = mappool[stage] || [];
 
@@ -81,6 +83,7 @@ export default function MappoolFeed({
           <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mr-1">Roster:</span>
           {uniquePlayers.map(p => {
             const isHidden = hiddenPlayerIds.has(p.id);
+            const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isAdmin);
             return (
               <button
                 key={p.id}
@@ -99,7 +102,10 @@ export default function MappoolFeed({
                   height={16}
                   className={`w-4 h-4 rounded-full object-cover transition-all ${isHidden ? 'grayscale opacity-50' : ''}`} 
                 />
-                <span className={isHidden ? 'line-through' : ''}>{p.username}</span>
+                <span className={`${isHidden ? 'line-through' : ''} ${isCaptain ? 'font-bold' : ''}`}>
+                  {p.username}
+                  {isCaptain && <span className="ml-1 text-[10px] text-pink-400" title="Captain">♔</span>}
+                </span>
               </button>
             );
           })}
@@ -129,7 +135,7 @@ export default function MappoolFeed({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <TopLineup mapId={map.id} stage={stage} allScores={filteredScores} mapMod={map.mod} />
+            <TopLineup mapId={map.id} stage={stage} allScores={filteredScores} mapMod={map.mod} activeTournament={activeTournament} />
             <div className="flex items-center gap-1 flex-shrink-0 justify-end">
               <button 
                 onClick={(e) => {
@@ -159,7 +165,7 @@ export default function MappoolFeed({
           </div>
           {isExpanded && (
             <div className={`bg-white dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-4 border-l-4 ${MOD_COLORS[map.mod] || "border-gray-500"}`}>
-              <AnalyticsPanel selectedMap={map} selectedStage={stage} onViewPlayerScores={onViewPlayerScores} allScores={filteredScores} />
+              <AnalyticsPanel selectedMap={map} selectedStage={stage} onViewPlayerScores={onViewPlayerScores} allScores={filteredScores} activeTournament={activeTournament} />
             </div>
           )}
         </div>
@@ -171,7 +177,7 @@ export default function MappoolFeed({
   );
 }
 
-function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: string; allScores: ScoreData[], mapMod: string }) {
+function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapId: string; stage: string; allScores: ScoreData[], mapMod: string, activeTournament?: any }) {
   const mapScoreData = allScores.find(
     (data) => data.mapId === mapId && data.stage === stage
   );
@@ -296,16 +302,21 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
 
   return (
     <div className="hidden md:grid grid-cols-3 gap-2 w-[280px] lg:w-[360px] xl:w-[420px]">
-      {topPlayers.map((player) => (
-        <div key={player.id} className="flex items-center gap-2">
-          <Image
-            src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
-            alt={player.username}
-            width={24}
-            height={24}
-            className="w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"
-          />
-          <span className="text-sm text-gray-800 dark:text-gray-200 font-semibold truncate">{player.username}</span>
+      {topPlayers.map((player) => {
+        const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isAdmin);
+        return (
+          <div key={player.id} className="flex items-center gap-2">
+            <Image
+              src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
+              alt={player.username}
+              width={24}
+              height={24}
+              className="w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"
+            />
+            <span className={`text-sm text-gray-800 dark:text-gray-200 truncate ${isCaptain ? 'font-bold' : 'font-semibold'}`}>
+              {player.username}
+              {isCaptain && <span className="ml-1 text-[10px] text-pink-400" title="Captain">♔</span>}
+            </span>
           {player.assignedMod && (mapMod === 'MM' || mapMod === 'FM') && (
             <span className={`text-[10px] font-bold px-1 rounded border flex-shrink-0 ${
               player.assignedMod.includes('HD') ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
@@ -318,7 +329,8 @@ function TopLineup({ mapId, stage, allScores, mapMod }: { mapId: string; stage: 
             </span>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
