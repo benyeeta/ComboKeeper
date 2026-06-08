@@ -18,20 +18,20 @@ type TeamHubClientProps = {
 
 export default function TeamHubClient({ initialData }: TeamHubClientProps) {
   const getDefaultStage = (stages: { id: string; name: string }[], mappool?: Record<string, any[]>, allScores?: ScoreData[]) => {
-    if (!stages || stages.length === 0) return "";
+    if (!stages || !Array.isArray(stages) || stages.length === 0) return "";
     for (let i = stages.length - 1; i >= 0; i--) {
       const stageName = stages[i].name;
-      if (mappool && mappool[stageName] && mappool[stageName].length > 0) {
+      if (mappool && mappool[stageName] && Array.isArray(mappool[stageName]) && mappool[stageName].length > 0) {
         return stageName;
       }
       if (allScores && allScores.some(s => s.stage === stageName)) {
         return stageName;
       }
     }
-    return stages[0].name;
+    return stages[0]?.name || "";
   };
 
-  const [selectedStage, setSelectedStage] = useState<string>(() => getDefaultStage(initialData.stages, initialData.mappool, initialData.allScores));
+  const [selectedStage, setSelectedStage] = useState<string>(() => getDefaultStage(initialData.stages || [], initialData.mappool, initialData.allScores));
   const [currentTournamentId, setCurrentTournamentId] = useState(initialData.activeTournament?.id);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
@@ -48,9 +48,9 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
   useEffect(() => {
     if (initialData.activeTournament?.id !== currentTournamentId) {
       setCurrentTournamentId(initialData.activeTournament?.id);
-      setSelectedStage(getDefaultStage(initialData.stages, initialData.mappool, initialData.allScores));
-    } else if (initialData.stages && !initialData.stages.find(s => s.name === selectedStage)) {
-      setSelectedStage(getDefaultStage(initialData.stages, initialData.mappool, initialData.allScores));
+      setSelectedStage(getDefaultStage(initialData.stages || [], initialData.mappool, initialData.allScores));
+    } else if (initialData.stages && Array.isArray(initialData.stages) && !initialData.stages.find(s => s.name === selectedStage)) {
+      setSelectedStage(getDefaultStage(initialData.stages || [], initialData.mappool, initialData.allScores));
     }
   }, [initialData.activeTournament?.id, currentTournamentId, initialData.stages, selectedStage, initialData.mappool, initialData.allScores]);
 
@@ -128,7 +128,7 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
         <div className={`flex-grow flex flex-col transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="mb-4">
             <StageSelector
-              stages={initialData.stages.map(s => s.name)}
+              stages={(initialData.stages || []).map(s => s.name)}
               selectedStage={selectedStage}
               setSelectedStage={setSelectedStage}
             />

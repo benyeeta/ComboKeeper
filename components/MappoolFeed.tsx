@@ -40,13 +40,13 @@ export default function MappoolFeed({
   onViewPlayerScores,
   activeTournament
 }: MappoolFeedProps) {
-  const currentMappool = mappool[stage] || [];
+  const currentMappool = (mappool && mappool[stage]) || [];
 
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState<Set<number>>(new Set());
 
   const uniquePlayers = useMemo(() => {
     const playersMap = new Map<number, any>();
-    allScores.filter(s => s.stage === stage).forEach(mapData => {
+    (allScores || []).filter(s => s.stage === stage).forEach(mapData => {
       mapData.players.forEach(p => {
         if (!playersMap.has(p.id)) playersMap.set(p.id, p);
       });
@@ -55,8 +55,8 @@ export default function MappoolFeed({
   }, [allScores, stage]);
 
   const filteredScores = useMemo(() => {
-    if (hiddenPlayerIds.size === 0) return allScores;
-    return allScores.map(mapData => ({
+    if (hiddenPlayerIds.size === 0) return allScores || [];
+    return (allScores || []).map(mapData => ({
       ...mapData,
       players: mapData.players.filter(p => !hiddenPlayerIds.has(p.id))
     }));
@@ -134,7 +134,7 @@ export default function MappoolFeed({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <TopLineup mapId={map.id} stage={stage} allScores={filteredScores} mapMod={map.mod} activeTournament={activeTournament} />
+            <TopLineup mapId={map.id} stage={stage} allScores={filteredScores || []} mapMod={map.mod} activeTournament={activeTournament} />
             <div className="flex items-center gap-1 flex-shrink-0 justify-end">
               <button 
                 onClick={(e) => {
@@ -164,7 +164,7 @@ export default function MappoolFeed({
           </div>
           {isExpanded && (
             <div className={`bg-white dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-4 border-l-4 ${MOD_COLORS[map.mod] || "border-gray-500"}`}>
-              <AnalyticsPanel selectedMap={map} selectedStage={stage} onViewPlayerScores={onViewPlayerScores} allScores={filteredScores} activeTournament={activeTournament} />
+              <AnalyticsPanel selectedMap={map} selectedStage={stage} onViewPlayerScores={onViewPlayerScores} allScores={filteredScores || []} activeTournament={activeTournament} />
             </div>
           )}
         </div>
@@ -177,7 +177,7 @@ export default function MappoolFeed({
 }
 
 function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapId: string; stage: string; allScores: ScoreData[], mapMod: string, activeTournament?: any }) {
-  const mapScoreData = allScores.find(
+  const mapScoreData = (allScores || []).find(
     (data) => data.mapId === mapId && data.stage === stage
   );
 

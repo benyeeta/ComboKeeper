@@ -42,17 +42,17 @@ type DashboardProps = {
 
 export default function Dashboard({ initialData }: DashboardProps) {
   const getDefaultStage = (stages: { id: string; name: string }[], mappool: Record<string, MappoolMap[]>) => {
-    if (!stages || stages.length === 0) return "";
+    if (!stages || !Array.isArray(stages) || stages.length === 0) return "";
     for (let i = stages.length - 1; i >= 0; i--) {
       const stageName = stages[i].name;
-      if (mappool && mappool[stageName] && mappool[stageName].length > 0) {
+      if (mappool && mappool[stageName] && Array.isArray(mappool[stageName]) && mappool[stageName].length > 0) {
         return stageName;
       }
     }
-    return stages[0].name;
+    return stages[0]?.name || "";
   };
 
-  const [selectedStage, setSelectedStage] = useState<string>(() => getDefaultStage(initialData.stages, initialData.mappool));
+  const [selectedStage, setSelectedStage] = useState<string>(() => getDefaultStage(initialData.stages || [], initialData.mappool || {}));
   const [currentTournamentId, setCurrentTournamentId] = useState(initialData.activeTournament?.id);
   const [selectedMap, setSelectedMap] = useState<MappoolMap | null>(null);
   const [isImportModalOpen, setisImportModalOpen] = useState(false);
@@ -78,9 +78,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
   useEffect(() => {
     if (initialData.activeTournament?.id !== currentTournamentId) {
       setCurrentTournamentId(initialData.activeTournament?.id);
-      setSelectedStage(getDefaultStage(initialData.stages, initialData.mappool));
-    } else if (initialData.stages && !initialData.stages.find(s => s.name === selectedStage)) {
-      setSelectedStage(getDefaultStage(initialData.stages, initialData.mappool));
+      setSelectedStage(getDefaultStage(initialData.stages || [], initialData.mappool || {}));
+    } else if (initialData.stages && Array.isArray(initialData.stages) && !initialData.stages.find(s => s.name === selectedStage)) {
+      setSelectedStage(getDefaultStage(initialData.stages || [], initialData.mappool || {}));
     }
   }, [initialData.activeTournament?.id, currentTournamentId, initialData.stages, selectedStage, initialData.mappool]);
 
@@ -224,8 +224,8 @@ export default function Dashboard({ initialData }: DashboardProps) {
           onClose={() => setIsEditRosterOpen(false)}
           teamId={initialData.activeTournament.teamId}
           teamName={initialData.activeTournament.teamName || "Unknown Team"}
-          initialPlayers={initialData.activeTournament.players}
-          currentUsername={initialData.activeTournament.players.find(p => p.osuId === initialData.activeTournament?.currentUserId?.toString())?.username}
+          initialPlayers={initialData.activeTournament.players || []}
+          currentUsername={initialData.activeTournament.players?.find(p => p.osuId === initialData.activeTournament?.currentUserId?.toString())?.username}
         />
       )}
       {initialData.activeTournament && (
@@ -254,7 +254,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
         onClose={() => setManualEntryMap(null)}
         map={manualEntryMap}
         stage={selectedStage}
-        teamPlayers={initialData.activeTournament?.players.filter(p => p.status === "ACCEPTED") || []}
+        teamPlayers={initialData.activeTournament?.players?.filter(p => p.status === "ACCEPTED") || []}
         currentUserId={initialData.activeTournament?.currentUserId?.toString()}
         currentUserRole={initialData.activeTournament?.currentUserRole}
       />
@@ -282,7 +282,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
         <>
           <div className="flex items-center gap-4 flex-wrap">
             <StageSelector
-              stages={initialData.stages.map(s => s.name)}
+              stages={(initialData.stages || []).map(s => s.name)}
               selectedStage={selectedStage}
               setSelectedStage={setSelectedStage}
             />
@@ -294,12 +294,12 @@ export default function Dashboard({ initialData }: DashboardProps) {
               onMapSelect={setSelectedMap}
               selectedMap={selectedMap}
               onAddScore={setManualEntryMap}
-              mappool={initialData.mappool}
-              allScores={initialData.allScores}
-              stageId={initialData.stages?.find(s => s.name === selectedStage)?.id}
+              mappool={initialData.mappool || {}}
+              allScores={initialData.allScores || []}
+              stageId={(initialData.stages || []).find(s => s.name === selectedStage)?.id}
               tournamentId={initialData.activeTournament.id}
               onViewPlayerScores={setViewingPlayer}
-              activeTournament={initialData.activeTournament}
+              activeTournament={initialData.activeTournament || undefined}
             />
           </div>
         </>

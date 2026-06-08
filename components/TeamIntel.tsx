@@ -21,7 +21,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
 
   const uniquePlayers = useMemo(() => {
     const playersMap = new Map<number, any>();
-    allScores.filter(s => s.stage === selectedStage).forEach(mapData => {
+    (allScores || []).filter(s => s.stage === selectedStage).forEach(mapData => {
       mapData.players.forEach(p => {
         if (!playersMap.has(p.id)) playersMap.set(p.id, p);
       });
@@ -30,8 +30,8 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
   }, [allScores, selectedStage]);
 
   const filteredScores = useMemo(() => {
-    if (hiddenPlayerIds.size === 0) return allScores;
-    return allScores.map(mapData => ({
+    if (hiddenPlayerIds.size === 0) return allScores || [];
+    return (allScores || []).map(mapData => ({
       ...mapData,
       players: mapData.players.filter(p => !hiddenPlayerIds.has(p.id))
     }));

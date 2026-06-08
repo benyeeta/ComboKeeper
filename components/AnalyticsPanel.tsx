@@ -42,7 +42,7 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
     if (!selectedMap) return null;
 
     // Find score data for the selected map from our array of scores
-    const mapScoreData = allScores.find(data => data.mapId === selectedMap.id && data.stage === selectedStage);
+    const mapScoreData = (allScores || []).find(data => data.mapId === selectedMap.id && data.stage === selectedStage);
     if (!mapScoreData) {
       return null;
     }
