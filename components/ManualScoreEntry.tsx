@@ -24,7 +24,7 @@ interface ManualScoreEntryProps {
 }
 
 const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUserId, currentUserRole }: ManualScoreEntryProps) => {
-  const [scoreEntries, setScoreEntries] = useState<{ score: string; playedMod: string }[]>([{ score: "", playedMod: "NM" }]);
+  const [scoreEntries, setScoreEntries] = useState<{ score: string; playedMod: string; isFc: boolean }[]>([{ score: "", playedMod: "NM", isFc: false }]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | undefined>(undefined);
   const [scoreType, setScoreType] = useState<string>("PRACTICE");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,7 +35,7 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
   // Reset scores when modal is opened for a new map
   useEffect(() => {
     if (isOpen) {
-      setScoreEntries([{ score: "", playedMod: "NM" }]);
+      setScoreEntries([{ score: "", playedMod: "NM", isFc: false }]);
       setSelectedPlayerId(isAdmin ? teamPlayers[0]?.osuId : currentUserId);
       setScoreType("PRACTICE");
       setFeedback(null);
@@ -71,8 +71,14 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
     setScoreEntries(newEntries);
   };
 
+  const handleFcChange = (index: number, value: boolean) => {
+    const newEntries = [...scoreEntries];
+    newEntries[index].isFc = value;
+    setScoreEntries(newEntries);
+  };
+
   const addScoreRow = () => {
-    setScoreEntries([...scoreEntries, { score: "", playedMod: "NM" }]);
+    setScoreEntries([...scoreEntries, { score: "", playedMod: "NM", isFc: false }]);
   };
 
   const removeScoreRow = (index: number) => {
@@ -80,7 +86,7 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
     newEntries.splice(index, 1);
     // If all rows are removed, add one back to avoid an empty state
     if (newEntries.length === 0) {
-        setScoreEntries([{ score: "", playedMod: "NM" }]);
+        setScoreEntries([{ score: "", playedMod: "NM", isFc: false }]);
     } else {
         setScoreEntries(newEntries);
     }
@@ -88,7 +94,7 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
 
   const handleSave = async () => {
     const validEntries = scoreEntries
-      .map(e => ({ score: parseInt(e.score.replace(/\s/g, ""), 10), playedMod: isMixedOrFree ? e.playedMod : undefined }))
+      .map(e => ({ score: parseInt(e.score.replace(/\s/g, ""), 10), playedMod: isMixedOrFree ? e.playedMod : undefined, isFc: e.isFc }))
       .filter(e => !isNaN(e.score) && e.score > 0);
     
     if (validEntries.length > 0 && selectedPlayerId && map) {
@@ -193,6 +199,10 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
                     placeholder="e.g., 987 654"
                     className="w-full rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:ring-blue-500"
                   />
+                  <div className="flex items-center gap-1 flex-shrink-0" title="Full Combo">
+                    <input type="checkbox" checked={entry.isFc} onChange={(e) => handleFcChange(index, e.target.checked)} className="rounded border-gray-600 bg-gray-800 text-pink-500 focus:ring-pink-500 focus:ring-offset-gray-900 cursor-pointer" />
+                    <span className="text-[10px] font-bold text-gray-400">FC</span>
+                  </div>
                   <button onClick={() => removeScoreRow(index)} className="p-1 text-gray-500 hover:text-red-400 rounded-full hover:bg-white/10 transition-colors">
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>

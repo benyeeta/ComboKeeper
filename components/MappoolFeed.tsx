@@ -104,7 +104,6 @@ export default function MappoolFeed({
                 />
                 <span className={`${isHidden ? 'line-through' : ''} ${isCaptain ? 'font-bold' : ''}`}>
                   {p.username}
-                  {isCaptain && <span className="ml-1 text-[10px] text-pink-400" title="Captain">♔</span>}
                 </span>
               </button>
             );
@@ -315,7 +314,6 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
             />
             <span className={`text-sm text-gray-800 dark:text-gray-200 truncate ${isCaptain ? 'font-bold' : 'font-semibold'}`}>
               {player.username}
-              {isCaptain && <span className="ml-1 text-[10px] text-pink-400" title="Captain">♔</span>}
             </span>
           {player.assignedMod && (mapMod === 'MM' || mapMod === 'FM') && (
             <span className={`text-[10px] font-bold px-1 rounded border flex-shrink-0 ${

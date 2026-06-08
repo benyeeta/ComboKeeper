@@ -34,6 +34,9 @@ async function ProfileContent() {
   if (!player) return <div className="p-8">Player not found in database.</div>;
 
   const matchScores = player.scores.filter(s => s.scoreType === "MATCH");
+  const totalMatchScoresCount = matchScores.length;
+  const matchSSCount = matchScores.filter(s => s.accuracy === 100).length;
+  const matchFcCount = matchScores.filter(s => s.isFc).length;
   const matchMapIds = [...new Set(matchScores.map(s => s.mappoolMapId))];
 
   const activeTeams = player.teams.filter(t => t.status === "ACCEPTED");
@@ -71,9 +74,6 @@ async function ProfileContent() {
     modCounts[mod] = (modCounts[mod] || 0) + 1;
   });
   const mainMod = Object.entries(modCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "None";
-
-  const matchAccs = matchScores.map(s => s.accuracy).filter(a => a > 0);
-  const avgMatchAcc = matchAccs.length > 0 ? (matchAccs.reduce((a, b) => a + b, 0) / matchAccs.length).toFixed(2) + "%" : "N/A";
 
   const rank = osuData?.statistics?.global_rank ? `#${osuData.statistics.global_rank.toLocaleString()}` : "Unranked";
   const pp = osuData?.statistics?.pp ? `${Math.round(osuData.statistics.pp).toLocaleString()} pp` : "";
@@ -164,8 +164,6 @@ async function ProfileContent() {
     }
   }
   const isClickerTrained = maxPlays >= 45;
-
-  const ssCount = player.scores.filter(s => s.accuracy === 100).length;
 
   let supportCount = 0;
   let carryCount = 0;
@@ -317,6 +315,10 @@ async function ProfileContent() {
               <span className="text-gray-500 dark:text-gray-400 text-sm mb-1">Total Scores</span>
               <span className="font-bold text-2xl text-gray-900 dark:text-white">{player.scores?.length || 0}</span>
             </div>
+            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-center shadow-sm" title="Total scores logged during official matches">
+              <span className="text-gray-500 dark:text-gray-400 text-sm mb-1">Match Scores</span>
+              <span className="font-bold text-2xl text-blue-500 dark:text-blue-400">{totalMatchScoresCount}</span>
+            </div>
             <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-center shadow-sm" title="Highest score on your team during official matches">
               <span className="text-gray-500 dark:text-gray-400 text-sm mb-1">Match MVPs</span>
               <span className="font-bold text-2xl text-pink-400">{mvpCount}</span>
@@ -325,9 +327,13 @@ async function ProfileContent() {
               <span className="text-gray-500 dark:text-gray-400 text-sm mb-1">Main Mod</span>
               <span className="font-bold text-2xl text-blue-400">{mainMod}</span>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-center shadow-sm">
-              <span className="text-gray-500 dark:text-gray-400 text-sm mb-1">Avg Match Acc</span>
-              <span className="font-bold text-2xl text-green-500 dark:text-green-400">{avgMatchAcc}</span>
+            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-center shadow-sm" title="Number of 100% accuracy scores in matches">
+              <span className="text-gray-500 dark:text-gray-400 text-sm mb-1">Match SS</span>
+              <span className="font-bold text-2xl text-green-500 dark:text-green-400">{matchSSCount}</span>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-center justify-center text-center shadow-sm" title="Total Full Combos achieved during official matches">
+              <span className="text-gray-500 dark:text-gray-400 text-sm mb-1">Match FCs</span>
+              <span className="font-bold text-2xl text-yellow-500 dark:text-yellow-400">{matchFcCount}</span>
             </div>
           </div>
         </div>
@@ -360,10 +366,16 @@ async function ProfileContent() {
                 <span className="text-sm text-gray-700 dark:text-gray-300">Incredibly consistent on {metronomeMap.mapId} (±{Math.round(minVariance).toLocaleString()}).</span>
               </div>
             )}
-            {ssCount > 0 && (
+            {matchSSCount > 0 && (
               <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
-                <span className="text-yellow-500 font-bold mb-1">The Purist / FC Machine</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Has achieved 100% accuracy {ssCount} time{ssCount > 1 ? 's' : ''}.</span>
+                <span className="text-yellow-500 font-bold mb-1">The Purist</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Has achieved 100% accuracy {matchSSCount} time{matchSSCount > 1 ? 's' : ''} during matches.</span>
+              </div>
+            )}
+            {matchFcCount > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col items-start shadow-sm">
+                <span className="text-orange-400 font-bold mb-1">FC Machine</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Has achieved a Full Combo {matchFcCount} time{matchFcCount > 1 ? 's' : ''} during official matches.</span>
               </div>
             )}
             {isNightOwl && (
@@ -414,7 +426,7 @@ async function ProfileContent() {
                 <span className="text-sm text-gray-700 dark:text-gray-300">First on the frontline. Scouting the pool before anyone else on {scouterCount} maps.</span>
               </div>
             )}
-            {!bestSkill && tbAvg === null && tournamentBuff === null && !metronomeMap && ssCount === 0 && !isNightOwl && !isEmployed && !isClickerTrained && !isGhost && !isSupportMain && !isCaptainsAnchor && !isSlave && !isScouter && (
+            {!bestSkill && tbAvg === null && tournamentBuff === null && !metronomeMap && matchSSCount === 0 && !isNightOwl && !isEmployed && !isClickerTrained && !isGhost && !isSupportMain && !isCaptainsAnchor && !isSlave && !isScouter && (
               <p className="text-sm text-gray-500 col-span-full">Play more maps and matches to earn personal trophies!</p>
             )}
           </div>

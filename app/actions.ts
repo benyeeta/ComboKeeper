@@ -459,7 +459,7 @@ export async function deleteMaps(ids: string[]) {
   return { success: true };
 }
 
-export async function addManualScores(mappoolMapId: string, playerId: number, scores: { score: number; playedMod?: string }[], scoreType: string = "PRACTICE") {
+export async function addManualScores(mappoolMapId: string, playerId: number, scores: { score: number; playedMod?: string; isFc?: boolean }[], scoreType: string = "PRACTICE") {
   if (!mappoolMapId || !playerId || !scores || scores.length === 0) {
     return { error: "Missing required fields" };
   }
@@ -488,6 +488,7 @@ export async function addManualScores(mappoolMapId: string, playerId: number, sc
       mappoolMapId,
       scoreType,
       playedMod: entry.playedMod,
+      isFc: entry.isFc || false,
     }))
   });
 
@@ -777,7 +778,15 @@ export async function importMatchScores(url: string, tournamentId: string, score
               }
             }
 
-        scoresToInsert.push({ score: score.score, accuracy: score.accuracy * 100, scoreType, playerId: score.user_id, mappoolMapId: dbMapId, timestamp: playDate });
+        scoresToInsert.push({ 
+          score: score.score, 
+          accuracy: score.accuracy * 100, 
+          scoreType, 
+          playerId: score.user_id, 
+          mappoolMapId: dbMapId, 
+          timestamp: playDate,
+          isFc: score.perfect || false
+        });
         existingSet.add(uniqueKey);
       }
     }
@@ -932,7 +941,7 @@ export async function importDbScores(formData: FormData) {
         const nMiss = reader.readShort();
         const replayScore = reader.readInt();
         reader.readShort(); // maxCombo
-        reader.readBool(); // perfectCombo
+        const perfectCombo = reader.readBool();
         const mods = reader.readInt();
         reader.readString(); // empty
         const timestampTicks = reader.readLong(); // timestamp
@@ -996,7 +1005,16 @@ export async function importDbScores(formData: FormData) {
                 existingDups.forEach(dup => manualScoresToDelete.add(dup.id));
               }
 
-              scoresToInsert.push({ score: replayScore, accuracy, scoreType, playedMod, playerId, mappoolMapId: dbMapId, timestamp: playDate });
+              scoresToInsert.push({ 
+                score: replayScore, 
+                accuracy, 
+                scoreType, 
+                playedMod, 
+                playerId, 
+                mappoolMapId: dbMapId, 
+                timestamp: playDate,
+                isFc: perfectCombo
+              });
               existingSet.add(uniqueKey); // Prevent duplicates within the same file import
             }
           }
@@ -1384,4 +1402,16 @@ export async function submitFeedback(formData: FormData) {
   }
 
   return { success: true };
+}
+
+export async function fetchOsuMatch(matchId: string) {
+  const tokenData = await getOsuToken();
+  if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
+
+  const matchRes = await fetch(`https://osu.ppy.sh/api/v2/matches/${matchId}`, {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+
+  if (!matchRes.ok) return { error: `Could not fetch match ${matchId} from osu!.` };
+  return await matchRes.json();
 }

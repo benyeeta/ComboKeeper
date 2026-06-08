@@ -133,7 +133,7 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
               setSelectedStage={setSelectedStage}
             />
           </div>
-          <TeamIntel allScores={initialData.allScores} selectedStage={selectedStage} activeTournament={initialData.activeTournament} />
+          <TeamIntel allScores={initialData.allScores} selectedStage={selectedStage} activeTournament={initialData.activeTournament} mappool={initialData.mappool} />
         </div>
       ) : (
         <div className="flex-grow flex flex-col items-center justify-center mt-24 text-center text-gray-500">

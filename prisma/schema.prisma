@@ -119,4 +119,5 @@ model Score {
   player       Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
   mappoolMapId String
   mappoolMap   MappoolMap @relation(fields: [mappoolMapId], references: [id], onDelete: Cascade)
+  isFc         Boolean    @default(false)
 }

@@ -120,7 +120,6 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
                           </div>
                           <span className={player.isCaptain ? "font-bold" : "font-medium"}>
                             {player.name}
-                            {player.isCaptain && <span className="ml-1 text-[10px] text-pink-400" title="Captain">♔</span>}
                           </span>
                         </div>
                       </td>

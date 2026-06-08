@@ -1,17 +1,23 @@
 "use client";
 
-import { ScoreData } from "@/lib/types";
-import { useMemo, useState } from "react";
+import { ScoreData, MappoolMap } from "@/lib/types";
+import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
+import { fetchOsuMatch } from "@/app/actions";
 
 type TeamIntelProps = {
   allScores: ScoreData[];
   selectedStage: string;
   activeTournament?: any;
+  mappool?: Record<string, MappoolMap[]>;
 };
 
-export default function TeamIntel({ allScores, selectedStage, activeTournament }: TeamIntelProps) {
+export default function TeamIntel({ allScores, selectedStage, activeTournament, mappool }: TeamIntelProps) {
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState<Set<number>>(new Set());
+  const [mpLinkInput, setMpLinkInput] = useState("");
+  const [savedMatchIds, setSavedMatchIds] = useState<string[]>([]);
+  const [matchResults, setMatchResults] = useState<any[]>([]);
+  const [isLoadingMatch, setIsLoadingMatch] = useState(false);
 
   const uniquePlayers = useMemo(() => {
     const playersMap = new Map<number, any>();
@@ -267,19 +273,77 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament }
     };
   }, [allScores, selectedStage]);
 
-  if (!intel || (!intel.fortress && !intel.achilles && intel.nightOwls === 0 && !intel.hiveMind && !intel.playstyle && !intel.safePick && !intel.coinflipPick && !intel.mapsToPractice && !intel.matchPerformance && !intel.pickOrder && !intel.mutiny)) {
-    return (
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-8 text-center transition-colors duration-200">
-        <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Not enough data</h3>
-        <p className="text-sm text-gray-500 mt-2">Play more maps and matches as a team in <span className="font-semibold text-pink-400">{selectedStage}</span> to generate intelligent insights here.</p>
-      </div>
-    );
-  }
+  // Load saved match IDs from local storage when stage/tournament changes
+  useEffect(() => {
+    if (activeTournament?.id && selectedStage) {
+      const key = `mp_links_${activeTournament.id}_${selectedStage}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try { setSavedMatchIds(JSON.parse(saved)); } catch (e) { setSavedMatchIds([]); }
+      } else {
+        setSavedMatchIds([]);
+      }
+    }
+  }, [activeTournament?.id, selectedStage]);
+
+  // Save match IDs to local storage when it changes
+  useEffect(() => {
+    if (activeTournament?.id && selectedStage && savedMatchIds.length > 0) {
+      const key = `mp_links_${activeTournament.id}_${selectedStage}`;
+      localStorage.setItem(key, JSON.stringify(savedMatchIds));
+    }
+  }, [savedMatchIds, activeTournament?.id, selectedStage]);
+
+  // Fetch match data
+  useEffect(() => {
+    const loadMatches = async () => {
+      if (savedMatchIds.length === 0) {
+        setMatchResults([]);
+        return;
+      }
+      setIsLoadingMatch(true);
+      const results = [];
+      for (const matchId of savedMatchIds) {
+        const data = await fetchOsuMatch(matchId);
+        if (data && !data.error && data.events) {
+          results.push(data);
+        }
+      }
+      setMatchResults(results);
+      setIsLoadingMatch(false);
+    };
+    loadMatches();
+  }, [savedMatchIds]);
+
+  const handleAddMpLink = () => {
+    let matchId = "";
+    const matchRegex = /matches\/(\d+)/;
+    if (matchRegex.test(mpLinkInput)) {
+      matchId = mpLinkInput.match(matchRegex)![1];
+    } else if (/^\d+$/.test(mpLinkInput.trim())) {
+      matchId = mpLinkInput.trim();
+    }
+
+    if (matchId && !savedMatchIds.includes(matchId)) {
+      setSavedMatchIds([...savedMatchIds, matchId]);
+    }
+    setMpLinkInput("");
+  };
+
+  const handleRemoveMatch = (matchId: string) => {
+    const newSaved = savedMatchIds.filter(id => id !== matchId);
+    setSavedMatchIds(newSaved);
+    if (newSaved.length === 0 && activeTournament?.id && selectedStage) {
+      localStorage.removeItem(`mp_links_${activeTournament.id}_${selectedStage}`);
+    }
+  };
 
   const isQualifier = selectedStage.toLowerCase().includes('qual');
+  const hasIntel = intel && (intel.fortress || intel.achilles || intel.nightOwls > 0 || intel.hiveMind || intel.playstyle || intel.safePick || intel.coinflipPick || intel.mapsToPractice || intel.matchPerformance || intel.pickOrder || intel.mutiny);
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-4 transition-colors duration-200">
+    <div className="flex flex-col gap-6">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-4 transition-colors duration-200">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
           <svg className="w-6 h-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -327,11 +391,12 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament }
           </div>
         )}
       </div>
-      <div className={`grid grid-cols-1 md:grid-cols-2 ${isQualifier ? 'lg:grid-cols-2' : 'xl:grid-cols-4 lg:grid-cols-3'} gap-6`}>
-        {/* Picks & Bans */}
-        {!isQualifier && (
-          <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">What to Pick & Avoid</h3>
+      {hasIntel ? (
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${isQualifier ? 'lg:grid-cols-2' : 'xl:grid-cols-4 lg:grid-cols-3'} gap-6`}>
+          {/* Picks & Bans */}
+          {!isQualifier && (
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">What to Pick & Avoid</h3>
             
             {intel.fortress && (
               <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded border border-green-200 dark:border-green-800/50 flex flex-col shadow-sm">
@@ -477,6 +542,135 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament }
             </div>
           )}
         </div>
+      </div>
+        ) : (
+          <div className="text-center py-8">
+            <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">Not enough data</h3>
+            <p className="text-sm text-gray-500 mt-2">Play more maps and matches as a team in <span className="font-semibold text-pink-400">{selectedStage}</span> to generate intelligent insights here.</p>
+          </div>
+        )}
+    </div>
+
+      {/* Match Results Panel */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-4 transition-colors duration-200">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+            <svg className="w-6 h-6 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Stage Match Results
+          </h2>
+          <div className="flex gap-2 w-full md:w-auto">
+            <input
+              type="text"
+              value={mpLinkInput}
+              onChange={(e) => setMpLinkInput(e.target.value)}
+              placeholder="Paste MP Link or Match ID"
+              className="w-full md:w-64 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 px-3 py-1.5 text-sm text-gray-900 dark:text-white focus:border-pink-500 focus:outline-none"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleAddMpLink(); }}
+            />
+            <button
+              onClick={handleAddMpLink}
+              disabled={!mpLinkInput}
+              className="bg-pink-600 hover:bg-pink-700 disabled:opacity-50 text-white text-sm font-semibold py-1.5 px-4 rounded-md transition-colors whitespace-nowrap shadow-sm"
+            >
+              Link Match
+            </button>
+          </div>
+        </div>
+
+        {savedMatchIds.length === 0 ? (
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700 shadow-sm">
+            <p className="text-gray-500 dark:text-gray-400">Link an osu! multiplayer match to see actual team results for this stage.</p>
+          </div>
+        ) : isLoadingMatch && matchResults.length === 0 ? (
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-8 text-center border border-gray-200 dark:border-gray-700 shadow-sm">
+            <p className="text-gray-500 dark:text-gray-400 animate-pulse">Loading match data...</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {matchResults.map(match => {
+              const stageMaps = mappool?.[selectedStage] || [];
+              const teamPlayers = new Set(activeTournament?.players?.map((p: any) => parseInt(p.osuId)));
+              
+              const matchGames = match.events
+                .filter((e: any) => e.game && e.game.beatmap_id)
+                .map((e: any) => e.game);
+
+              const mapResults = matchGames.map((game: any) => {
+                const poolMap = stageMaps.find(m => (m as any).beatmapId === game.beatmap_id);
+                if (!poolMap) return null;
+
+                let ourScore = 0;
+                let theirScore = 0;
+                
+                game.scores.forEach((s: any) => {
+                  if (s.score === 0) return;
+                  if (teamPlayers.has(s.user_id)) {
+                    ourScore += s.score;
+                  } else {
+                    theirScore += s.score;
+                  }
+                });
+
+                return {
+                  mapId: poolMap.id,
+                  beatmapId: (poolMap as any).beatmapId,
+                  ourScore,
+                  theirScore,
+                  won: ourScore > theirScore
+                };
+              }).filter(Boolean);
+
+              if (mapResults.length === 0) return null;
+
+              const ourWins = mapResults.filter((r: any) => r.won).length;
+              const theirWins = mapResults.length - ourWins;
+
+              return (
+                <div key={match.match.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden flex flex-col transition-colors duration-200">
+                  <div className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <h3 className="font-bold text-gray-900 dark:text-white truncate max-w-xs sm:max-w-sm md:max-w-md" title={match.match.name}>{match.match.name}</h3>
+                      <a href={`https://osu.ppy.sh/community/matches/${match.match.id}`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-gray-400 hover:text-pink-500 transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="font-bold text-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-md shadow-sm">
+                        <span className={ourWins >= theirWins ? "text-green-500 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}>{ourWins}</span>
+                        <span className="text-gray-300 dark:text-gray-600 mx-1.5">-</span>
+                        <span className={theirWins > ourWins ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}>{theirWins}</span>
+                      </span>
+                      <button onClick={() => handleRemoveMatch(match.match.id.toString())} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Remove Link">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                    {mapResults.map((r: any, idx: number) => (
+                      <div key={idx} className={`px-4 py-2.5 flex items-center justify-between transition-colors ${r.won ? 'bg-green-50/50 dark:bg-green-900/10' : 'bg-red-50/50 dark:bg-red-900/10'}`}>
+                        <div className="flex items-center gap-3">
+                          <span className={`w-10 text-center font-bold text-sm ${r.won ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{r.mapId}</span>
+                        </div>
+                        <div className="flex items-center gap-6 font-mono text-sm">
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-sans font-bold">Team</span>
+                            <span className={`font-semibold ${r.won ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>{r.ourScore.toLocaleString()}</span>
+                          </div>
+                          <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-sans font-bold">Opponent</span>
+                            <span className={`font-semibold ${!r.won ? 'text-gray-900 dark:text-white' : 'text-gray-500'}`}>{r.theirScore.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

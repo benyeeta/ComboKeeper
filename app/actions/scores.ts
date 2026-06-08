@@ -1,24 +1,33 @@
 'use server';
 
-// Import your database and auth instances here
-// import { db } from '@/lib/db';
-// import { auth } from '@/lib/auth';
+import prisma from '@/lib/prisma';
+import { decrypt } from '@/lib/session';
+import { cookies } from 'next/headers';
 
 export async function saveScoresToDatabase(scores: any[]) {
-  // 1. Authenticate user
-  // const session = await auth();
-  // if (!session) throw new Error("Unauthorized");
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value;
+  const user = sessionCookie ? await decrypt(sessionCookie) : null;
+  if (!user) throw new Error("Unauthorized");
 
   if (!Array.isArray(scores) || scores.length === 0) {
     return { success: false, message: 'No scores provided' };
   }
 
   try {
-    // 2. Insert into your database
-    // await db.score.createMany({
-    //   data: scores.map(s => ({ ... })),
-    //   skipDuplicates: true
-    // });
+    await prisma.score.createMany({
+      data: scores.map(s => ({
+        score: s.score,
+        accuracy: s.accuracy || 0,
+        scoreType: s.scoreType || "PRACTICE",
+        playerId: s.playerId,
+        mappoolMapId: s.mappoolMapId,
+        playedMod: s.playedMod,
+        timestamp: s.timestamp ? new Date(s.timestamp) : new Date(),
+        isFc: s.isFc ?? false
+      })),
+      skipDuplicates: true
+    });
 
     console.log(`Successfully received ${scores.length} scores on the backend!`);
     return { success: true, count: scores.length };
