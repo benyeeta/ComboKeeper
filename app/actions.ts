@@ -6,6 +6,7 @@ import { cookies, headers } from "next/headers";
 import { decrypt } from "@/lib/session";
 import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
 import { ratelimit } from "@/lib/ratelimit";
+import { parseModsBitmask, parsePlayedModFromApi } from "@/lib/parseMods";
 import { z } from "zod";
 
 async function verifyKeeper(tournamentId: string) {
@@ -778,10 +779,14 @@ export async function importMatchScores(url: string, tournamentId: string, score
               }
             }
 
+        const scoreMods = score.mods?.length ? score.mods : event.game.mods;
+        const playedMod = parsePlayedModFromApi(scoreMods);
+
         scoresToInsert.push({ 
           score: score.score, 
           accuracy: score.accuracy * 100, 
           scoreType, 
+          playedMod,
           playerId: score.user_id, 
           mappoolMapId: dbMapId, 
           timestamp: playDate,
@@ -971,19 +976,7 @@ export async function importDbScores(formData: FormData) {
               accuracy = totalHits > 0 ? ((nGeki * 300 + n300 * 300 + nKatu * 200 + n100 * 100 + n50 * 50) / (totalHits * 300)) * 100 : 0;
             }
             
-            // Parse osu! bitmask to string
-            let playedMod = "NM";
-            if (mods > 0) {
-              const modAcronyms = [];
-              if (mods & 2) modAcronyms.push("EZ");
-              if (mods & 8) modAcronyms.push("HD");
-              if (mods & 16) modAcronyms.push("HR");
-              if (mods & 64 && !(mods & 512)) modAcronyms.push("DT");
-              if (mods & 512) modAcronyms.push("NC");
-              if (mods & 1024) modAcronyms.push("FL");
-              if (mods & 256) modAcronyms.push("HT");
-              if (modAcronyms.length > 0) playedMod = modAcronyms.join("");
-            }
+            const playedMod = parseModsBitmask(mods);
 
             // osu! timestamps are in Windows ticks (100-nanosecond intervals since 0001-01-01)
             const playDate = new Date(Number(timestampTicks) / 10000 - 62135596800000);

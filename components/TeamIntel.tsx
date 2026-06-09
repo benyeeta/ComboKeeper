@@ -1,6 +1,7 @@
 "use client";
 
 import { ScoreData, MappoolMap } from "@/lib/types";
+import { scoreMatchesModSlot } from "@/lib/parseMods";
 import { useMemo, useState, useEffect } from "react";
 import Image from "next/image";
 import { fetchOsuMatch } from "@/app/actions";
@@ -147,11 +148,8 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
         let maxTotal = -1;
         let bestScores: number[] = [];
 
-        const getBestScore = (player: any, reqMod: string) => {
-          const plays = player.history.filter((h: any) => {
-            if (reqMod === 'NM') return !h.playedMod || h.playedMod === 'NM';
-            return h.playedMod && h.playedMod.includes(reqMod);
-          });
+        const getBestScore = (player: any, reqMod: 'NM' | 'HD' | 'HR') => {
+          const plays = player.history.filter((h: any) => scoreMatchesModSlot(h.playedMod, reqMod));
           return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
         };
 

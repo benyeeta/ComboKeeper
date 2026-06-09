@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useState, useMemo } from "react";
 import { MappoolMap, Mod, ScoreData } from "@/lib/types";
+import { scoreMatchesModSlot } from "@/lib/parseMods";
 import AnalyticsPanel from "./AnalyticsPanel";
 
 const MOD_COLORS: Record<string, string> = {
@@ -201,11 +202,8 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
     let bestLineup: any[] = [];
     let maxTotal = -1;
 
-    const getBestScore = (player: any, reqMod: string) => {
-      const plays = player.history.filter((h: any) => {
-        if (reqMod === 'NM') return !h.playedMod || h.playedMod === 'NM';
-        return h.playedMod && h.playedMod.includes(reqMod); // Handles exact 'HD' or combined like 'HDHR'
-      });
+    const getBestScore = (player: any, reqMod: 'NM' | 'HD' | 'HR') => {
+      const plays = player.history.filter((h: any) => scoreMatchesModSlot(h.playedMod, reqMod));
       return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
     };
 
@@ -246,16 +244,7 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
           const score = playerBestScores.get(p.id)[reqMod];
           usedPlayers.add(p.id);
           
-          let displayMod = reqMod;
-          let displayScore = score;
-          
-          if (score === 0) {
-            const fallbackPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : null;
-            displayMod = fallbackPlay?.playedMod || 'NM';
-            displayScore = fallbackPlay?.score || 0;
-          }
-
-          currentAssignment.push({ ...p, assignedMod: displayMod, _score: displayScore });
+          currentAssignment.push({ ...p, assignedMod: reqMod, _score: score });
           findBestAssignment(modIndex + 1, currentAssignment, currentScore + score, usedPlayers);
           currentAssignment.pop();
           usedPlayers.delete(p.id);
