@@ -210,28 +210,9 @@ export default function EditMappoolModal({ isOpen, onClose, tournamentId, stages
         </div>
 
         <div className="mb-4 pb-3 border-b border-gray-700">
-          <div className={`flex items-center gap-2 min-w-0 ${isReorderingStages ? "opacity-60 pointer-events-none" : ""}`}>
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex-shrink-0">Stages</span>
-            <div className="flex-1 min-w-0 overflow-x-auto pb-1 [scrollbar-width:thin]">
-              <div className="flex items-center gap-2 w-max min-w-full pr-1">
-                {orderedStages.map((s, index) => (
-                  <button
-                    key={s.id}
-                    draggable
-                    onDragStart={() => setDraggedStageIndex(index)}
-                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
-                    onDrop={(e) => { e.preventDefault(); handleStageDrop(index); }}
-                    onClick={() => handleStageChange(s.name)}
-                    className={`flex items-center gap-1.5 h-8 px-3 rounded text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors cursor-grab active:cursor-grabbing ${selectedStage === s.name ? "bg-pink-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white"} ${draggedStageIndex === index ? "opacity-50 border border-dashed border-gray-500" : ""}`}
-                    title="Drag to reorder"
-                  >
-                    <svg className="w-3.5 h-3.5 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0 border-l border-gray-700 pl-2">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Stages</span>
+            <div className="flex items-center gap-1">
               <button
                 onClick={onAddStage}
                 className="inline-flex items-center justify-center h-8 px-2.5 rounded text-sm font-medium leading-none bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors"
@@ -260,6 +241,23 @@ export default function EditMappoolModal({ isOpen, onClose, tournamentId, stages
                 </>
               )}
             </div>
+          </div>
+          <div className={`flex flex-wrap items-center gap-2 ${isReorderingStages ? "opacity-60 pointer-events-none" : ""}`}>
+            {orderedStages.map((s, index) => (
+              <button
+                key={s.id}
+                draggable
+                onDragStart={() => setDraggedStageIndex(index)}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                onDrop={(e) => { e.preventDefault(); handleStageDrop(index); }}
+                onClick={() => handleStageChange(s.name)}
+                className={`flex items-center gap-1.5 h-8 px-3 rounded text-sm font-medium whitespace-nowrap transition-colors cursor-grab active:cursor-grabbing ${selectedStage === s.name ? "bg-pink-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white"} ${draggedStageIndex === index ? "opacity-50 border border-dashed border-gray-500" : ""}`}
+                title="Drag to reorder"
+              >
+                <svg className="w-3.5 h-3.5 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>
+                {s.name}
+              </button>
+            ))}
           </div>
         </div>
 

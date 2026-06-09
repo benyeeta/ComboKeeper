@@ -36,6 +36,29 @@ export type MatchHighlightSummary = {
   peakPlay: (MapMvp & { mapId: string }) | null;
 };
 
+/** Qualifiers play each map twice; keep only the run with the highest team total per map slot. */
+function keepBestQualifierRunPerMap(mapResults: MatchMapResult[]): MatchMapResult[] {
+  const bestByMapId = new Map<string, MatchMapResult>();
+  for (const result of mapResults) {
+    const current = bestByMapId.get(result.mapId);
+    if (!current || result.ourScore > current.ourScore) {
+      bestByMapId.set(result.mapId, result);
+    }
+  }
+
+  const seen = new Set<string>();
+  const deduped: MatchMapResult[] = [];
+  for (const result of mapResults) {
+    if (seen.has(result.mapId)) continue;
+    const best = bestByMapId.get(result.mapId);
+    if (best) {
+      deduped.push(best);
+      seen.add(result.mapId);
+    }
+  }
+  return deduped;
+}
+
 export function buildMatchHighlightSummary(
   matchData: {
     match: { id: number; name: string };
@@ -96,10 +119,12 @@ export function buildMatchHighlightSummary(
 
   if (mapResults.length === 0) return null;
 
+  const displayResults = isQualifier ? keepBestQualifierRunPerMap(mapResults) : mapResults;
+
   const mvpCounts = new Map<number, { count: number; mvp: MapMvp }>();
   let peakPlay: (MapMvp & { mapId: string }) | null = null;
 
-  for (const result of mapResults) {
+  for (const result of displayResults) {
     if (!result.mvp) continue;
     const existing = mvpCounts.get(result.mvp.userId);
     if (existing) existing.count += 1;
@@ -117,15 +142,15 @@ export function buildMatchHighlightSummary(
     }
   }
 
-  const ourWins = isQualifier ? 0 : mapResults.filter((r) => r.won).length;
-  const theirWins = isQualifier ? 0 : mapResults.length - ourWins;
+  const ourWins = isQualifier ? 0 : displayResults.filter((r) => r.won).length;
+  const theirWins = isQualifier ? 0 : displayResults.length - ourWins;
 
   return {
     id: matchData.match.id,
     name: matchData.match.name,
     ourWins,
     theirWins,
-    mapResults,
+    mapResults: displayResults,
     matchMvp,
     peakPlay,
   };
