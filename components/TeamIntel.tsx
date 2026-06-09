@@ -264,7 +264,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
         let pTotal = 0;
         let pCount = 0;
 
-        const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isAdmin);
+        const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isCaptain);
 
         p.history.forEach(h => {
           pTotal += h.score;
@@ -487,7 +487,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
             <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mr-1">Roster:</span>
             {uniquePlayers.map(p => {
               const isHidden = hiddenPlayerIds.has(p.id);
-            const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isAdmin);
+            const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isCaptain);
               return (
                 <button
                   key={p.id}

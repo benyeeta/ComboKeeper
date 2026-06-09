@@ -84,7 +84,7 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
     }
   };
 
-  const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === playerData?.id.toString() && ap.isAdmin);
+  const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === playerData?.id.toString() && ap.isCaptain);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity">

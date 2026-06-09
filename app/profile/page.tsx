@@ -299,6 +299,7 @@ async function ProfileContent() {
                           <img src={p.avatarUrl || `https://a.ppy.sh/${p.id}`} alt={p.username} className="w-5 h-5 rounded-full" />
                           <span className="text-sm text-gray-800 dark:text-gray-200">{p.username}</span>
                           {p.role === "CAPTAIN" && <span className="text-[10px] text-pink-400 font-bold" title="Captain">♔</span>}
+                          {p.role === "EDITOR" && <span className="text-[10px] text-blue-400 font-bold" title="Editor">✎</span>}
                         </div>
                       ))}
                     </div>

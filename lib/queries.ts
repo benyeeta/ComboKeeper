@@ -147,7 +147,9 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       players: userTeam?.players.map(tp => ({
         osuId: tp.player.id.toString(),
         username: tp.player.username,
-        isAdmin: tp.role === "CAPTAIN",
+        role: tp.role,
+        isCaptain: tp.role === "CAPTAIN",
+        isEditor: tp.role === "EDITOR",
         status: tp.status
       })) || []
     },

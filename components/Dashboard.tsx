@@ -32,7 +32,7 @@ type DashboardProps = {
       placement?: string | null;
       currentUserId?: number;
       currentUserRole?: string;
-      players: { osuId: string; username: string; isAdmin: boolean; status: string }[];
+      players: { osuId: string; username: string; role?: string; isCaptain?: boolean; isEditor?: boolean; status: string }[];
     } | null;
     stages: { id: string; name: string }[];
     allTournaments?: { id: string; name: string; acronym: string | null; isCompleted: boolean; isKeeper: boolean }[];
@@ -252,6 +252,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
           teamName={initialData.activeTournament.teamName || "Unknown Team"}
           initialPlayers={initialData.activeTournament.players || []}
           currentUsername={initialData.activeTournament.players?.find(p => p.osuId === initialData.activeTournament?.currentUserId?.toString())?.username}
+          currentUserRole={initialData.activeTournament.currentUserRole}
         />
       )}
       {initialData.activeTournament && (

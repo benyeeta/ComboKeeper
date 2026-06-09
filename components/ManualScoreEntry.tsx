@@ -18,7 +18,7 @@ interface ManualScoreEntryProps {
   onClose: () => void;
   map: MappoolMap | null;
   stage: string;
-  teamPlayers: { osuId: string; username: string; isAdmin: boolean }[];
+  teamPlayers: { osuId: string; username: string; isCaptain?: boolean; isEditor?: boolean }[];
   currentUserId?: string;
   currentUserRole?: string;
 }

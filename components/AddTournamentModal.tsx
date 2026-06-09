@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 export default function AddTournamentModal({ isOpen, onClose, currentUsername }: { isOpen: boolean; onClose: () => void; currentUsername?: string }) {
-  const [players, setPlayers] = useState([{ username: currentUsername || "", isAdmin: true }]);
+  const [players, setPlayers] = useState([{ username: currentUsername || "", isEditor: false }]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mode, setMode] = useState<'choice' | 'clone' | 'new'>('choice');
@@ -15,7 +15,7 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
 
   const handleClose = useCallback(() => {
     setError("");
-    setPlayers([{ username: currentUsername || "", isAdmin: true }]);
+    setPlayers([{ username: currentUsername || "", isEditor: false }]);
     setMode('choice');
     setSelectedSourceId("");
     onClose();
@@ -52,7 +52,7 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
 
   if (!isOpen) return null;
 
-  const handleAddPlayer = () => setPlayers([...players, { username: "", isAdmin: false }]);
+  const handleAddPlayer = () => setPlayers([...players, { username: "", isEditor: false }]);
   
   const handleRemovePlayer = (index: number) => setPlayers(players.filter((_, i) => i !== index));
   
@@ -187,20 +187,27 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
                         <button type="button" onClick={handleAddPlayer} className="text-xs font-bold text-pink-400 hover:text-pink-300 px-2 py-1 bg-pink-900/30 rounded transition-colors">+ Add Player</button>
                       </div>
                       <div className="space-y-2">
-                        {players.map((p, i) => (
+                        {players.map((p, i) => {
+                          const isCreator = i === 0 && !!currentUsername;
+                          return (
                           <div key={i} className="flex items-center gap-2 bg-gray-800 p-2 rounded border border-gray-700">
-                            <input type="text" placeholder="osu! Username" value={p.username} disabled={i === 0 && !!currentUsername} onChange={e => updatePlayer(i, 'username', e.target.value)} className={`flex-1 rounded bg-gray-900 border border-gray-600 p-1.5 text-sm text-white focus:border-pink-500 focus:outline-none ${i === 0 && !!currentUsername ? 'opacity-50 cursor-not-allowed' : ''}`} required />
-                            <label className={`flex items-center gap-1.5 text-xs text-gray-300 w-20 ${i === 0 && !!currentUsername ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                              <input 
-                                type="checkbox" 
-                                checked={p.isAdmin} 
-                                disabled={i === 0 && !!currentUsername}
-                                onChange={e => updatePlayer(i, 'isAdmin', e.target.checked)} 
-                                className="rounded border-gray-600 bg-gray-900 text-pink-500 focus:ring-pink-500 focus:ring-offset-gray-900 disabled:opacity-50" 
-                              />
-                              Admin
-                            </label>
-                            {i === 0 ? (
+                            <input type="text" placeholder="osu! Username" value={p.username} disabled={isCreator} onChange={e => updatePlayer(i, 'username', e.target.value)} className={`flex-1 rounded bg-gray-900 border border-gray-600 p-1.5 text-sm text-white focus:border-pink-500 focus:outline-none ${isCreator ? 'opacity-50 cursor-not-allowed' : ''}`} required />
+                            {isCreator ? (
+                              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded border border-pink-700 bg-pink-900/40 text-pink-300 whitespace-nowrap w-20 text-center">
+                                Captain
+                              </span>
+                            ) : (
+                              <label className="flex items-center gap-1.5 text-xs text-gray-300 w-20 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={p.isEditor}
+                                  onChange={e => updatePlayer(i, 'isEditor', e.target.checked)}
+                                  className="rounded border-gray-600 bg-gray-900 text-pink-500 focus:ring-pink-500 focus:ring-offset-gray-900"
+                                />
+                                Editor
+                              </label>
+                            )}
+                            {isCreator ? (
                               <div className="w-7 h-7 flex-shrink-0"></div>
                             ) : (
                               <button type="button" onClick={() => handleRemovePlayer(i)} className="text-gray-500 hover:text-red-400 p-1 transition-colors flex-shrink-0" title="Remove">
@@ -208,7 +215,8 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
                               </button>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                         {players.length === 0 && <p className="text-xs text-gray-500 italic">No players added. You can add them later.</p>}
                       </div>
                     </div>

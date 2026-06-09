@@ -82,7 +82,7 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
         averageScore: average !== null ? Math.round(average).toLocaleString() : 'min 2 plays',
         bestMatchScore: bestMatch.score > 0 ? bestMatch.score.toLocaleString() : '-',
         perfDiff: perfDiff !== null ? Math.round(perfDiff) : null,
-        isCaptain: activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isAdmin) || false,
+        isCaptain: activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isCaptain) || false,
       };
     });
 

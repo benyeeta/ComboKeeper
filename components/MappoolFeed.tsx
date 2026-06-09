@@ -85,7 +85,7 @@ export default function MappoolFeed({
           <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mr-1">Roster:</span>
           {uniquePlayers.map(p => {
             const isHidden = hiddenPlayerIds.has(p.id);
-            const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isAdmin);
+            const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === p.id.toString() && ap.isCaptain);
             return (
               <button
                 key={p.id}
@@ -214,7 +214,7 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
       style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, width: panelWidth }}
     >
       {topPlayers.map((player) => {
-        const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isAdmin);
+        const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isCaptain);
         return (
           <div key={player.id} className="flex items-center gap-2">
             <Image

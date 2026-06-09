@@ -166,14 +166,14 @@ export async function registerTeam(formData: FormData) {
 
   const PlayerSchema = z.array(z.object({
     username: z.string().min(1).max(50),
-    isAdmin: z.boolean()
+    isEditor: z.boolean().optional().default(false),
   }));
   let parsedPlayers: z.infer<typeof PlayerSchema> = [];
   try { parsedPlayers = PlayerSchema.parse(JSON.parse(playersJson)); } 
   catch (e) { return { error: "Invalid players data format." }; }
 
   if (currentUser && !parsedPlayers.find(p => p.username.toLowerCase() === currentUser.username.toLowerCase())) {
-    parsedPlayers.push({ username: currentUser.username, isAdmin: true });
+    parsedPlayers.push({ username: currentUser.username, isEditor: false });
   }
 
   const resolvedPlayers = [];
@@ -181,7 +181,7 @@ export async function registerTeam(formData: FormData) {
     if (!p.username) continue;
     const userData = await getCachedOsuUser(p.username);
     if (!userData) return { error: `Could not find osu! user: ${p.username}` };
-    resolvedPlayers.push({ userData, isAdmin: p.isAdmin });
+    resolvedPlayers.push({ userData, isEditor: p.isEditor });
   }
 
   const team = await prisma.team.create({ data: { name: teamName } });
@@ -196,7 +196,12 @@ export async function registerTeam(formData: FormData) {
     });
 
     await prisma.teamPlayer.create({
-      data: { teamId: team.id, playerId: player.id, role: rp.isAdmin ? "CAPTAIN" : "PLAYER", status: isCreator ? "ACCEPTED" : "PENDING" }
+      data: {
+        teamId: team.id,
+        playerId: player.id,
+        role: isCreator ? "CAPTAIN" : rp.isEditor ? "EDITOR" : "PLAYER",
+        status: isCreator ? "ACCEPTED" : "PENDING",
+      },
     });
 
     if (!isCreator && currentUser && prisma.notification) {
@@ -236,7 +241,7 @@ export async function updateTeamRoster(formData: FormData) {
   // Define the exact shape and limits of the expected data
   const PlayerSchema = z.array(z.object({
     username: z.string().min(1, "Username is required").max(50, "Username is too long"),
-    isAdmin: z.boolean()
+    isEditor: z.boolean().optional().default(false),
   }));
 
   let parsedPlayers: z.infer<typeof PlayerSchema> = [];
@@ -251,6 +256,7 @@ export async function updateTeamRoster(formData: FormData) {
 
   const existingTeamPlayers = await prisma.teamPlayer.findMany({ where: { teamId } });
   const existingIds = new Set(existingTeamPlayers.map(tp => tp.playerId));
+  const currentCaptain = existingTeamPlayers.find((tp) => tp.role === "CAPTAIN");
 
   // 1. Fetch osu! user data for all submitted players
   const resolvedPlayers = [];
@@ -258,7 +264,11 @@ export async function updateTeamRoster(formData: FormData) {
     if (!p.username) continue;
     const userData = await getCachedOsuUser(p.username);
     if (!userData) return { error: `Could not find osu! user: ${p.username}` };
-    resolvedPlayers.push({ userData, isAdmin: p.isAdmin });
+    resolvedPlayers.push({ userData, isEditor: p.isEditor });
+  }
+
+  if (currentCaptain && !resolvedPlayers.some((rp) => rp.userData.id === currentCaptain.playerId)) {
+    return { error: "Transfer the captain role before removing the captain from the roster." };
   }
 
   const newIds = new Set(resolvedPlayers.map(rp => rp.userData.id));
@@ -285,13 +295,20 @@ export async function updateTeamRoster(formData: FormData) {
       create: { id: rp.userData.id, username: rp.userData.username, avatarUrl: rp.userData.avatar_url }
     });
 
+    const role =
+      currentCaptain?.playerId === player.id
+        ? "CAPTAIN"
+        : rp.isEditor
+          ? "EDITOR"
+          : "PLAYER";
+
     if (!existingIds.has(player.id)) {
       // New player -> PENDING, and send a notification
       await prisma.teamPlayer.create({
         data: {
           teamId,
           playerId: player.id,
-          role: rp.isAdmin ? "CAPTAIN" : "PLAYER",
+          role,
           status: isCurrentUser ? "ACCEPTED" : "PENDING"
         }
       });
@@ -307,12 +324,66 @@ export async function updateTeamRoster(formData: FormData) {
         });
       }
     } else {
-      // Existing player -> Update their role
+      // Existing player -> Update their role (captain stays captain)
       await prisma.teamPlayer.update({
         where: { teamId_playerId: { teamId, playerId: player.id } },
-        data: { role: rp.isAdmin ? "CAPTAIN" : "PLAYER" }
+        data: { role }
       });
     }
+  }
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function transferTeamCaptain(teamId: string, newCaptainOsuId: string) {
+  if (!teamId || !newCaptainOsuId) return { error: "Missing required fields." };
+
+  const auth = await verifyTeamCaptain(teamId);
+  if (!auth.authorized || !auth.currentUser) return { error: auth.error };
+
+  const newCaptainId = parseInt(newCaptainOsuId, 10);
+  if (Number.isNaN(newCaptainId)) return { error: "Invalid player selected." };
+  if (newCaptainId === auth.currentUser.id) return { error: "You are already the team captain." };
+
+  const newCaptain = await prisma.teamPlayer.findUnique({
+    where: { teamId_playerId: { teamId, playerId: newCaptainId } },
+  });
+  if (!newCaptain || newCaptain.status !== "ACCEPTED") {
+    return { error: "The new captain must be an accepted team member." };
+  }
+
+  const { success } = await ratelimit.limit(`transferTeamCaptain_${auth.currentUser.id}`);
+  if (!success) {
+    return { error: "You are transferring captain too fast. Please wait a few seconds." };
+  }
+
+  const tournament = await prisma.tournament.findFirst({
+    where: { teams: { some: { teamId } } },
+    include: { teams: { where: { teamId }, include: { team: true } } },
+  });
+  const teamName = tournament?.teams[0]?.team.name || "your team";
+
+  await prisma.$transaction([
+    prisma.teamPlayer.update({
+      where: { teamId_playerId: { teamId, playerId: auth.currentUser.id } },
+      data: { role: "PLAYER" },
+    }),
+    prisma.teamPlayer.update({
+      where: { teamId_playerId: { teamId, playerId: newCaptainId } },
+      data: { role: "CAPTAIN" },
+    }),
+  ]);
+
+  if (prisma.notification) {
+    await prisma.notification.create({
+      data: {
+        userId: newCaptainId,
+        message: `${auth.currentUser.username} transferred the team captain role to you for ${teamName}.`,
+        type: "INFO",
+        teamId,
+      },
+    });
   }
 
   revalidatePath("/");
