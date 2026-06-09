@@ -55,7 +55,9 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
     return null;
   }
 
-  const isMixedOrFree = map.mod === "FM" || map.mod === "MM";
+  const isMM = map.mod === "MM";
+  const isFM = map.mod === "FM";
+  const showModPicker = isMM || isFM;
 
   const handleScoreChange = (index: number, value: string) => {
     const newEntries = [...scoreEntries];
@@ -94,7 +96,7 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
 
   const handleSave = async () => {
     const validEntries = scoreEntries
-      .map(e => ({ score: parseInt(e.score.replace(/\s/g, ""), 10), playedMod: isMixedOrFree ? e.playedMod : undefined, isFc: e.isFc }))
+      .map(e => ({ score: parseInt(e.score.replace(/\s/g, ""), 10), playedMod: showModPicker ? e.playedMod : undefined, isFc: e.isFc }))
       .filter(e => !isNaN(e.score) && e.score > 0);
     
     if (validEntries.length > 0 && selectedPlayerId && map) {
@@ -179,17 +181,26 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
               <label className="block text-sm font-medium text-gray-300">New Scores</label>
               {scoreEntries.map((entry, index) => (
                 <div key={index} className="flex items-center gap-2">
-                  {isMixedOrFree && (
+                  {showModPicker && (
                     <select
                       value={entry.playedMod}
                       onChange={(e) => handleModChange(index, e.target.value)}
                       className="w-24 rounded-md border-gray-600 bg-gray-800 p-2 text-white focus:border-blue-500 focus:ring-blue-500"
                     >
-                      <option value="NM">NM</option>
-                      <option value="HD">HD</option>
-                      <option value="HR">HR</option>
-                      <option value="EZ">EZ</option>
-                      <option value="FL">FL</option>
+                      {isFM ? (
+                        <>
+                          <option value="NM">NM</option>
+                          <option value="HD">HD</option>
+                          <option value="HR">HR</option>
+                          <option value="HDHR">HDHR</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="NM">NM</option>
+                          <option value="HD">HD</option>
+                          <option value="HR">HR</option>
+                        </>
+                      )}
                     </select>
                   )}
                   <input

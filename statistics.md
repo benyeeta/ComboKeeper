@@ -109,3 +109,30 @@ _Calculated using the aggregated data of the entire active roster to identify ov
 
 - **Logic:** Triggers if the combined average scores of the roster surpass the Team Captain’s average scores across a specific stage.
 - **Flavor Text:** "The crew is outperforming the captain this week. A full-scale mutiny is brewing on the leaderboard."
+
+---
+
+## Mod Support
+
+_Currently we only have support for Mix Mod and FreeMod, imported officially from the osu!wiki_
+
+### MM (MixedMod)
+
+The Mixed Mod bracket will be played with FreeMod activated. Each player will be forced to choose one mod each, from a selection of NoMod, Hidden, and Hard Rock. Each mod must be played by exactly one player (i.e. one player MUST pick NoMod, another player MUST pick Hidden, and the remaining player MUST pick Hard Rock).
+- The player using Hard Rock may choose to use Hidden and Hard Rock or just Hard Rock.
+
+### FM (ForcedMod)
+
+- Forced Mod
+
+
+### FM (FreeMod)
+
+The FreeMod bracket will have "Free Mods" enabled, that is, players will be able to select what mods they use.
+- Possible mod choices are Hidden, Hard Rock, and Hidden + Hard Rock.
+- When playing a FreeMod beatmap, there must be one player with Hidden and one player with Hard Rock or Hidden + Hard Rock. For the remaining players, enabling mods is optional.
+
+
+## TB (Tiebreaker)
+
+The tiebreaker will be played under Free Mod conditions, but players are exempt from the mod requirement.

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { decrypt } from "@/lib/session";
 import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
+import { parseTrackedPlayedMod } from "@/lib/modSlots";
 import { ratelimit } from "@/lib/ratelimit";
 import { normalizePlayedMod, parseModsBitmask, parsePlayedModFromApi } from "@/lib/parseMods";
 import { z } from "zod";
@@ -746,7 +747,7 @@ export async function importMatchScores(url: string, tournamentId: string, score
   // Fetch existing scores to prevent duplicates
   const existingScores = await prisma.score.findMany({
     where: { mappoolMapId: { in: Array.from(validBeatmapIds.values()) } },
-    select: { id: true, playerId: true, mappoolMapId: true, score: true, timestamp: true, accuracy: true }
+    select: { id: true, playerId: true, mappoolMapId: true, score: true, timestamp: true, accuracy: true, playedMod: true }
   });
   const existingSet = new Set(
     existingScores.map(s => `${s.playerId}_${s.mappoolMapId}_${s.score}_${Math.floor(s.timestamp.getTime() / 1000)}`)
@@ -764,36 +765,49 @@ export async function importMatchScores(url: string, tournamentId: string, score
       
       const playDate = new Date(event.timestamp);
       const uniqueKey = `${score.user_id}_${dbMapId}_${score.score}_${Math.floor(playDate.getTime() / 1000)}`;
-      if (!existingSet.has(uniqueKey)) {
-            // Find all existing scores with the exact same value
-            const existingDups = existingScores.filter(s => s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
-            
-            if (existingDups.length > 0) {
-              const hasDetailedScore = existingDups.some(s => s.accuracy > 0);
-              
-              if (!hasDetailedScore || overwriteDuplicates) {
-                existingDups.forEach(dup => scoresToDelete.add(dup.id));
-              } else {
-                // Skip importing because we already have a detailed score for this
-                continue;
-              }
-            }
+      const scoreMods = score.mods?.length ? score.mods : event.game.mods;
+      const playedMod = parsePlayedModFromApi(scoreMods);
 
-        const scoreMods = score.mods?.length ? score.mods : event.game.mods;
-        const playedMod = parsePlayedModFromApi(scoreMods);
+      const exactExisting = existingScores.find(s =>
+        s.playerId === score.user_id &&
+        s.mappoolMapId === dbMapId &&
+        s.score === score.score &&
+        Math.floor(s.timestamp.getTime() / 1000) === Math.floor(playDate.getTime() / 1000)
+      );
 
-        scoresToInsert.push({ 
-          score: score.score, 
-          accuracy: score.accuracy * 100, 
-          scoreType, 
-          playedMod,
-          playerId: score.user_id, 
-          mappoolMapId: dbMapId, 
-          timestamp: playDate,
-          isFc: score.perfect || false
-        });
-        existingSet.add(uniqueKey);
+      if (exactExisting?.playedMod && !overwriteDuplicates) continue;
+
+      let shouldInsert = true;
+      if (exactExisting) {
+        scoresToDelete.add(exactExisting.id);
+      } else if (existingSet.has(uniqueKey)) {
+        continue;
+      } else {
+        const existingDups = existingScores.filter(s => s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
+        if (existingDups.length > 0) {
+          const hasDetailedScore = existingDups.some(s => s.accuracy > 0);
+          const missingPlayedMod = existingDups.some(s => !s.playedMod);
+          if (hasDetailedScore && !overwriteDuplicates && !missingPlayedMod) {
+            shouldInsert = false;
+          } else {
+            existingDups.forEach(dup => scoresToDelete.add(dup.id));
+          }
+        }
       }
+
+      if (!shouldInsert) continue;
+
+      scoresToInsert.push({ 
+        score: score.score, 
+        accuracy: score.accuracy * 100, 
+        scoreType, 
+        playerId: score.user_id, 
+        mappoolMapId: dbMapId, 
+        timestamp: playDate,
+        isFc: score.perfect || false,
+        playedMod,
+      });
+      existingSet.add(uniqueKey);
     }
   }
 

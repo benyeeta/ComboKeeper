@@ -112,9 +112,9 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
               <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                 {leaderboardData ? (
                   leaderboardData.map((player) => (
-                    <tr key={player.name} onClick={() => onViewPlayerScores(player)} className="cursor-pointer group hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                    <tr key={player.name} onClick={() => onViewPlayerScores(player)} className="cursor-pointer group hover:bg-hover-overlay/10 transition-colors">
                       <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 dark:text-white sm:pl-0">
-                        <div className="flex items-center gap-3 text-left transition-colors group-hover:text-pink-400">
+                        <div className="flex items-center gap-3 text-left transition-colors group-hover:text-accent">
                           <div className="flex-shrink-0">
                             <Image src={player.avatarUrl} alt={player.name} width={32} height={32} className="w-8 h-8 rounded-full" />
                           </div>
