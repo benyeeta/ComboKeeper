@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { decrypt } from "@/lib/session";
-import { getOsuToken, getCachedOsuUser, parseTrackedPlayedMod } from "@/lib/osu";
+import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
+import { parseTrackedPlayedMod } from "@/lib/modSlots";
 import { ratelimit } from "@/lib/ratelimit";
 import { z } from "zod";
 

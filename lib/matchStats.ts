@@ -1,4 +1,4 @@
-import { parseTrackedPlayedMod } from "@/lib/osu";
+import { parseTrackedPlayedMod } from "@/lib/modSlots";
 import { MappoolMap } from "@/lib/types";
 
 export type MatchPlayerInfo = {

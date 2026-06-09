@@ -1,3 +1,25 @@
+const TRACKED_MODS = ["HD", "HR"] as const;
+
+/** Extract only HD/HR from osu! mod data (API array or .db bitmask). Returns "NM" if neither applies. */
+export function parseTrackedPlayedMod(mods: unknown): string {
+  const acronyms = new Set<string>();
+
+  if (Array.isArray(mods)) {
+    for (const mod of mods) {
+      const acronym = typeof mod === "string" ? mod : (mod as { acronym?: string })?.acronym;
+      if (acronym && (TRACKED_MODS as readonly string[]).includes(acronym)) {
+        acronyms.add(acronym);
+      }
+    }
+  } else if (typeof mods === "number" && mods > 0) {
+    if (mods & 8) acronyms.add("HD");
+    if (mods & 16) acronyms.add("HR");
+  }
+
+  if (acronyms.size === 0) return "NM";
+  return TRACKED_MODS.filter((m) => acronyms.has(m)).join("");
+}
+
 export type ModScoreHistory = {
   score: number;
   playedMod?: string | null;
