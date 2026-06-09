@@ -12,6 +12,11 @@ import {
   modBadgeLabel,
   type MatchMapResult,
 } from "@/lib/matchStats";
+import {
+  calculateTeamPracticeCoverage,
+  getRequiredPracticeMapIds,
+  REQUIRED_RUNS_PER_MAP,
+} from "@/lib/teamPracticeCoverage";
 
 type TeamIntelProps = {
   allScores: ScoreData[];
@@ -360,6 +365,23 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       .filter(m => m.avg > 0 && !m.id.toUpperCase().includes('TB'))
       .sort((a, b) => b.avg - a.avg);
 
+    const requiredMapIds = getRequiredPracticeMapIds(mappool, selectedStage, stageScores);
+    const rosterPlayers = (activeTournament?.players ?? [])
+      .filter((p: any) => p.status === "ACCEPTED")
+      .map((p: any) => ({
+        id: parseInt(p.osuId, 10),
+        username: p.username,
+        avatarUrl: `https://a.ppy.sh/${p.osuId}`,
+      }))
+      .filter((p: { id: number }) => !hiddenPlayerIds.has(p.id));
+
+    const practiceCoverage = calculateTeamPracticeCoverage(
+      stageScores,
+      requiredMapIds,
+      rosterPlayers,
+      REQUIRED_RUNS_PER_MAP
+    );
+
     return {
       fortress: highestMinMap.min > 0 ? highestMinMap : null,
       achilles: worstMap.avg < Infinity ? worstMap : null,
@@ -372,8 +394,9 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       matchPerformance,
       pickOrder: pickOrder.length > 0 ? pickOrder : null,
       mutiny,
+      practiceCoverage,
     };
-  }, [allScores, selectedStage, mappool, activeTournament?.format]);
+  }, [filteredScores, selectedStage, mappool, activeTournament, hiddenPlayerIds]);
 
   // Load saved match IDs from local storage when stage/tournament changes
   useEffect(() => {
@@ -446,7 +469,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
     }
   };
 
-  const hasIntel = intel && (intel.fortress || intel.achilles || intel.nightOwls > 0 || intel.hiveMind || intel.playstyle || intel.safePick || intel.coinflipPick || intel.mapsToPractice || intel.matchPerformance || intel.pickOrder || intel.mutiny);
+  const hasIntel = intel && (intel.fortress || intel.achilles || intel.nightOwls > 0 || intel.hiveMind || intel.playstyle || intel.safePick || intel.coinflipPick || intel.mapsToPractice || intel.matchPerformance || intel.pickOrder || intel.mutiny || intel.practiceCoverage);
 
   return (
     <div className="flex flex-col gap-6">
@@ -656,6 +679,52 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 The crew is outperforming the captain this week. A full-scale mutiny is brewing on the leaderboard.
               </span>
+            </div>
+          )}
+
+          {intel.practiceCoverage?.fullCompletion && (
+            <div className="bg-lime-50 dark:bg-lime-900/30 p-4 rounded border border-lime-200 dark:border-lime-800/50 flex flex-col shadow-sm">
+              <span className="text-lime-700 dark:text-lime-400 font-bold mb-1">Pat on the Back</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                Everyone on the roster logged at least {REQUIRED_RUNS_PER_MAP} runs on all{" "}
+                {intel.practiceCoverage.requiredMapIds.length} maps in the pool. The crew is locked in.
+              </span>
+            </div>
+          )}
+
+          {intel.practiceCoverage && intel.practiceCoverage.slackers.length > 0 && (
+            <div className="bg-amber-50 dark:bg-amber-900/30 p-4 rounded border border-amber-200 dark:border-amber-800/50 flex flex-col gap-3 shadow-sm">
+              <div>
+                <span className="text-amber-700 dark:text-amber-400 font-bold mb-1 block">Team Slack</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  These players haven&apos;t completed {REQUIRED_RUNS_PER_MAP} runs on every map yet. Step it up!
+                </span>
+              </div>
+              <ul className="flex flex-col gap-2">
+                {intel.practiceCoverage.slackers.map((slacker) => (
+                  <li key={slacker.id} className="flex items-start gap-2 min-w-0">
+                    <Image
+                      src={slacker.avatarUrl || `https://a.ppy.sh/${slacker.id}`}
+                      alt={slacker.username}
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 rounded-full border border-amber-200 dark:border-amber-700 object-cover flex-shrink-0 mt-0.5"
+                    />
+                    <div className="min-w-0">
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{slacker.username}</span>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        {slacker.missingMaps
+                          .map((gap) =>
+                            gap.playCount === 0
+                              ? `${gap.mapId} (no runs)`
+                              : `${gap.mapId} (${gap.playCount}/${REQUIRED_RUNS_PER_MAP})`
+                          )
+                          .join(", ")}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
