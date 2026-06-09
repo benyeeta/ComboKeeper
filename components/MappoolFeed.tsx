@@ -126,12 +126,12 @@ export default function MappoolFeed({
             className={`flex items-stretch ${MOD_COLORS[map.mod] || "border-gray-500"} border-l-4 transition-colors ${
               isExpanded
                 ? "bg-hover-overlay/15"
-                : "has-[button:hover]:hover:bg-transparent dark:has-[button:hover]:hover:bg-transparent"
+                : "hover:bg-hover-overlay/10 has-[button:hover]:hover:bg-transparent dark:has-[button:hover]:hover:bg-transparent"
             }`}
           >
             <div
               onClick={() => onMapSelect(isExpanded ? null : map)}
-              className={`flex flex-1 items-center min-w-0 cursor-pointer transition-colors p-3 ${!isExpanded ? "hover:bg-hover-overlay/10" : ""}`}
+              className="flex flex-1 items-center min-w-0 cursor-pointer p-3"
             >
               <div className="flex items-center gap-4 flex-grow overflow-hidden min-w-0">
                 <span className="font-bold text-lg w-12 flex-shrink-0">{map.id}</span>

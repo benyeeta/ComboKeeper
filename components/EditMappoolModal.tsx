@@ -210,40 +210,56 @@ export default function EditMappoolModal({ isOpen, onClose, tournamentId, stages
         </div>
 
         <div className="mb-4 pb-3 border-b border-gray-700">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Stages</span>
-            <div className="flex items-center gap-1">
-              <button onClick={onAddStage} className="px-2.5 py-1.5 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors" title="Add stage">
+          <div className={`flex items-center gap-2 min-w-0 ${isReorderingStages ? "opacity-60 pointer-events-none" : ""}`}>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider flex-shrink-0">Stages</span>
+            <div className="flex-1 min-w-0 overflow-x-auto pb-1 [scrollbar-width:thin]">
+              <div className="flex items-center gap-2 w-max min-w-full pr-1">
+                {orderedStages.map((s, index) => (
+                  <button
+                    key={s.id}
+                    draggable
+                    onDragStart={() => setDraggedStageIndex(index)}
+                    onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                    onDrop={(e) => { e.preventDefault(); handleStageDrop(index); }}
+                    onClick={() => handleStageChange(s.name)}
+                    className={`flex items-center gap-1.5 h-8 px-3 rounded text-sm font-medium whitespace-nowrap flex-shrink-0 transition-colors cursor-grab active:cursor-grabbing ${selectedStage === s.name ? "bg-pink-600 text-white" : "bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white"} ${draggedStageIndex === index ? "opacity-50 border border-dashed border-gray-500" : ""}`}
+                    title="Drag to reorder"
+                  >
+                    <svg className="w-3.5 h-3.5 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0 border-l border-gray-700 pl-2">
+              <button
+                onClick={onAddStage}
+                className="inline-flex items-center justify-center h-8 px-2.5 rounded text-sm font-medium leading-none bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors"
+                title="Add stage"
+              >
                 + Add
               </button>
               {orderedStages.length > 0 && (
                 <>
-                  <button onClick={onRenameStage} disabled={isReorderingStages} className="px-2.5 py-1.5 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors disabled:opacity-50" title="Rename current stage">
+                  <button
+                    onClick={onRenameStage}
+                    disabled={isReorderingStages}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50"
+                    title="Rename current stage"
+                  >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                   </button>
-                  <button onClick={onDeleteStage} disabled={isReorderingStages} className="px-2.5 py-1.5 rounded text-sm font-medium bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 whitespace-nowrap transition-colors disabled:opacity-50" title="Delete current stage">
+                  <button
+                    onClick={onDeleteStage}
+                    disabled={isReorderingStages}
+                    className="inline-flex items-center justify-center h-8 w-8 rounded text-sm font-medium bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 transition-colors disabled:opacity-50"
+                    title="Delete current stage"
+                  >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>
                 </>
               )}
             </div>
-          </div>
-          <div className={`flex items-center gap-2 overflow-x-auto pb-1 ${isReorderingStages ? 'opacity-60 pointer-events-none' : ''}`}>
-            {orderedStages.map((s, index) => (
-              <button
-                key={s.id}
-                draggable
-                onDragStart={() => setDraggedStageIndex(index)}
-                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
-                onDrop={(e) => { e.preventDefault(); handleStageDrop(index); }}
-                onClick={() => handleStageChange(s.name)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap transition-colors cursor-grab active:cursor-grabbing ${selectedStage === s.name ? 'bg-pink-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white'} ${draggedStageIndex === index ? 'opacity-50 border border-dashed border-gray-500' : ''}`}
-                title="Drag to reorder"
-              >
-                <svg className="w-3.5 h-3.5 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>
-                {s.name}
-              </button>
-            ))}
           </div>
         </div>
 
