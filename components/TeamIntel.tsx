@@ -19,6 +19,54 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
   const [matchResults, setMatchResults] = useState<any[]>([]);
   const [isLoadingMatch, setIsLoadingMatch] = useState(false);
 
+  const matchSummaries = useMemo(() => {
+    if (!matchResults || matchResults.length === 0) return null;
+    
+    const stageMaps = mappool?.[selectedStage] || [];
+    const teamPlayers = new Set(activeTournament?.players?.map((p: any) => parseInt(p.osuId)));
+
+    return matchResults.map(match => {
+      const matchGames = match.events
+        .filter((e: any) => e.game && e.game.beatmap_id)
+        .map((e: any) => e.game);
+
+      const mapResults = matchGames.map((game: any) => {
+        const poolMap = stageMaps.find(m => (m as any).beatmapId === game.beatmap_id);
+        if (!poolMap) return null;
+
+        let ourScore = 0;
+        let theirScore = 0;
+        
+        game.scores.forEach((s: any) => {
+          if (s.score === 0) return;
+          if (teamPlayers.has(s.user_id)) {
+            ourScore += s.score;
+          } else {
+            theirScore += s.score;
+          }
+        });
+
+        return {
+          mapId: poolMap.id,
+          ourScore,
+          theirScore,
+          won: ourScore > theirScore
+        };
+      }).filter(Boolean);
+
+      const ourWins = mapResults.filter((r: any) => r.won).length;
+      const theirWins = mapResults.length - ourWins;
+
+      return {
+        id: match.match.id,
+        name: match.match.name,
+        ourWins,
+        theirWins,
+        mapResults
+      };
+    });
+  }, [matchResults, mappool, selectedStage, activeTournament]);
+
   const uniquePlayers = useMemo(() => {
     const playersMap = new Map<number, any>();
     (allScores || []).filter(s => s.stage === selectedStage).forEach(mapData => {
@@ -339,7 +387,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
   };
 
   const isQualifier = selectedStage.toLowerCase().includes('qual');
-  const hasIntel = intel && (intel.fortress || intel.achilles || intel.nightOwls > 0 || intel.hiveMind || intel.playstyle || intel.safePick || intel.coinflipPick || intel.mapsToPractice || intel.matchPerformance || intel.pickOrder || intel.mutiny);
+  const hasIntel = intel && (intel.fortress || intel.achilles || intel.nightOwls > 0 || intel.hiveMind || intel.playstyle || intel.safePick || intel.coinflipPick || intel.mapsToPractice || intel.matchPerformance || intel.pickOrder || intel.mutiny || matchSummaries);
 
   return (
     <div className="flex flex-col gap-6">
@@ -461,6 +509,22 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
                 <span className="text-sm text-gray-500 dark:text-gray-400">Not enough data to rank picks.</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Match Performance Summary */}
+        {matchSummaries && (
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Match Stats (Linked)</h3>
+            <div className="bg-pink-50 dark:bg-pink-900/20 p-4 rounded border border-pink-200 dark:border-pink-800/50 flex flex-col shadow-sm">
+              <span className="text-pink-600 dark:text-pink-400 font-bold mb-1">Overall Match Record</span>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl font-black text-gray-900 dark:text-white">{matchSummaries.filter(m => m.ourWins > m.theirWins).length}W</span>
+                <span className="text-gray-400">-</span>
+                <span className="text-2xl font-black text-gray-900 dark:text-white">{matchSummaries.filter(m => m.ourWins < m.theirWins).length}L</span>
+              </div>
+              <span className="text-xs text-gray-600 dark:text-gray-400 italic">Summarizing {matchSummaries.length} linked MP matches.</span>
+            </div>
           </div>
         )}
 
@@ -589,66 +653,29 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
           </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            {matchResults.map(match => {
-              const stageMaps = mappool?.[selectedStage] || [];
-              const teamPlayers = new Set(activeTournament?.players?.map((p: any) => parseInt(p.osuId)));
-              
-              const matchGames = match.events
-                .filter((e: any) => e.game && e.game.beatmap_id)
-                .map((e: any) => e.game);
-
-              const mapResults = matchGames.map((game: any) => {
-                const poolMap = stageMaps.find(m => (m as any).beatmapId === game.beatmap_id);
-                if (!poolMap) return null;
-
-                let ourScore = 0;
-                let theirScore = 0;
-                
-                game.scores.forEach((s: any) => {
-                  if (s.score === 0) return;
-                  if (teamPlayers.has(s.user_id)) {
-                    ourScore += s.score;
-                  } else {
-                    theirScore += s.score;
-                  }
-                });
-
-                return {
-                  mapId: poolMap.id,
-                  beatmapId: (poolMap as any).beatmapId,
-                  ourScore,
-                  theirScore,
-                  won: ourScore > theirScore
-                };
-              }).filter(Boolean);
-
-              if (mapResults.length === 0) return null;
-
-              const ourWins = mapResults.filter((r: any) => r.won).length;
-              const theirWins = mapResults.length - ourWins;
-
+            {matchSummaries?.map(match => {
               return (
-                <div key={match.match.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden flex flex-col transition-colors duration-200">
+                <div key={match.id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm overflow-hidden flex flex-col transition-colors duration-200">
                   <div className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex justify-between items-center">
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <h3 className="font-bold text-gray-900 dark:text-white truncate max-w-xs sm:max-w-sm md:max-w-md" title={match.match.name}>{match.match.name}</h3>
-                      <a href={`https://osu.ppy.sh/community/matches/${match.match.id}`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-gray-400 hover:text-pink-500 transition-colors">
+                      <h3 className="font-bold text-gray-900 dark:text-white truncate max-w-xs sm:max-w-sm md:max-w-md" title={match.name}>{match.name}</h3>
+                      <a href={`https://osu.ppy.sh/community/matches/${match.id}`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0 text-gray-400 hover:text-pink-500 transition-colors">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
                       </a>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <span className="font-bold text-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-md shadow-sm">
-                        <span className={ourWins >= theirWins ? "text-green-500 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}>{ourWins}</span>
+                        <span className={match.ourWins >= match.theirWins ? "text-green-500 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}>{match.ourWins}</span>
                         <span className="text-gray-300 dark:text-gray-600 mx-1.5">-</span>
-                        <span className={theirWins > ourWins ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}>{theirWins}</span>
+                        <span className={match.theirWins > match.ourWins ? "text-red-500 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}>{match.theirWins}</span>
                       </span>
-                      <button onClick={() => handleRemoveMatch(match.match.id.toString())} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Remove Link">
+                      <button onClick={() => handleRemoveMatch(match.id.toString())} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Remove Link">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </div>
                   </div>
                   <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                    {mapResults.map((r: any, idx: number) => (
+                    {match.mapResults.map((r: any, idx: number) => (
                       <div key={idx} className={`px-4 py-2.5 flex items-center justify-between transition-colors ${r.won ? 'bg-green-50/50 dark:bg-green-900/10' : 'bg-red-50/50 dark:bg-red-900/10'}`}>
                         <div className="flex items-center gap-3">
                           <span className={`w-10 text-center font-bold text-sm ${r.won ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>{r.mapId}</span>
