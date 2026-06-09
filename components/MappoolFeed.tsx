@@ -121,34 +121,21 @@ export default function MappoolFeed({
         return (
         <div key={(map as any).dbId || `${map.id}-${index}`} className="flex flex-col bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden transition-colors duration-200">
           <div
-            onClick={() => onMapSelect(isExpanded ? null : map)}
-            className={`flex items-center justify-between p-3 cursor-pointer transition-colors
-              ${MOD_COLORS[map.mod] || "border-gray-500"} border-l-4
-              ${isExpanded ? 'bg-gray-200 dark:bg-white/10' : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
+            className={`flex items-stretch ${MOD_COLORS[map.mod] || "border-gray-500"} border-l-4 ${isExpanded ? "bg-gray-200 dark:bg-white/10" : ""}`}
           >
-          <div className="flex items-center gap-4 flex-grow overflow-hidden">
-            <span className="font-bold text-lg w-12 flex-shrink-0">{map.id}</span>
-            <div className="flex flex-col overflow-hidden">
-              <span className="text-gray-900 dark:text-gray-200 font-medium truncate">{map.artist}</span>
-              <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{map.songName}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <TopLineup mapId={map.id} stage={stage} allScores={filteredScores || []} mapMod={map.mod} activeTournament={activeTournament} />
-            <div className="flex items-center gap-1 flex-shrink-0 justify-end">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddScore(map);
-                }}
-                className="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 hover:bg-pink-600 dark:hover:bg-pink-600 text-gray-700 dark:text-gray-200 hover:text-white px-2 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
-                title="Add Score"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
-                <span className="hidden sm:inline">Add</span>
-              </button>
-              
-              <div className="w-6 flex justify-end">
+            <div
+              onClick={() => onMapSelect(isExpanded ? null : map)}
+              className={`flex flex-1 items-center min-w-0 cursor-pointer transition-colors p-3 ${!isExpanded ? "hover:bg-gray-100 dark:hover:bg-white/5" : ""}`}
+            >
+              <div className="flex items-center gap-4 flex-grow overflow-hidden min-w-0">
+                <span className="font-bold text-lg w-12 flex-shrink-0">{map.id}</span>
+                <div className="flex flex-col overflow-hidden">
+                  <span className="text-gray-900 dark:text-gray-200 font-medium truncate">{map.artist}</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{map.songName}</span>
+                </div>
+              </div>
+              <TopLineup mapId={map.id} stage={stage} allScores={filteredScores || []} mapMod={map.mod} activeTournament={activeTournament} />
+              <div className="w-6 flex justify-end flex-shrink-0 ml-3">
                 {isExpanded ? (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-pink-400 transform rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
@@ -160,7 +147,19 @@ export default function MappoolFeed({
                 )}
               </div>
             </div>
-          </div>
+            <div className="flex items-center p-3 pl-0 flex-shrink-0">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddScore(map);
+                }}
+                className="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 hover:bg-pink-600 dark:hover:bg-pink-600 text-gray-700 dark:text-gray-200 hover:text-white px-2 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
+                title="Add Score"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                <span className="hidden sm:inline">Add</span>
+              </button>
+            </div>
           </div>
           {isExpanded && (
             <div className={`bg-white dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-4 border-l-4 ${MOD_COLORS[map.mod] || "border-gray-500"}`}>
