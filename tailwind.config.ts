@@ -11,6 +11,7 @@ const config: Config = {
       colors: {
         background: "var(--bg-main)",
         surface: "var(--bg-surface)",
+        inset: "var(--bg-inset)",
         "border-main": "var(--border-main)",
         content: "var(--text-main)",
         muted: "var(--text-muted)",

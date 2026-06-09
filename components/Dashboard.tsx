@@ -156,7 +156,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
                   </optgroup>
                 )}
               </select>
-              <button onClick={() => setIsAddTournamentOpen(true)} className="rounded-md border border-border-main bg-surface p-2 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm" title="Join or Create Tournament">
+              <button onClick={() => setIsAddTournamentOpen(true)} className="rounded-md border border-border-main bg-surface p-2 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/20 hover:border-accent/50 shadow-sm" title="Join or Create Tournament">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
               </button>
             </div>
@@ -168,10 +168,10 @@ export default function Dashboard({ initialData }: DashboardProps) {
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-accent uppercase tracking-wider mb-1">Keeper Tools</span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setIsEditMappoolOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm">
+                    <button onClick={() => setIsEditMappoolOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/20 hover:border-accent/50 shadow-sm">
                       Edit Mappool
                     </button>
-                    <button onClick={() => setIsManageTournamentOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm">
+                    <button onClick={() => setIsManageTournamentOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/20 hover:border-accent/50 shadow-sm">
                       Manage
                     </button>
                   </div>
@@ -181,10 +181,10 @@ export default function Dashboard({ initialData }: DashboardProps) {
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-blue-500 dark:text-blue-400 uppercase tracking-wider mb-1">Team Tools</span>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setIsEditRosterOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm">
+                    <button onClick={() => setIsEditRosterOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/20 hover:border-accent/50 shadow-sm">
                       Edit Roster
                     </button>
-                    <button onClick={() => setIsManageTeamOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/10 shadow-sm">
+                    <button onClick={() => setIsManageTeamOpen(true)} className="rounded border border-border-main bg-surface px-3 py-1.5 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/20 hover:border-accent/50 shadow-sm">
                       Manage Team
                     </button>
                   </div>

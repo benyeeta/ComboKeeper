@@ -490,23 +490,23 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
             <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pick Priority</h3>
             
             {intel.pickOrder ? (
-              <div className="bg-gray-50 dark:bg-gray-800/50 rounded border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col h-full">
+              <div className="bg-surface rounded border border-border-main shadow-sm flex flex-col h-full">
                 {intel.pickOrder.slice(0, 6).map((map, i) => (
-                  <div key={map.id} className="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700 last:border-0 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
-                    <span className="font-bold text-gray-800 dark:text-gray-200">
-                      <span className={`${i === 0 ? 'text-pink-500' : i < 3 ? 'text-pink-400/80' : 'text-gray-400'} mr-2`}>#{i + 1}</span>
+                  <div key={map.id} className="flex justify-between items-center p-3 border-b border-border-main last:border-0 hover:bg-hover-overlay/10 transition-colors">
+                    <span className="font-bold text-content">
+                      <span className={`${i === 0 ? 'text-accent' : i < 3 ? 'text-accent/80' : 'text-muted'} mr-2`}>#{i + 1}</span>
                       {map.id}
                     </span>
                     <div className="flex flex-col items-end">
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">{Math.round(map.avg).toLocaleString()}</span>
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">Avg Score</span>
+                      <span className="text-sm font-bold text-content">{Math.round(map.avg).toLocaleString()}</span>
+                      <span className="text-[10px] text-muted uppercase tracking-wider mt-0.5">Avg Score</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col shadow-sm items-center justify-center text-center h-full min-h-[100px]">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Not enough data to rank picks.</span>
+              <div className="bg-surface p-4 rounded border border-border-main flex flex-col shadow-sm items-center justify-center text-center h-full min-h-[100px]">
+                <span className="text-sm text-muted">Not enough data to rank picks.</span>
               </div>
             )}
           </div>
@@ -533,15 +533,15 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
           <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Maps to Practice</h3>
           
           {intel.mapsToPractice ? intel.mapsToPractice.map((map, i) => (
-            <div key={map.id} className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col shadow-sm">
-              <span className="text-gray-800 dark:text-gray-200 font-bold mb-1">Priority #{i + 1}: {map.id}</span>
-              <span className="text-sm text-gray-600 dark:text-gray-400">
+            <div key={map.id} className="bg-surface p-4 rounded border border-border-main flex flex-col shadow-sm">
+              <span className="text-content font-bold mb-1">Priority #{i + 1}: {map.id}</span>
+              <span className="text-sm text-muted">
                 {map.plays === 0 ? "No plays recorded yet. Needs immediate attention!" : `Team is struggling here. Averaging ${Math.round(map.avg).toLocaleString()} across ${map.plays} plays.`}
               </span>
             </div>
           )) : (
-            <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded border border-gray-200 dark:border-gray-700 flex flex-col shadow-sm items-center justify-center text-center h-full min-h-[100px]">
-              <span className="text-sm text-gray-500 dark:text-gray-400">Not enough map data to determine priorities.</span>
+            <div className="bg-surface p-4 rounded border border-border-main flex flex-col shadow-sm items-center justify-center text-center h-full min-h-[100px]">
+              <span className="text-sm text-muted">Not enough map data to determine priorities.</span>
             </div>
           )}
         </div>
