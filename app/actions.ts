@@ -6,7 +6,7 @@ import { cookies, headers } from "next/headers";
 import { decrypt } from "@/lib/session";
 import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
 import { ratelimit } from "@/lib/ratelimit";
-import { parseModsBitmask, parsePlayedModFromApi } from "@/lib/parseMods";
+import { normalizePlayedMod, parseModsBitmask, parsePlayedModFromApi } from "@/lib/parseMods";
 import { z } from "zod";
 
 async function verifyKeeper(tournamentId: string) {
@@ -488,7 +488,7 @@ export async function addManualScores(mappoolMapId: string, playerId: number, sc
       playerId,
       mappoolMapId,
       scoreType,
-      playedMod: entry.playedMod,
+      playedMod: entry.playedMod ? normalizePlayedMod(entry.playedMod) : entry.playedMod,
       isFc: entry.isFc || false,
     }))
   });

@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma';
+import { normalizePlayedMod } from '@/lib/parseMods';
 import { MappoolMap, ScoreData } from '@/lib/types';
 
 export async function getTournamentData(userId: number, selectedTournamentId?: string) {
@@ -108,7 +109,7 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
           score: s.score,
           accuracy: s.accuracy,
           scoreType: s.scoreType,
-          playedMod: s.playedMod,
+          playedMod: s.playedMod ? normalizePlayedMod(s.playedMod) : s.playedMod,
           timestamp: s.timestamp.toISOString()
         });
       }

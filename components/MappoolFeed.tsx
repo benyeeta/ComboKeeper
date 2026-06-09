@@ -207,20 +207,8 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
       return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
     };
 
-    // Pad players to ensure we can always evaluate assigning all 3 required mods, even if the team has < 3 players currently.
-    // This prevents forcing HD/HR on teams with only 1-2 players and allows the algorithm to pick the best mods (e.g. NM/HD).
     const playersToEvaluate = [...mapScoreData.players];
-    let dummyIdCounter = -1;
-    while (playersToEvaluate.length < 3) {
-      playersToEvaluate.push({
-        id: dummyIdCounter--,
-        username: "Dummy",
-        avatarUrl: "",
-        history: []
-      });
-    }
 
-    // Pre-calculate best scores to ensure the recursive search remains instantly fast
     const playerBestScores = new Map();
     for (const p of playersToEvaluate) {
       playerBestScores.set(p.id, {
@@ -232,32 +220,35 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
 
     const findBestAssignment = (modIndex: number, currentAssignment: any[], currentScore: number, usedPlayers: Set<number>) => {
       if (modIndex === requiredMods.length) {
-        if (currentScore > maxTotal) {
+        if (currentAssignment.length > 0 && currentScore > maxTotal) {
           maxTotal = currentScore;
           bestLineup = [...currentAssignment];
         }
         return;
       }
       const reqMod = requiredMods[modIndex];
+      let anyAssigned = false;
       for (const p of playersToEvaluate) {
         if (!usedPlayers.has(p.id)) {
           const score = playerBestScores.get(p.id)[reqMod];
+          if (score === 0) continue;
+          anyAssigned = true;
           usedPlayers.add(p.id);
-          
           currentAssignment.push({ ...p, assignedMod: reqMod, _score: score });
           findBestAssignment(modIndex + 1, currentAssignment, currentScore + score, usedPlayers);
           currentAssignment.pop();
           usedPlayers.delete(p.id);
         }
       }
+      if (!anyAssigned) {
+        findBestAssignment(modIndex + 1, currentAssignment, currentScore, usedPlayers);
+      }
     };
 
     findBestAssignment(0, [], 0, new Set());
 
     if (maxTotal > 0) {
-      topPlayers = bestLineup
-        .filter(p => p.id >= 0) // Remove dummy players (real players have positive IDs from the database)
-        .sort((a, b) => b._score - a._score);
+      topPlayers = bestLineup.sort((a, b) => b._score - a._score);
     }
   } else if (mapMod === "FM") {
     // Because FM rules vary wildly, we just show each player's absolute best non-NM score 
@@ -280,8 +271,8 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
     }
   }
 
-  // Fallback sorting if the map isn't Mixed/Free mod or no one has logged mod-specific scores yet
-  if (topPlayers.length === 0) {
+  // Fallback for non-MM maps when mod-specific lineup data isn't available
+  if (topPlayers.length === 0 && mapMod !== "MM") {
     topPlayers = [...mapScoreData.players]
       .map((p) => {
         const bestPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : { score: 0, playedMod: 'NM' };
@@ -291,8 +282,16 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
       .slice(0, 3);
   }
 
+  if (topPlayers.length === 0) {
+    return (
+      <div className="hidden md:flex items-center justify-end w-[280px] lg:w-[360px] xl:w-[420px]">
+        <p className="text-sm text-gray-500 italic pr-2">No Lineup Data</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="hidden md:grid grid-cols-3 gap-2 w-[280px] lg:w-[360px] xl:w-[420px]">
+    <div className={`hidden md:grid gap-2 w-[280px] lg:w-[360px] xl:w-[420px] ${topPlayers.length === 3 ? 'grid-cols-3' : topPlayers.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
       {topPlayers.map((player) => {
         const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isAdmin);
         return (
