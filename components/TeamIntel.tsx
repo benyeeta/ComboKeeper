@@ -350,7 +350,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
   };
 
   const isQualifier = selectedStage.toLowerCase().includes('qual');
-  const hasIntel = intel && (intel.fortress || intel.achilles || intel.nightOwls > 0 || intel.hiveMind || intel.playstyle || intel.safePick || intel.coinflipPick || intel.mapsToPractice || intel.matchPerformance || intel.pickOrder || intel.mutiny || matchSummaries);
+  const hasIntel = intel && (intel.fortress || intel.achilles || intel.nightOwls > 0 || intel.hiveMind || intel.playstyle || intel.safePick || intel.coinflipPick || intel.mapsToPractice || intel.matchPerformance || intel.pickOrder || intel.mutiny);
 
   return (
     <div className="flex flex-col gap-6">
@@ -480,22 +480,6 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
                 <span className="text-sm text-muted">Not enough data to rank picks.</span>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Match Performance Summary */}
-        {matchSummaries && (
-          <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Match Stats (Linked)</h3>
-            <div className="bg-pink-50 dark:bg-pink-900/20 p-4 rounded border border-pink-200 dark:border-pink-800/50 flex flex-col shadow-sm">
-              <span className="text-pink-600 dark:text-pink-400 font-bold mb-1">Overall Match Record</span>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl font-black text-gray-900 dark:text-white">{matchSummaries.filter(m => m.ourWins > m.theirWins).length}W</span>
-                <span className="text-gray-400">-</span>
-                <span className="text-2xl font-black text-gray-900 dark:text-white">{matchSummaries.filter(m => m.ourWins < m.theirWins).length}L</span>
-              </div>
-              <span className="text-xs text-gray-600 dark:text-gray-400 italic">Summarizing {matchSummaries.length} linked MP matches.</span>
-            </div>
           </div>
         )}
 
