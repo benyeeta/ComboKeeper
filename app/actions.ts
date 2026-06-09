@@ -271,6 +271,13 @@ export async function updateTeamRoster(formData: FormData) {
     return { error: "Transfer the captain role before removing the captain from the roster." };
   }
 
+  if (resolvedPlayers.length === 0) {
+    await prisma.team.delete({ where: { id: teamId } });
+    revalidatePath("/");
+    revalidatePath("/profile");
+    return { success: true, deleted: true };
+  }
+
   const newIds = new Set(resolvedPlayers.map(rp => rp.userData.id));
 
   // 2. Remove players that are no longer in the submitted list
@@ -333,6 +340,27 @@ export async function updateTeamRoster(formData: FormData) {
   }
 
   revalidatePath("/");
+  return { success: true };
+}
+
+export async function deleteTeam(teamId: string) {
+  if (!teamId) return { error: "Team ID is required." };
+
+  const auth = await verifyTeamCaptain(teamId);
+  if (!auth.authorized || !auth.currentUser) return { error: auth.error };
+
+  const { success } = await ratelimit.limit(`deleteTeam_${auth.currentUser.id}`);
+  if (!success) {
+    return { error: "You are deleting teams too fast. Please wait a few seconds." };
+  }
+
+  const team = await prisma.team.findUnique({ where: { id: teamId } });
+  if (!team) return { error: "Team not found." };
+
+  await prisma.team.delete({ where: { id: teamId } });
+
+  revalidatePath("/");
+  revalidatePath("/profile");
   return { success: true };
 }
 
@@ -750,9 +778,20 @@ export async function deleteTournament(tournamentId: string) {
   const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
+  const linkedTeams = await prisma.tournamentTeam.findMany({
+    where: { tournamentId },
+    select: { teamId: true },
+  });
+  const teamIds = linkedTeams.map((t) => t.teamId);
+
   await prisma.tournament.delete({ where: { id: tournamentId } });
 
+  if (teamIds.length > 0) {
+    await prisma.team.deleteMany({ where: { id: { in: teamIds } } });
+  }
+
   revalidatePath("/");
+  revalidatePath("/profile");
   return { success: true };
 }
 
@@ -1205,7 +1244,14 @@ export async function leaveTeam(teamId: string) {
   if (!currentUser) return { error: "Not logged in" };
 
   await prisma.teamPlayer.deleteMany({ where: { teamId, playerId: currentUser.id } });
+
+  const remaining = await prisma.teamPlayer.count({ where: { teamId } });
+  if (remaining === 0) {
+    await prisma.team.delete({ where: { id: teamId } });
+  }
+
   revalidatePath("/");
+  revalidatePath("/profile");
   return { success: true };
 }
 

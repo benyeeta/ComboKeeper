@@ -2,6 +2,7 @@
 
 import { toggleTournamentStatus, deleteTournament, updateTournamentDetails, getTournamentKeepers, addTournamentKeeper, removeTournamentKeeper } from "@/app/actions";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ManageTournamentModal({ 
   isOpen, 
@@ -20,6 +21,7 @@ export default function ManageTournamentModal({
   tournamentFormat?: string;
   isCompleted?: boolean;
 }) {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [keepers, setKeepers] = useState<{id: number, username: string, avatarUrl: string|null}[]>([]);
   const [isKeepersLoading, setIsKeepersLoading] = useState(true);
@@ -53,11 +55,17 @@ export default function ManageTournamentModal({
   if (!isOpen) return null;
 
   const handleDelete = async () => {
-    if (confirm(`Are you absolutely sure you want to delete ${tournamentName}? This will delete all stages, maps, and scores associated with it.`)) {
+    if (confirm(`Are you absolutely sure you want to delete ${tournamentName}? This will delete all stages, maps, scores, and teams associated with it.`)) {
       setIsSubmitting(true);
-      await deleteTournament(tournamentId);
+      const result = await deleteTournament(tournamentId);
       setIsSubmitting(false);
+      if (result?.error) {
+        alert(result.error);
+        return;
+      }
       onClose();
+      router.push("/");
+      router.refresh();
     }
   };
 
@@ -199,7 +207,7 @@ export default function ManageTournamentModal({
 
           <div>
             <h3 className="text-sm font-semibold text-red-400 mb-2">Danger Zone</h3>
-            <p className="text-xs text-muted mb-3">Accidentally created this tournament? Delete it entirely.</p>
+            <p className="text-xs text-muted mb-3">Deletes the tournament and all registered teams tied to it.</p>
             <button onClick={handleDelete} disabled={isSubmitting} className="w-full rounded border border-red-900 bg-red-900/30 px-4 py-2 text-sm font-bold text-red-400 transition-colors hover:bg-red-900/50 disabled:opacity-50">Delete Tournament</button>
           </div>
         </div>

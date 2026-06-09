@@ -116,7 +116,13 @@ export default function EditRosterModal({
             const result = await updateTeamRoster(formData);
             setIsSubmitting(false);
             if (result?.error) setError(result.error);
-            else onClose();
+            else {
+              if ((result as { deleted?: boolean }).deleted) {
+                router.push("/");
+              }
+              onClose();
+              router.refresh();
+            }
           }}
           className="flex flex-col gap-4 overflow-y-auto pr-2"
         >
