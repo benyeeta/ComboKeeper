@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState, useMemo } from "react";
 import { MappoolMap, Mod, ScoreData } from "@/lib/types";
+import { calculateMapLineupDisplay } from "@/lib/mapLineup";
+import { parseLineupSize } from "@/lib/tournamentFormat";
 import AnalyticsPanel from "./AnalyticsPanel";
 
 const MOD_COLORS: Record<string, string> = {
@@ -184,133 +186,40 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
     (data) => data.mapId === mapId && data.stage === stage
   );
 
+  const lineupSize = mapMod === "MM" ? 3 : parseLineupSize(activeTournament?.format);
+  const columnCount = mapMod === "MM" ? 3 : lineupSize;
+  const panelWidth = columnCount <= 2 ? 200 : columnCount === 3 ? 280 : columnCount === 4 ? 360 : 420;
+
   if (!mapScoreData || mapScoreData.players.length === 0) {
     return (
-      <div className="hidden md:flex items-center justify-end w-[280px] lg:w-[360px] xl:w-[420px]">
+      <div className="hidden md:flex items-center justify-end" style={{ width: panelWidth }}>
         <p className="text-sm text-gray-500 italic pr-2">No Lineup Data</p>
       </div>
     );
   }
 
-  let topPlayers: { id: number; username: string; avatarUrl: string; assignedMod?: string; history: any[]; _score?: number }[] = [];
+  const topPlayers = calculateMapLineupDisplay(mapScoreData.players, mapMod, lineupSize);
 
-  if (mapMod === "MM") {
-    // Evaluate the optimal permutation of players for the standard HD, HR, and NM meta
-    const requiredMods = ['HD', 'HR', 'NM'];
-
-    let bestLineup: any[] = [];
-    let maxTotal = -1;
-
-    const getBestScore = (player: any, reqMod: string) => {
-      const plays = player.history.filter((h: any) => {
-        if (reqMod === 'NM') return !h.playedMod || h.playedMod === 'NM';
-        return h.playedMod && h.playedMod.includes(reqMod); // Handles exact 'HD' or combined like 'HDHR'
-      });
-      return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
-    };
-
-    // Pad players to ensure we can always evaluate assigning all 3 required mods, even if the team has < 3 players currently.
-    // This prevents forcing HD/HR on teams with only 1-2 players and allows the algorithm to pick the best mods (e.g. NM/HD).
-    const playersToEvaluate = [...mapScoreData.players];
-    let dummyIdCounter = -1;
-    while (playersToEvaluate.length < 3) {
-      playersToEvaluate.push({
-        id: dummyIdCounter--,
-        username: "Dummy",
-        avatarUrl: "",
-        history: []
-      });
-    }
-
-    // Pre-calculate best scores to ensure the recursive search remains instantly fast
-    const playerBestScores = new Map();
-    for (const p of playersToEvaluate) {
-      playerBestScores.set(p.id, {
-        HD: getBestScore(p, 'HD'),
-        HR: getBestScore(p, 'HR'),
-        NM: getBestScore(p, 'NM'),
-      });
-    }
-
-    const findBestAssignment = (modIndex: number, currentAssignment: any[], currentScore: number, usedPlayers: Set<number>) => {
-      if (modIndex === requiredMods.length) {
-        if (currentScore > maxTotal) {
-          maxTotal = currentScore;
-          bestLineup = [...currentAssignment];
-        }
-        return;
-      }
-      const reqMod = requiredMods[modIndex];
-      for (const p of playersToEvaluate) {
-        if (!usedPlayers.has(p.id)) {
-          const score = playerBestScores.get(p.id)[reqMod];
-          usedPlayers.add(p.id);
-          
-          let displayMod = reqMod;
-          let displayScore = score;
-          
-          if (score === 0) {
-            const fallbackPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : null;
-            displayMod = fallbackPlay?.playedMod || 'NM';
-            displayScore = fallbackPlay?.score || 0;
-          }
-
-          currentAssignment.push({ ...p, assignedMod: displayMod, _score: displayScore });
-          findBestAssignment(modIndex + 1, currentAssignment, currentScore + score, usedPlayers);
-          currentAssignment.pop();
-          usedPlayers.delete(p.id);
-        }
-      }
-    };
-
-    findBestAssignment(0, [], 0, new Set());
-
-    if (maxTotal > 0) {
-      topPlayers = bestLineup
-        .filter(p => p.id >= 0) // Remove dummy players (real players have positive IDs from the database)
-        .sort((a, b) => b._score - a._score);
-    }
-  } else if (mapMod === "FM") {
-    // Because FM rules vary wildly, we just show each player's absolute best non-NM score 
-    // to give the captain a quick overview of who plays what mod the best.
-    const playerBestModScores = mapScoreData.players.map((p) => {
-      const modPlays = p.history.filter((h: any) => h.playedMod && h.playedMod !== 'NM');
-      const bestModPlay = modPlays.length > 0 ? modPlays.reduce((a, b) => (a.score > b.score ? a : b)) : null;
-      
-      const fallbackPlay = p.history.length > 0 ? p.history.reduce((a, b) => (a.score > b.score ? a : b)) : null;
-
-      return {
-        ...p,
-        _score: bestModPlay ? bestModPlay.score : (fallbackPlay?.score || 0),
-        assignedMod: (bestModPlay ? bestModPlay.playedMod : fallbackPlay?.playedMod) || 'NM'
-      };
-    });
-
-    if (playerBestModScores.some(p => p._score && p._score > 0)) {
-      topPlayers = playerBestModScores.sort((a, b) => (b._score || 0) - (a._score || 0)).slice(0, 3);
-    }
-  }
-
-  // Fallback sorting if the map isn't Mixed/Free mod or no one has logged mod-specific scores yet
   if (topPlayers.length === 0) {
-    topPlayers = [...mapScoreData.players]
-      .map((p) => {
-        const bestPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : { score: 0, playedMod: 'NM' };
-        return { ...p, _score: bestPlay.score, assignedMod: bestPlay.playedMod || 'NM' };
-      })
-      .sort((a, b) => (b._score || 0) - (a._score || 0))
-      .slice(0, 3);
+    return (
+      <div className="hidden md:flex items-center justify-end" style={{ width: panelWidth }}>
+        <p className="text-sm text-gray-500 italic pr-2">No Lineup Data</p>
+      </div>
+    );
   }
 
   return (
-    <div className="hidden md:grid grid-cols-3 gap-2 w-[280px] lg:w-[360px] xl:w-[420px]">
+    <div
+      className="hidden md:grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, width: panelWidth }}
+    >
       {topPlayers.map((player) => {
         const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isAdmin);
         return (
           <div key={player.id} className="flex items-center gap-2">
             <Image
               src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
-              alt={player.username}
+              alt={player.username || "Player"}
               width={24}
               height={24}
               className="w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"

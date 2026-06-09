@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { decrypt } from "@/lib/session";
-import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
+import { getOsuToken, getCachedOsuUser, parseTrackedPlayedMod } from "@/lib/osu";
 import { ratelimit } from "@/lib/ratelimit";
 import { z } from "zod";
 
@@ -745,7 +745,7 @@ export async function importMatchScores(url: string, tournamentId: string, score
   // Fetch existing scores to prevent duplicates
   const existingScores = await prisma.score.findMany({
     where: { mappoolMapId: { in: Array.from(validBeatmapIds.values()) } },
-    select: { id: true, playerId: true, mappoolMapId: true, score: true, timestamp: true, accuracy: true }
+    select: { id: true, playerId: true, mappoolMapId: true, score: true, timestamp: true, accuracy: true, playedMod: true }
   });
   const existingSet = new Set(
     existingScores.map(s => `${s.playerId}_${s.mappoolMapId}_${s.score}_${Math.floor(s.timestamp.getTime() / 1000)}`)
@@ -763,32 +763,48 @@ export async function importMatchScores(url: string, tournamentId: string, score
       
       const playDate = new Date(event.timestamp);
       const uniqueKey = `${score.user_id}_${dbMapId}_${score.score}_${Math.floor(playDate.getTime() / 1000)}`;
-      if (!existingSet.has(uniqueKey)) {
-            // Find all existing scores with the exact same value
-            const existingDups = existingScores.filter(s => s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
-            
-            if (existingDups.length > 0) {
-              const hasDetailedScore = existingDups.some(s => s.accuracy > 0);
-              
-              if (!hasDetailedScore || overwriteDuplicates) {
-                existingDups.forEach(dup => scoresToDelete.add(dup.id));
-              } else {
-                // Skip importing because we already have a detailed score for this
-                continue;
-              }
-            }
+      const playedMod = parseTrackedPlayedMod(score.mods);
 
-        scoresToInsert.push({ 
-          score: score.score, 
-          accuracy: score.accuracy * 100, 
-          scoreType, 
-          playerId: score.user_id, 
-          mappoolMapId: dbMapId, 
-          timestamp: playDate,
-          isFc: score.perfect || false
-        });
-        existingSet.add(uniqueKey);
+      const exactExisting = existingScores.find(s =>
+        s.playerId === score.user_id &&
+        s.mappoolMapId === dbMapId &&
+        s.score === score.score &&
+        Math.floor(s.timestamp.getTime() / 1000) === Math.floor(playDate.getTime() / 1000)
+      );
+
+      if (exactExisting?.playedMod && !overwriteDuplicates) continue;
+
+      let shouldInsert = true;
+      if (exactExisting) {
+        scoresToDelete.add(exactExisting.id);
+      } else if (existingSet.has(uniqueKey)) {
+        continue;
+      } else {
+        const existingDups = existingScores.filter(s => s.playerId === score.user_id && s.mappoolMapId === dbMapId && s.score === score.score);
+        if (existingDups.length > 0) {
+          const hasDetailedScore = existingDups.some(s => s.accuracy > 0);
+          const missingPlayedMod = existingDups.some(s => !s.playedMod);
+          if (hasDetailedScore && !overwriteDuplicates && !missingPlayedMod) {
+            shouldInsert = false;
+          } else {
+            existingDups.forEach(dup => scoresToDelete.add(dup.id));
+          }
+        }
       }
+
+      if (!shouldInsert) continue;
+
+      scoresToInsert.push({ 
+        score: score.score, 
+        accuracy: score.accuracy * 100, 
+        scoreType, 
+        playerId: score.user_id, 
+        mappoolMapId: dbMapId, 
+        timestamp: playDate,
+        isFc: score.perfect || false,
+        playedMod,
+      });
+      existingSet.add(uniqueKey);
     }
   }
 
@@ -971,19 +987,7 @@ export async function importDbScores(formData: FormData) {
               accuracy = totalHits > 0 ? ((nGeki * 300 + n300 * 300 + nKatu * 200 + n100 * 100 + n50 * 50) / (totalHits * 300)) * 100 : 0;
             }
             
-            // Parse osu! bitmask to string
-            let playedMod = "NM";
-            if (mods > 0) {
-              const modAcronyms = [];
-              if (mods & 2) modAcronyms.push("EZ");
-              if (mods & 8) modAcronyms.push("HD");
-              if (mods & 16) modAcronyms.push("HR");
-              if (mods & 64 && !(mods & 512)) modAcronyms.push("DT");
-              if (mods & 512) modAcronyms.push("NC");
-              if (mods & 1024) modAcronyms.push("FL");
-              if (mods & 256) modAcronyms.push("HT");
-              if (modAcronyms.length > 0) playedMod = modAcronyms.join("");
-            }
+            const playedMod = parseTrackedPlayedMod(mods);
 
             // osu! timestamps are in Windows ticks (100-nanosecond intervals since 0001-01-01)
             const playDate = new Date(Number(timestampTicks) / 10000 - 62135596800000);

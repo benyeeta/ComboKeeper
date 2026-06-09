@@ -1,7 +1,9 @@
 "use client";
 
 import { ScoreData, MappoolMap } from "@/lib/types";
-import { useMemo, useState, useEffect } from "react";
+import { calculateMapIntelStats, getMapModFromPool } from "@/lib/mapLineup";
+import { parseLineupSize } from "@/lib/tournamentFormat";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import Image from "next/image";
 import { fetchOsuMatch } from "@/app/actions";
 
@@ -11,6 +13,32 @@ type TeamIntelProps = {
   activeTournament?: any;
   mappool?: Record<string, MappoolMap[]>;
 };
+
+function IntelMapCard({
+  label,
+  mapId,
+  labelClassName,
+  className,
+  children,
+}: {
+  label: string;
+  mapId: string;
+  labelClassName: string;
+  className: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={className}>
+      <div className="flex items-center justify-between gap-3 mb-2">
+        <span className={`text-sm font-bold ${labelClassName}`}>{label}</span>
+        <span className="rounded-md bg-black/5 dark:bg-white/10 px-2.5 py-1 text-base font-black tracking-wide text-gray-900 dark:text-white shrink-0">
+          {mapId}
+        </span>
+      </div>
+      <p className="text-sm text-gray-700 dark:text-gray-300">{children}</p>
+    </div>
+  );
+}
 
 export default function TeamIntel({ allScores, selectedStage, activeTournament, mappool }: TeamIntelProps) {
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState<Set<number>>(new Set());
@@ -106,7 +134,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
     let nightOwlPlays = 0;
     let totalPlays = 0;
     
-    let closestMap = { id: "", spread: Infinity };
+    let closestMap = { id: "", spread: Infinity, lineupSize: 3 };
     
     let totalStdDev = 0;
     let stdDevCount = 0;
@@ -124,11 +152,9 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
     let crewTotalScore = 0;
     let crewMapsCount = 0;
 
+    const lineupSize = parseLineupSize(activeTournament?.format);
+
     stageScores.forEach(mapData => {
-      let playerAveragesTotal = 0;
-      let playersWithScoresCount = 0;
-      let topScores: number[] = [];
-      let allMapScores: number[] = [];
       let totalPlaysForMap = 0;
 
       let mapMatchScore = 0;
@@ -136,12 +162,9 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       let mapPracticeScore = 0;
       let mapPracticePlays = 0;
 
-      const isMM = mapData.mapId.toUpperCase().startsWith('MM');
-      const isFM = mapData.mapId.toUpperCase().startsWith('FM');
+      const mapMod = getMapModFromPool(mappool, selectedStage, mapData.mapId);
 
       mapData.players.forEach(p => {
-        let maxForPlayer = 0;
-        let bestFMScore = 0;
         let pTotal = 0;
         let pCount = 0;
 
@@ -152,7 +175,6 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
           pCount += 1;
           totalPlays += 1;
           totalPlaysForMap += 1;
-          allMapScores.push(h.score);
 
           if (h.scoreType === 'MATCH') {
             mapMatchScore += h.score;
@@ -162,82 +184,28 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
             mapPracticePlays += 1;
           }
 
-          if (h.score > maxForPlayer) maxForPlayer = h.score;
-          if (h.playedMod && h.playedMod !== 'NM' && h.score > bestFMScore) bestFMScore = h.score;
-
           if (h.timestamp) {
             const hour = new Date(h.timestamp).getHours();
             if (hour >= 0 && hour < 5) nightOwlPlays++;
           }
         });
-        
-        if (!isMM) {
-          const scoreToPush = isFM ? (bestFMScore > 0 ? bestFMScore : maxForPlayer) : maxForPlayer;
-          if (scoreToPush > 0) topScores.push(scoreToPush);
-        }
 
         if (pCount > 0) {
-          playerAveragesTotal += (pTotal / pCount);
-          playersWithScoresCount += 1;
-
           if (isCaptain) {
-            captainTotalScore += (pTotal / pCount);
+            captainTotalScore += pTotal / pCount;
             captainMapsCount += 1;
           } else {
-            crewTotalScore += (pTotal / pCount);
+            crewTotalScore += pTotal / pCount;
             crewMapsCount += 1;
           }
         }
       });
 
-      if (isMM) {
-        const requiredMods = ['HD', 'HR', 'NM'];
-        let maxTotal = -1;
-        let bestScores: number[] = [];
-
-        const getBestScore = (player: any, reqMod: string) => {
-          const plays = player.history.filter((h: any) => {
-            if (reqMod === 'NM') return !h.playedMod || h.playedMod === 'NM';
-            return h.playedMod && h.playedMod.includes(reqMod);
-          });
-          return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
-        };
-
-        const playersToEvaluate = [...mapData.players];
-        let dummyIdCounter = -1;
-        while (playersToEvaluate.length < 3) {
-          playersToEvaluate.push({ id: dummyIdCounter--, username: "Dummy", avatarUrl: "", history: [] } as any);
-        }
-
-        const playerBestScores = new Map();
-        for (const p of playersToEvaluate) {
-          playerBestScores.set(p.id, { HD: getBestScore(p, 'HD'), HR: getBestScore(p, 'HR'), NM: getBestScore(p, 'NM') });
-        }
-
-        const findBestAssignment = (modIndex: number, currentScores: number[], currentTotal: number, usedPlayers: Set<number>) => {
-          if (modIndex === requiredMods.length) {
-            if (currentTotal > maxTotal) { maxTotal = currentTotal; bestScores = [...currentScores]; }
-            return;
-          }
-          const reqMod = requiredMods[modIndex];
-          for (const p of playersToEvaluate) {
-            if (!usedPlayers.has(p.id)) {
-              let score = playerBestScores.get(p.id)[reqMod];
-              usedPlayers.add(p.id);
-              if (score === 0) {
-                const fallbackPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : null;
-                score = fallbackPlay?.score || 0;
-              }
-              currentScores.push(score);
-              findBestAssignment(modIndex + 1, currentScores, currentTotal + score, usedPlayers);
-              currentScores.pop();
-              usedPlayers.delete(p.id);
-            }
-          }
-        };
-        findBestAssignment(0, [], 0, new Set());
-        topScores = bestScores.filter(s => s > 0);
-      }
+      const { avg, lineupScores, playStdDev, effectiveLineupSize } = calculateMapIntelStats(
+        mapData.players,
+        mapMod,
+        lineupSize
+      );
 
       if (mapMatchPlays > 0 && mapPracticePlays > 0) {
         const mAvg = mapMatchScore / mapMatchPlays;
@@ -246,30 +214,25 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
         mapsWithBoth++;
       }
 
-      const avg = playersWithScoresCount > 0 ? playerAveragesTotal / playersWithScoresCount : 0;
       if (avg > bestMap.avg) bestMap = { id: mapData.mapId, avg };
       if (avg < worstMap.avg && avg > 0) worstMap = { id: mapData.mapId, avg };
 
-      topScores.sort((a, b) => b - a);
-      if (topScores.length >= 3) {
-        const spread = topScores[0] - topScores[2];
+      if (lineupScores.length >= effectiveLineupSize) {
+        const spread = lineupScores[0] - lineupScores[effectiveLineupSize - 1];
         if (spread < closestMap.spread) {
-          closestMap = { id: mapData.mapId, spread };
+          closestMap = { id: mapData.mapId, spread, lineupSize: effectiveLineupSize };
         }
-        
-        const mapMin = Math.min(...topScores);
+
+        const mapMin = Math.min(...lineupScores.slice(0, effectiveLineupSize));
         if (mapMin > highestMinMap.min) highestMinMap = { id: mapData.mapId, min: mapMin };
       }
 
-        let currentStdDev = 0;
-      if (allMapScores.length >= 3) {
-        const mean = allMapScores.reduce((a, b) => a + b, 0) / allMapScores.length;
-        const variance = allMapScores.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / allMapScores.length;
-        totalStdDev += Math.sqrt(variance);
-        currentStdDev = Math.sqrt(variance);
+      let currentStdDev = 0;
+      if (playStdDev > 0) {
+        totalStdDev += playStdDev;
+        currentStdDev = playStdDev;
         stdDevCount++;
-        
-        const stdDev = Math.sqrt(variance);
+
         if (currentStdDev < safePick.dev) safePick = { id: mapData.mapId, dev: currentStdDev };
         if (currentStdDev > coinflipPick.dev) coinflipPick = { id: mapData.mapId, dev: currentStdDev };
       }
@@ -319,7 +282,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       pickOrder: pickOrder.length > 0 ? pickOrder : null,
       mutiny,
     };
-  }, [allScores, selectedStage]);
+  }, [allScores, selectedStage, mappool, activeTournament?.format]);
 
   // Load saved match IDs from local storage when stage/tournament changes
   useEffect(() => {
@@ -447,52 +410,60 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
               <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">What to Pick & Avoid</h3>
             
             {intel.fortress && (
-              <div className="bg-green-50 dark:bg-green-900/30 p-4 rounded border border-green-200 dark:border-green-800/50 flex flex-col shadow-sm">
-                <span className="text-green-600 dark:text-green-400 font-bold mb-1">The Comfort Pick (The Fortress)</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  A guaranteed point. The lowest team score on <span className="font-semibold">{intel.fortress.id}</span> is still {Math.round(intel.fortress.min).toLocaleString()}.
-                </span>
-              </div>
+              <IntelMapCard
+                label="The Comfort Pick"
+                mapId={intel.fortress.id}
+                labelClassName="text-green-600 dark:text-green-400"
+                className="bg-green-50 dark:bg-green-900/30 p-4 rounded border border-green-200 dark:border-green-800/50 shadow-sm"
+              >
+                A guaranteed point. The lowest lineup score is still {Math.round(intel.fortress.min).toLocaleString()}.
+              </IntelMapCard>
             )}
             
             {intel.safePick && (
-              <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded border border-emerald-200 dark:border-emerald-800/50 flex flex-col shadow-sm">
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold mb-1">The Safe Pick</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">{intel.safePick.id}</span> has the lowest variance. Scores only fluctuate by ±{Math.round(intel.safePick.dev).toLocaleString()}.
-                </span>
-              </div>
+              <IntelMapCard
+                label="The Safe Pick"
+                mapId={intel.safePick.id}
+                labelClassName="text-emerald-600 dark:text-emerald-400"
+                className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded border border-emerald-200 dark:border-emerald-800/50 shadow-sm"
+              >
+                Lowest score variance on the team. Plays only fluctuate by ±{Math.round(intel.safePick.dev).toLocaleString()}.
+              </IntelMapCard>
             )}
 
             {intel.coinflipPick && intel.coinflipPick.dev > 50000 && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded border border-yellow-200 dark:border-yellow-800/50 flex flex-col shadow-sm">
-                <span className="text-yellow-600 dark:text-yellow-400 font-bold mb-1">The Coinflip Pick (Risky)</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">{intel.coinflipPick.id}</span> is highly volatile. Scores fluctuate wildly by ±{Math.round(intel.coinflipPick.dev).toLocaleString()}.
-                </span>
-              </div>
+              <IntelMapCard
+                label="The Coinflip Pick"
+                mapId={intel.coinflipPick.id}
+                labelClassName="text-yellow-600 dark:text-yellow-400"
+                className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded border border-yellow-200 dark:border-yellow-800/50 shadow-sm"
+              >
+                Highly volatile — scores swing by ±{Math.round(intel.coinflipPick.dev).toLocaleString()}. High risk, high reward.
+              </IntelMapCard>
             )}
 
             {intel.achilles && (
-              <div className="bg-red-50 dark:bg-red-900/30 p-4 rounded border border-red-200 dark:border-red-800/50 flex flex-col shadow-sm">
-                <span className="text-red-600 dark:text-red-400 font-bold mb-1">The Veto Target (Achilles' Heel)</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Statistically the worst map. Average score: {Math.round(intel.achilles.avg).toLocaleString()}. Ban immediately.
-                </span>
-              </div>
+              <IntelMapCard
+                label="The Ban Target"
+                mapId={intel.achilles.id}
+                labelClassName="text-red-600 dark:text-red-400"
+                className="bg-red-50 dark:bg-red-900/30 p-4 rounded border border-red-200 dark:border-red-800/50 shadow-sm"
+              >
+                Weakest map statistically. Team averages {Math.round(intel.achilles.avg).toLocaleString()}. Ban immediately.
+              </IntelMapCard>
             )}
           </div>
         )}
 
         {/* Recommended Pick Order */}
         {!isQualifier && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 self-start">
             <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Pick Priority</h3>
             
             {intel.pickOrder ? (
-              <div className="bg-surface rounded border border-border-main shadow-sm flex flex-col h-full">
+              <div className="bg-surface rounded border border-border-main shadow-sm w-full">
                 {intel.pickOrder.slice(0, 6).map((map, i) => (
-                  <div key={map.id} className="flex justify-between items-center p-3 border-b border-border-main last:border-0 hover:bg-hover-overlay/10 transition-colors">
+                  <div key={map.id} className="flex justify-between items-center p-3 border-b border-border-main last:border-0">
                     <span className="font-bold text-content">
                       <span className={`${i === 0 ? 'text-accent' : i < 3 ? 'text-accent/80' : 'text-muted'} mr-2`}>#{i + 1}</span>
                       {map.id}
@@ -505,7 +476,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
                 ))}
               </div>
             ) : (
-              <div className="bg-surface p-4 rounded border border-border-main flex flex-col shadow-sm items-center justify-center text-center h-full min-h-[100px]">
+              <div className="bg-surface p-4 rounded border border-border-main shadow-sm flex flex-col items-center justify-center text-center min-h-[100px] w-full">
                 <span className="text-sm text-muted">Not enough data to rank picks.</span>
               </div>
             )}
@@ -551,12 +522,14 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
           <h3 className="text-sm font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">Tips & Trends</h3>
           
           {intel.hiveMind && (
-            <div className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded border border-purple-200 dark:border-purple-800/50 flex flex-col shadow-sm">
-              <span className="text-purple-600 dark:text-purple-400 font-bold mb-1">The Hive Mind</span>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                Terrifyingly synchronized. Top 3 players are within {Math.round(intel.hiveMind.spread).toLocaleString()} points of each other on <span className="font-semibold">{intel.hiveMind.id}</span>.
-              </span>
-            </div>
+            <IntelMapCard
+              label="The Hive Mind"
+              mapId={intel.hiveMind.id}
+              labelClassName="text-purple-600 dark:text-purple-400"
+              className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded border border-purple-200 dark:border-purple-800/50 shadow-sm"
+            >
+              Terrifyingly synchronized. The top {intel.hiveMind.lineupSize} lineup scores are within {Math.round(intel.hiveMind.spread).toLocaleString()} points of each other.
+            </IntelMapCard>
           )}
 
           {intel.playstyle && intel.playstyle.type === 'CONSISTENT' && (
