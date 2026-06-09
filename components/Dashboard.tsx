@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MappoolMap, PlayerData, ScoreData } from "@/lib/types";
-import { addStage, deleteStage } from "@/app/actions";
+import { addStage, deleteStage, renameStage } from "@/app/actions";
 import StageSelector from "@/components/StageSelector";
 import MappoolFeed from "@/components/MappoolFeed";
 import AnalyticsPanel from "@/components/AnalyticsPanel";
@@ -96,6 +96,32 @@ export default function Dashboard({ initialData }: DashboardProps) {
     if (stageObj && confirm(`Are you sure you want to delete ${selectedStage}? All maps and scores in this stage will be permanently lost!`)) {
       await deleteStage(stageObj.id);
     }
+  };
+
+  const handleRenameStage = async () => {
+    const stageObj = initialData.stages.find(s => s.name === selectedStage);
+    if (!stageObj || !initialData.activeTournament) return;
+
+    const name = prompt(`Rename "${selectedStage}" to:`, selectedStage);
+    if (!name?.trim() || name.trim() === selectedStage) return;
+
+    const newName = name.trim();
+    const result = await renameStage(stageObj.id, newName);
+    if (result?.error) {
+      alert(result.error);
+      return;
+    }
+
+    const oldKey = `mp_links_${initialData.activeTournament.id}_${selectedStage}`;
+    const newKey = `mp_links_${initialData.activeTournament.id}_${newName}`;
+    const saved = localStorage.getItem(oldKey);
+    if (saved) {
+      localStorage.setItem(newKey, saved);
+      localStorage.removeItem(oldKey);
+    }
+
+    setSelectedStage(newName);
+    router.refresh();
   };
 
   return <div className="max-w-7xl mx-auto w-full flex flex-col flex-grow">
@@ -274,6 +300,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
         selectedStage={selectedStage}
         onSelectStage={setSelectedStage}
         onAddStage={handleAddStage}
+        onRenameStage={handleRenameStage}
         onDeleteStage={handleDeleteStage}
         mappool={initialData.mappool || {}}
       />

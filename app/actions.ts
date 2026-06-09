@@ -1161,6 +1161,37 @@ export async function deleteStage(stageId: string) {
   return { success: true };
 }
 
+export async function renameStage(stageId: string, name: string) {
+  if (!stageId || !name?.trim()) return { error: "Missing required fields" };
+
+  const trimmed = name.trim();
+  const stage = await prisma.stage.findUnique({ where: { id: stageId } });
+  if (!stage) return { error: "Stage not found" };
+
+  const auth = await verifyKeeper(stage.tournamentId);
+  if (!auth.authorized) return { error: auth.error };
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`renameStage_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are renaming stages too fast. Please wait a few seconds." };
+    }
+  }
+
+  if (trimmed === stage.name) return { success: true };
+
+  const existing = await prisma.stage.findFirst({
+    where: { tournamentId: stage.tournamentId, name: trimmed, id: { not: stageId } },
+  });
+  if (existing) return { error: "A stage with that name already exists" };
+
+  await prisma.stage.update({ where: { id: stageId }, data: { name: trimmed } });
+
+  revalidatePath("/");
+  return { success: true };
+}
+
 export async function updateStageMappool(formData: FormData) {
   const stageId = formData.get("stageId") as string;
   const mapsJson = formData.get("maps") as string;
