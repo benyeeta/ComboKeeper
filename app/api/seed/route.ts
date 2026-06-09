@@ -55,10 +55,12 @@ export async function GET() {
     });
 
     // 3. Create the Stages and Maps
+    let stageSortOrder = 0;
     for (const [stageName, maps] of Object.entries(MOCK_MAPPOOL)) {
       const stage = await prisma.stage.create({
         data: {
           name: stageName,
+          sortOrder: stageSortOrder++,
           tournamentId: tournament.id,
         }
       });

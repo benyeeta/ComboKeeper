@@ -30,6 +30,7 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
           }
         },
         stages: {
+          orderBy: { sortOrder: 'asc' },
           include: {
             maps: {
               include: {

@@ -126,9 +126,9 @@ export async function createTournament(formData: FormData) {
   }
 
   const stages = ["Qualifiers", "Round of 32", "Quarterfinals", "Semifinals", "Finals", "Grand Finals"];
-  for (const stageName of stages) {
+  for (let i = 0; i < stages.length; i++) {
     await prisma.stage.create({
-      data: { name: stageName, tournamentId: tournament.id },
+      data: { name: stages[i], sortOrder: i, tournamentId: tournament.id },
     });
   }
 
@@ -1140,8 +1140,15 @@ export async function addStage(tournamentId: string, name: string) {
 
   const existing = await prisma.stage.findFirst({ where: { tournamentId, name } });
   if (existing) return { error: "Stage already exists" };
-  
-  await prisma.stage.create({ data: { tournamentId, name } });
+
+  const lastStage = await prisma.stage.findFirst({
+    where: { tournamentId },
+    orderBy: { sortOrder: 'desc' },
+    select: { sortOrder: true },
+  });
+  const sortOrder = (lastStage?.sortOrder ?? -1) + 1;
+
+  await prisma.stage.create({ data: { tournamentId, name, sortOrder } });
   
   revalidatePath("/");
   return { success: true };
@@ -1187,6 +1194,39 @@ export async function renameStage(stageId: string, name: string) {
   if (existing) return { error: "A stage with that name already exists" };
 
   await prisma.stage.update({ where: { id: stageId }, data: { name: trimmed } });
+
+  revalidatePath("/");
+  return { success: true };
+}
+
+export async function reorderStages(tournamentId: string, stageIds: string[]) {
+  if (!tournamentId || !stageIds?.length) return { error: "Missing required fields" };
+
+  const auth = await verifyKeeper(tournamentId);
+  if (!auth.authorized) return { error: auth.error };
+  const currentUser = auth.currentUser;
+
+  if (currentUser) {
+    const { success } = await ratelimit.limit(`reorderStages_${currentUser.id}`);
+    if (!success) {
+      return { error: "You are reordering stages too fast. Please wait a few seconds." };
+    }
+  }
+
+  const tournamentStages = await prisma.stage.findMany({
+    where: { tournamentId },
+    select: { id: true },
+  });
+  const validIds = new Set(tournamentStages.map(s => s.id));
+  if (stageIds.length !== tournamentStages.length || stageIds.some(id => !validIds.has(id))) {
+    return { error: "Invalid stage order." };
+  }
+
+  await prisma.$transaction(
+    stageIds.map((id, index) =>
+      prisma.stage.update({ where: { id }, data: { sortOrder: index } })
+    )
+  );
 
   revalidatePath("/");
   return { success: true };

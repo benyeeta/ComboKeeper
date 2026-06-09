@@ -66,6 +66,7 @@ model TournamentTeam {
 model Stage {
   id           String       @id @default(uuid())
   name         String       // e.g., "Qualifiers", "Round of 32"
+  sortOrder    Int          @default(0)
   tournamentId String
   tournament   Tournament   @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
   maps         MappoolMap[]

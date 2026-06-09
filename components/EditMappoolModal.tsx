@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { updateStageMappool } from "@/app/actions";
+import { useRouter } from "next/navigation";
+import { reorderStages, updateStageMappool } from "@/app/actions";
 
 interface EditMappoolModalProps {
   isOpen: boolean;
   onClose: () => void;
+  tournamentId: string;
   stages: { id: string; name: string }[];
   selectedStage: string;
   onSelectStage: (stage: string) => void;
@@ -15,12 +17,20 @@ interface EditMappoolModalProps {
   mappool: Record<string, any[]>;
 }
 
-export default function EditMappoolModal({ isOpen, onClose, stages, selectedStage, onSelectStage, onAddStage, onRenameStage, onDeleteStage, mappool }: EditMappoolModalProps) {
+export default function EditMappoolModal({ isOpen, onClose, tournamentId, stages, selectedStage, onSelectStage, onAddStage, onRenameStage, onDeleteStage, mappool }: EditMappoolModalProps) {
+  const router = useRouter();
   const [maps, setMaps] = useState<any[]>([]);
+  const [orderedStages, setOrderedStages] = useState(stages);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isReorderingStages, setIsReorderingStages] = useState(false);
   const [error, setError] = useState("");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [draggedStageIndex, setDraggedStageIndex] = useState<number | null>(null);
   const [selectedMaps, setSelectedMaps] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (isOpen) setOrderedStages(stages);
+  }, [isOpen, stages]);
 
   useEffect(() => {
     if (isOpen && selectedStage) {
@@ -83,6 +93,28 @@ export default function EditMappoolModal({ isOpen, onClose, stages, selectedStag
     setDraggedIndex(null);
   };
 
+  const handleStageDrop = async (dropIndex: number) => {
+    if (draggedStageIndex === null || draggedStageIndex === dropIndex) return;
+
+    const previousOrder = orderedStages;
+    const newStages = [...orderedStages];
+    const [draggedStage] = newStages.splice(draggedStageIndex, 1);
+    newStages.splice(dropIndex, 0, draggedStage);
+    setOrderedStages(newStages);
+    setDraggedStageIndex(null);
+    setIsReorderingStages(true);
+    setError("");
+
+    const result = await reorderStages(tournamentId, newStages.map(s => s.id));
+    setIsReorderingStages(false);
+    if (result?.error) {
+      setError(result.error);
+      setOrderedStages(previousOrder);
+    } else {
+      router.refresh();
+    }
+  };
+
   const getModColor = (mod: string) => {
     switch (mod.toUpperCase()) {
       case 'NM': return 'border-l-gray-500';
@@ -139,7 +171,7 @@ export default function EditMappoolModal({ isOpen, onClose, stages, selectedStag
     setError("");
     setIsSubmitting(true);
     
-    const stageId = stages.find(s => s.name === selectedStage)?.id || "";
+    const stageId = orderedStages.find(s => s.name === selectedStage)?.id || "";
     if (!stageId) {
       setError("No active stage selected.");
       setIsSubmitting(false);
@@ -177,29 +209,42 @@ export default function EditMappoolModal({ isOpen, onClose, stages, selectedStag
           </button>
         </div>
 
-        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2 border-b border-gray-700">
-          {stages.map(s => (
-            <button
-              key={s.id}
-              onClick={() => handleStageChange(s.name)}
-              className={`px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap transition-colors ${selectedStage === s.name ? 'bg-pink-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white'}`}
-            >
-              {s.name}
-            </button>
-          ))}
-          <button onClick={onAddStage} className="px-3 py-1.5 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors">
-            + Add Stage
-          </button>
-          {stages.length > 0 && (
-            <div className="flex items-center gap-1 ml-auto">
-              <button onClick={onRenameStage} className="px-3 py-1.5 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors" title="Rename current stage">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+        <div className="mb-4 pb-3 border-b border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Stages</span>
+            <div className="flex items-center gap-1">
+              <button onClick={onAddStage} className="px-2.5 py-1.5 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors" title="Add stage">
+                + Add
               </button>
-              <button onClick={onDeleteStage} className="px-3 py-1.5 rounded text-sm font-medium bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 whitespace-nowrap transition-colors" title="Delete current stage">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              </button>
+              {orderedStages.length > 0 && (
+                <>
+                  <button onClick={onRenameStage} disabled={isReorderingStages} className="px-2.5 py-1.5 rounded text-sm font-medium bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white whitespace-nowrap transition-colors disabled:opacity-50" title="Rename current stage">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                  </button>
+                  <button onClick={onDeleteStage} disabled={isReorderingStages} className="px-2.5 py-1.5 rounded text-sm font-medium bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 whitespace-nowrap transition-colors disabled:opacity-50" title="Delete current stage">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                </>
+              )}
             </div>
-          )}
+          </div>
+          <div className={`flex items-center gap-2 overflow-x-auto pb-1 ${isReorderingStages ? 'opacity-60 pointer-events-none' : ''}`}>
+            {orderedStages.map((s, index) => (
+              <button
+                key={s.id}
+                draggable
+                onDragStart={() => setDraggedStageIndex(index)}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                onDrop={(e) => { e.preventDefault(); handleStageDrop(index); }}
+                onClick={() => handleStageChange(s.name)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-medium whitespace-nowrap transition-colors cursor-grab active:cursor-grabbing ${selectedStage === s.name ? 'bg-pink-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-white/10 hover:text-white'} ${draggedStageIndex === index ? 'opacity-50 border border-dashed border-gray-500' : ''}`}
+                title="Drag to reorder"
+              >
+                <svg className="w-3.5 h-3.5 opacity-50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8h16M4 16h16" /></svg>
+                {s.name}
+              </button>
+            ))}
+          </div>
         </div>
 
         {error && (

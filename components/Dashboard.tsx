@@ -296,6 +296,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
       <EditMappoolModal
         isOpen={isEditMappoolOpen}
         onClose={() => setIsEditMappoolOpen(false)}
+        tournamentId={initialData.activeTournament?.id || ""}
         stages={initialData.stages || []}
         selectedStage={selectedStage}
         onSelectStage={setSelectedStage}
