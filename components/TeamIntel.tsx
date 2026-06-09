@@ -693,38 +693,14 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
           )}
 
           {intel.practiceCoverage && intel.practiceCoverage.slackers.length > 0 && (
-            <div className="bg-amber-50 dark:bg-amber-900/30 p-4 rounded border border-amber-200 dark:border-amber-800/50 flex flex-col gap-3 shadow-sm">
-              <div>
-                <span className="text-amber-700 dark:text-amber-400 font-bold mb-1 block">Team Slack</span>
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  These players haven&apos;t completed {REQUIRED_RUNS_PER_MAP} runs on every map yet. Step it up!
+            <div className="bg-amber-50 dark:bg-amber-900/30 p-4 rounded border border-amber-200 dark:border-amber-800/50 flex flex-col shadow-sm">
+              <span className="text-amber-700 dark:text-amber-400 font-bold mb-1">Team Slack</span>
+              <span className="text-sm text-gray-700 dark:text-gray-300">
+                These players haven&apos;t completed {REQUIRED_RUNS_PER_MAP} runs on every map yet. Step it up!{" "}
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {intel.practiceCoverage.slackers.map((slacker) => slacker.username).join(", ")}
                 </span>
-              </div>
-              <ul className="flex flex-col gap-2">
-                {intel.practiceCoverage.slackers.map((slacker) => (
-                  <li key={slacker.id} className="flex items-start gap-2 min-w-0">
-                    <Image
-                      src={slacker.avatarUrl || `https://a.ppy.sh/${slacker.id}`}
-                      alt={slacker.username}
-                      width={24}
-                      height={24}
-                      className="w-6 h-6 rounded-full border border-amber-200 dark:border-amber-700 object-cover flex-shrink-0 mt-0.5"
-                    />
-                    <div className="min-w-0">
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">{slacker.username}</span>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        {slacker.missingMaps
-                          .map((gap) =>
-                            gap.playCount === 0
-                              ? `${gap.mapId} (no runs)`
-                              : `${gap.mapId} (${gap.playCount}/${REQUIRED_RUNS_PER_MAP})`
-                          )
-                          .join(", ")}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              </span>
             </div>
           )}
         </div>

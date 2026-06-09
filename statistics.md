@@ -112,7 +112,7 @@ _Calculated using the aggregated data of the entire active roster to identify ov
 
 ### 7. Team Slack
 
-- **Logic:** Calls out every accepted roster player who has logged fewer than 2 runs on any map in the current stage mappool (tiebreaker maps excluded). Lists each slacker and the specific maps they are behind on, including maps with zero plays.
+- **Logic:** Calls out every accepted roster player who has logged fewer than 2 runs on any map in the current stage mappool (tiebreaker maps excluded). Displays slacker names only — no per-map breakdown.
 - **Flavor Text:** "These players haven't completed 2 runs on every map yet. Step it up!"
 
 ### 8. Pat on the Back
