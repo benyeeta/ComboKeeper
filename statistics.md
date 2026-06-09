@@ -110,6 +110,16 @@ _Calculated using the aggregated data of the entire active roster to identify ov
 - **Logic:** Triggers if the combined average scores of the roster surpass the Team Captain’s average scores across a specific stage.
 - **Flavor Text:** "The crew is outperforming the captain this week. A full-scale mutiny is brewing on the leaderboard."
 
+### 7. Team Slack
+
+- **Logic:** Calls out every accepted roster player who has logged fewer than 2 runs on any map in the current stage mappool (tiebreaker maps excluded). Lists each slacker and the specific maps they are behind on, including maps with zero plays.
+- **Flavor Text:** "These players haven't completed 2 runs on every map yet. Step it up!"
+
+### 8. Pat on the Back
+
+- **Logic:** Awarded when every accepted roster player has logged at least 2 runs on every non-tiebreaker map in the current stage mappool. Mutually exclusive with Team Slack for the same stage — you get one or the other.
+- **Flavor Text:** "Everyone on the roster logged at least 2 runs on all maps in the pool. The crew is locked in."
+
 ---
 
 ## Mod Support
