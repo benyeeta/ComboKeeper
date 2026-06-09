@@ -6,6 +6,7 @@
   /* Light Mode (Base) */
   --bg-main: #f9fafb;
   --bg-surface: #ffffff;
+  --bg-inset: #f3f4f6;
   --border-main: #e5e7eb;
   --text-main: #111827;
   --text-muted: #6b7280;
@@ -17,6 +18,7 @@
 .dark {
   --bg-main: #111827;
   --bg-surface: #1f2937;
+  --bg-inset: #111827;
   --border-main: #374151;
   --text-main: #ffffff;
   --text-muted: #9ca3af;
@@ -28,6 +30,7 @@
 .dark.default {
   --bg-main: #180a1e;
   --bg-surface: #281432;
+  --bg-inset: #1f0f28;
   --border-main: #4a2b5e;
   --text-main: #ffffff;
   --text-muted: #d8b4e2;
@@ -38,6 +41,7 @@
 @theme inline {
   --color-background: var(--bg-main);
   --color-surface: var(--bg-surface);
+  --color-inset: var(--bg-inset);
   --color-border-main: var(--border-main);
   --color-content: var(--text-main);
   --color-muted: var(--text-muted);

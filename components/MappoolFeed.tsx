@@ -3,7 +3,8 @@
 import Image from "next/image";
 import { useState, useMemo } from "react";
 import { MappoolMap, Mod, ScoreData } from "@/lib/types";
-import { scoreMatchesModSlot } from "@/lib/parseMods";
+import { calculateMapLineupDisplay } from "@/lib/mapLineup";
+import { parseLineupSize } from "@/lib/tournamentFormat";
 import AnalyticsPanel from "./AnalyticsPanel";
 
 const MOD_COLORS: Record<string, string> = {
@@ -120,33 +121,33 @@ export default function MappoolFeed({
       {currentMappool.map((map, index) => {
         const isExpanded = selectedMap?.id === map.id;
         return (
-        <div key={(map as any).dbId || `${map.id}-${index}`} className="flex flex-col bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-md overflow-hidden transition-colors duration-200">
+        <div key={(map as any).dbId || `${map.id}-${index}`} className="flex flex-col bg-surface border border-border-main rounded-md overflow-hidden transition-colors duration-200">
           <div
             className={`flex items-stretch ${MOD_COLORS[map.mod] || "border-gray-500"} border-l-4 transition-colors ${
               isExpanded
-                ? "bg-gray-200 dark:bg-white/10"
-                : "hover:bg-gray-100 dark:hover:bg-white/5 has-[button:hover]:hover:bg-transparent dark:has-[button:hover]:hover:bg-transparent"
+                ? "bg-hover-overlay/15"
+                : "has-[button:hover]:hover:bg-transparent dark:has-[button:hover]:hover:bg-transparent"
             }`}
           >
             <div
               onClick={() => onMapSelect(isExpanded ? null : map)}
-              className="flex flex-1 items-center min-w-0 cursor-pointer p-3"
+              className={`flex flex-1 items-center min-w-0 cursor-pointer transition-colors p-3 ${!isExpanded ? "hover:bg-hover-overlay/10" : ""}`}
             >
               <div className="flex items-center gap-4 flex-grow overflow-hidden min-w-0">
                 <span className="font-bold text-lg w-12 flex-shrink-0">{map.id}</span>
                 <div className="flex flex-col overflow-hidden">
-                  <span className="text-gray-900 dark:text-gray-200 font-medium truncate">{map.artist}</span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{map.songName}</span>
+                  <span className="text-content font-medium truncate">{map.artist}</span>
+                  <span className="text-sm text-muted truncate">{map.songName}</span>
                 </div>
               </div>
               <TopLineup mapId={map.id} stage={stage} allScores={filteredScores || []} mapMod={map.mod} activeTournament={activeTournament} />
               <div className="w-6 flex justify-end flex-shrink-0 ml-3">
                 {isExpanded ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-pink-400 transform rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-accent transform rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                   </svg>
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-muted transition-transform" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 )}
@@ -158,7 +159,7 @@ export default function MappoolFeed({
                   e.stopPropagation();
                   onAddScore(map);
                 }}
-                className="flex items-center gap-1 bg-gray-200 dark:bg-gray-700 hover:bg-pink-600 dark:hover:bg-pink-600 text-gray-700 dark:text-gray-200 hover:text-white px-2 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
+                className="flex items-center gap-1 border border-border-main bg-hover-overlay/15 text-content hover:bg-accent hover:border-accent hover:text-white px-2 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
                 title="Add Score"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
@@ -167,7 +168,7 @@ export default function MappoolFeed({
             </div>
           </div>
           {isExpanded && (
-            <div className={`bg-white dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 p-4 border-l-4 ${MOD_COLORS[map.mod] || "border-gray-500"}`}>
+            <div className={`bg-inset border-t border-border-main p-4 border-l-4 ${MOD_COLORS[map.mod] || "border-gray-500"}`}>
               <AnalyticsPanel selectedMap={map} selectedStage={stage} onViewPlayerScores={onViewPlayerScores} allScores={filteredScores || []} activeTournament={activeTournament} />
             </div>
           )}
@@ -185,120 +186,40 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
     (data) => data.mapId === mapId && data.stage === stage
   );
 
+  const lineupSize = mapMod === "MM" ? 3 : parseLineupSize(activeTournament?.format);
+  const columnCount = mapMod === "MM" ? 3 : lineupSize;
+  const panelWidth = columnCount <= 2 ? 200 : columnCount === 3 ? 280 : columnCount === 4 ? 360 : 420;
+
   if (!mapScoreData || mapScoreData.players.length === 0) {
     return (
-      <div className="hidden md:flex items-center justify-end w-[280px] lg:w-[360px] xl:w-[420px]">
+      <div className="hidden md:flex items-center justify-end" style={{ width: panelWidth }}>
         <p className="text-sm text-gray-500 italic pr-2">No Lineup Data</p>
       </div>
     );
   }
 
-  let topPlayers: { id: number; username: string; avatarUrl: string; assignedMod?: string; history: any[]; _score?: number }[] = [];
-
-  if (mapMod === "MM") {
-    // Evaluate the optimal permutation of players for the standard HD, HR, and NM meta
-    const requiredMods = ['HD', 'HR', 'NM'];
-
-    let bestLineup: any[] = [];
-    let maxTotal = -1;
-
-    const getBestScore = (player: any, reqMod: 'NM' | 'HD' | 'HR') => {
-      const plays = player.history.filter((h: any) => scoreMatchesModSlot(h.playedMod, reqMod));
-      return plays.length > 0 ? Math.max(...plays.map((h: any) => h.score)) : 0;
-    };
-
-    const playersToEvaluate = [...mapScoreData.players];
-
-    const playerBestScores = new Map();
-    for (const p of playersToEvaluate) {
-      playerBestScores.set(p.id, {
-        HD: getBestScore(p, 'HD'),
-        HR: getBestScore(p, 'HR'),
-        NM: getBestScore(p, 'NM'),
-      });
-    }
-
-    const findBestAssignment = (modIndex: number, currentAssignment: any[], currentScore: number, usedPlayers: Set<number>) => {
-      if (modIndex === requiredMods.length) {
-        if (currentAssignment.length > 0 && currentScore > maxTotal) {
-          maxTotal = currentScore;
-          bestLineup = [...currentAssignment];
-        }
-        return;
-      }
-      const reqMod = requiredMods[modIndex];
-      let anyAssigned = false;
-      for (const p of playersToEvaluate) {
-        if (!usedPlayers.has(p.id)) {
-          const score = playerBestScores.get(p.id)[reqMod];
-          if (score === 0) continue;
-          anyAssigned = true;
-          usedPlayers.add(p.id);
-          currentAssignment.push({ ...p, assignedMod: reqMod, _score: score });
-          findBestAssignment(modIndex + 1, currentAssignment, currentScore + score, usedPlayers);
-          currentAssignment.pop();
-          usedPlayers.delete(p.id);
-        }
-      }
-      if (!anyAssigned) {
-        findBestAssignment(modIndex + 1, currentAssignment, currentScore, usedPlayers);
-      }
-    };
-
-    findBestAssignment(0, [], 0, new Set());
-
-    if (maxTotal > 0) {
-      topPlayers = bestLineup.sort((a, b) => b._score - a._score);
-    }
-  } else if (mapMod === "FM") {
-    // Because FM rules vary wildly, we just show each player's absolute best non-NM score 
-    // to give the captain a quick overview of who plays what mod the best.
-    const playerBestModScores = mapScoreData.players.map((p) => {
-      const modPlays = p.history.filter((h: any) => h.playedMod && h.playedMod !== 'NM');
-      const bestModPlay = modPlays.length > 0 ? modPlays.reduce((a, b) => (a.score > b.score ? a : b)) : null;
-      
-      const fallbackPlay = p.history.length > 0 ? p.history.reduce((a, b) => (a.score > b.score ? a : b)) : null;
-
-      return {
-        ...p,
-        _score: bestModPlay ? bestModPlay.score : (fallbackPlay?.score || 0),
-        assignedMod: (bestModPlay ? bestModPlay.playedMod : fallbackPlay?.playedMod) || 'NM'
-      };
-    });
-
-    if (playerBestModScores.some(p => p._score && p._score > 0)) {
-      topPlayers = playerBestModScores.sort((a, b) => (b._score || 0) - (a._score || 0)).slice(0, 3);
-    }
-  }
-
-  // Fallback for non-MM maps when mod-specific lineup data isn't available
-  if (topPlayers.length === 0 && mapMod !== "MM") {
-    topPlayers = [...mapScoreData.players]
-      .map((p) => {
-        const bestPlay = p.history.length > 0 ? p.history.reduce((a: any, b: any) => a.score > b.score ? a : b) : { score: 0, playedMod: 'NM' };
-        return { ...p, _score: bestPlay.score, assignedMod: bestPlay.playedMod || 'NM' };
-      })
-      .sort((a, b) => (b._score || 0) - (a._score || 0))
-      .slice(0, 3);
-  }
+  const topPlayers = calculateMapLineupDisplay(mapScoreData.players, mapMod, lineupSize);
 
   if (topPlayers.length === 0) {
     return (
-      <div className="hidden md:flex items-center justify-end w-[280px] lg:w-[360px] xl:w-[420px]">
+      <div className="hidden md:flex items-center justify-end" style={{ width: panelWidth }}>
         <p className="text-sm text-gray-500 italic pr-2">No Lineup Data</p>
       </div>
     );
   }
 
   return (
-    <div className={`hidden md:grid gap-2 w-[280px] lg:w-[360px] xl:w-[420px] ${topPlayers.length === 3 ? 'grid-cols-3' : topPlayers.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+    <div
+      className="hidden md:grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, width: panelWidth }}
+    >
       {topPlayers.map((player) => {
         const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isAdmin);
         return (
           <div key={player.id} className="flex items-center gap-2">
             <Image
               src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
-              alt={player.username}
+              alt={player.username || "Player"}
               width={24}
               height={24}
               className="w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"

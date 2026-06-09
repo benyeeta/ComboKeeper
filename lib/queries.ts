@@ -135,6 +135,8 @@ export async function getTournamentData(userId: number, selectedTournamentId?: s
       id: tournament.id,
       name: tournament.name,
       acronym: tournament.acronym,
+      format: tournament.format,
+      rosterSize: tournament.rosterSize,
       isKeeper,
       teamId: userTeam?.id,
       teamName: userTeam?.name,
