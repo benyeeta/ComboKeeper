@@ -3,8 +3,9 @@ import prisma from "@/lib/prisma";
 import { formatFeedbackForCursor } from "@/lib/feedbackExport";
 import FeedbackAdmin from "@/components/FeedbackAdmin";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 
-export default async function FeedbackAdminPage() {
+async function FeedbackAdminContent() {
   const auth = await verifyAdmin();
   if (!auth.authorized) redirect("/");
 
@@ -28,5 +29,20 @@ export default async function FeedbackAdminPage() {
         initialMarkdown={formatFeedbackForCursor(pendingItems)}
       />
     </div>
+  );
+}
+
+export default function FeedbackAdminPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-col items-center justify-center mt-24 text-gray-500">
+          <div className="w-12 h-12 border-4 border-pink-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-lg font-medium">Loading feedback...</p>
+        </div>
+      }
+    >
+      <FeedbackAdminContent />
+    </Suspense>
   );
 }
