@@ -1557,6 +1557,18 @@ export async function submitFeedback(formData: FormData) {
     return { error: "You are submitting feedback too fast. Please wait." };
   }
 
+  const hasImage = Boolean(image && image.size > 0);
+
+  await prisma.feedback.create({
+    data: {
+      type,
+      message,
+      username: currentUser?.username ?? null,
+      playerId: currentUser?.id ?? null,
+      hasImage,
+    },
+  });
+
   const webhookUrl = process.env.FEEDBACK_WEBHOOK_URL;
   if (webhookUrl) {
     let color = 0x95a5a6; // Gray for Other

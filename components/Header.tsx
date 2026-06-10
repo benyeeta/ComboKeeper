@@ -40,6 +40,14 @@ export async function Header() {
           <NavLinks />
         </div>
         <div className="flex items-center gap-4">
+          {user && process.env.ADMIN_OSU_ID && user.id === Number(process.env.ADMIN_OSU_ID) && (
+            <Link
+              href="/admin/feedback"
+              className="text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+            >
+              Feedback Admin
+            </Link>
+          )}
           <FeedbackModal />
           {user ? (
             <>

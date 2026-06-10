@@ -122,6 +122,17 @@ model Notification {
   teamId    String?
   createdAt DateTime @default(now())
 }
+model Feedback {
+  id        String   @id @default(uuid())
+  type      String
+  message   String
+  username  String?
+  playerId  Int?
+  hasImage  Boolean  @default(false)
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+}
+
 model Score {
   id           String     @id @default(uuid())
   score        Int
