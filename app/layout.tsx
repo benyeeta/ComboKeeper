@@ -19,7 +19,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${GeistSans.variable} ${GeistMono.variable} h-full antialiased`}
+      className={`${GeistSans.variable} ${GeistMono.variable} min-h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -62,12 +62,12 @@ export default async function RootLayout({
         html.default .ring-pink-500, html.default .focus\\:ring-pink-500:focus { --tw-ring-color: #ff66aa !important; }
       `}} />
       </head>
-      <body className="h-full flex flex-col bg-background text-foreground transition-colors duration-200">
-        <Suspense fallback={<header className="h-[73px] flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors duration-200" />}>
+      <body className="min-h-full flex flex-col bg-background text-foreground transition-colors duration-200">
+        <Suspense fallback={<header className="sticky top-0 z-40 h-[73px] flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors duration-200" />}>
           <Header />
         </Suspense>
         <ThemeInitializer />
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-8">
           {children}
         </main>
       </body>

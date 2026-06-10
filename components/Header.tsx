@@ -30,7 +30,7 @@ export async function Header() {
   }
 
   return (
-    <header className="relative border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors duration-200">
+    <header className="sticky top-0 z-40 shrink-0 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors duration-200">
       <div className="max-w-7xl mx-auto w-full flex items-center justify-between p-4">
         <div className="flex items-center gap-3 md:gap-8">
           <MobileNav />

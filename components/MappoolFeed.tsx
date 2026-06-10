@@ -119,6 +119,7 @@ export default function MappoolFeed({
         </div>
       )}
 
+      <div className="flex flex-col gap-1">
       {currentMappool.map((map, index) => {
         const isExpanded = selectedMap?.id === map.id;
         return (
@@ -132,10 +133,10 @@ export default function MappoolFeed({
           >
             <div
               onClick={() => onMapSelect(isExpanded ? null : map)}
-              className="flex flex-1 items-center min-w-0 cursor-pointer p-3"
+              className="flex flex-1 items-center min-w-0 cursor-pointer py-2 px-3"
             >
-              <div className="flex items-center gap-4 flex-grow overflow-hidden min-w-0">
-                <span className="font-bold text-lg w-12 flex-shrink-0">{map.id}</span>
+              <div className="flex items-center gap-3 min-w-0 flex-shrink max-w-[45%] sm:max-w-[38%] lg:max-w-[32%]">
+                <span className="font-bold text-lg w-10 flex-shrink-0">{map.id}</span>
                 <div className="flex flex-col overflow-hidden min-w-0">
                   <span className="text-content font-medium truncate flex items-center gap-1.5">
                     {map.artist}
@@ -157,7 +158,7 @@ export default function MappoolFeed({
                 )}
               </div>
             </div>
-            <div className="flex items-center p-3 pl-0 flex-shrink-0">
+            <div className="flex items-center py-2 px-3 pl-0 flex-shrink-0">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -178,11 +179,20 @@ export default function MappoolFeed({
           )}
         </div>
       )})}
+      </div>
       {currentMappool.length === 0 && (
         <p className="text-gray-500 dark:text-gray-400">No mappool data for this stage.</p>
       )}
     </div>
   );
+}
+
+function modBadgeClassName(assignedMod: string): string {
+  if (assignedMod.includes("HD")) return "bg-yellow-900/50 text-yellow-300 border-yellow-800";
+  if (assignedMod.includes("EZ") || assignedMod.includes("FL")) return "bg-purple-900/50 text-purple-300 border-purple-800";
+  if (assignedMod.includes("DT") || assignedMod.includes("NC")) return "bg-blue-900/50 text-blue-300 border-blue-800";
+  if (assignedMod === "NM") return "bg-gray-600 text-gray-100 border-gray-500";
+  return "bg-red-900/50 text-red-300 border-red-800";
 }
 
 function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapId: string; stage: string; allScores: ScoreData[], mapMod: string, activeTournament?: any }) {
@@ -191,13 +201,12 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
   );
 
   const lineupSize = mapMod === "MM" ? 3 : parseLineupSize(activeTournament?.format);
-  const columnCount = mapMod === "MM" ? 3 : lineupSize;
-  const panelWidth = columnCount <= 2 ? 200 : columnCount === 3 ? 280 : columnCount === 4 ? 360 : 420;
+  const hasModBadge = mapMod === "MM" || mapMod === "FM";
 
   if (!mapScoreData || mapScoreData.players.length === 0) {
     return (
-      <div className="hidden md:flex items-center justify-end" style={{ width: panelWidth }}>
-        <p className="text-sm text-gray-500 italic pr-2">No Lineup Data</p>
+      <div className="hidden md:flex flex-1 min-w-[120px] items-center justify-end ml-3">
+        <p className="text-sm text-gray-500 italic">No Lineup Data</p>
       </div>
     );
   }
@@ -206,51 +215,63 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
 
   if (topPlayers.length === 0) {
     return (
-      <div className="hidden md:flex items-center justify-end" style={{ width: panelWidth }}>
-        <p className="text-sm text-gray-500 italic pr-2">No Lineup Data</p>
+      <div className="hidden md:flex flex-1 min-w-[120px] items-center justify-end ml-3">
+        <p className="text-sm text-gray-500 italic">No Lineup Data</p>
       </div>
     );
   }
 
+  const playerCount = topPlayers.length;
+  const showAvatar = lineupSize < 4 && !hasModBadge;
+  const minColPx = showAvatar ? 72 : hasModBadge ? 56 : 44;
+
   return (
-    <div className="hidden md:flex flex-col items-end gap-1" style={{ width: panelWidth }}>
+    <div className="hidden md:flex flex-1 min-w-0 items-center justify-end gap-2 ml-3">
       {mmWarning && (
-        <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 rounded">
+        <span
+          className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 rounded leading-tight max-w-[9rem] shrink-0"
+          title={mmWarning}
+        >
           {mmWarning}
         </span>
       )}
       <div
-        className="grid gap-2 w-full"
-        style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
+        className="grid gap-x-2 gap-y-0.5 flex-1 min-w-0 max-w-full"
+        style={{
+          gridTemplateColumns: `repeat(${playerCount}, minmax(${minColPx}px, 1fr))`,
+        }}
       >
-      {topPlayers.map((player) => {
-        const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isCaptain);
-        return (
-          <div key={player.id} className="flex items-center gap-2">
-            <Image
-              src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
-              alt={player.username || "Player"}
-              width={24}
-              height={24}
-              className="w-6 h-6 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"
-            />
-            <span className={`text-sm text-gray-800 dark:text-gray-200 truncate ${isCaptain ? 'font-bold' : 'font-semibold'}`}>
-              {player.username}
-            </span>
-          {player.assignedMod && (mapMod === 'MM' || mapMod === 'FM') && (
-            <span className={`text-[10px] font-bold px-1 rounded border flex-shrink-0 ${
-              player.assignedMod.includes('HD') ? 'bg-yellow-900/50 text-yellow-300 border-yellow-800' : 
-              player.assignedMod.includes('EZ') || player.assignedMod.includes('FL') ? 'bg-purple-900/50 text-purple-300 border-purple-800' :
-              player.assignedMod.includes('DT') || player.assignedMod.includes('NC') ? 'bg-blue-900/50 text-blue-300 border-blue-800' :
-              player.assignedMod === 'NM' ? 'bg-gray-600 text-gray-100 border-gray-500' :
-              'bg-red-900/50 text-red-300 border-red-800'
-            }`}>
-              {player.assignedMod === 'NM' ? 'NM' : `+${player.assignedMod}`}
-            </span>
-          )}
-        </div>
-        );
-      })}
+        {topPlayers.map((player) => {
+          const isCaptain = activeTournament?.players?.some(
+            (ap: any) => ap.osuId === player.id.toString() && ap.isCaptain
+          );
+          return (
+            <div key={player.id} className="flex items-center gap-1 min-w-0 justify-end">
+              {showAvatar && (
+                <Image
+                  src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"
+                />
+              )}
+              <span
+                className={`text-sm text-gray-800 dark:text-gray-200 truncate min-w-0 ${isCaptain ? "font-bold" : "font-semibold"}`}
+                title={player.username}
+              >
+                {player.username}
+              </span>
+              {player.assignedMod && hasModBadge && (
+                <span
+                  className={`text-[10px] font-bold px-1 rounded border flex-shrink-0 ${modBadgeClassName(player.assignedMod)}`}
+                >
+                  {player.assignedMod === "NM" ? "NM" : `+${player.assignedMod}`}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

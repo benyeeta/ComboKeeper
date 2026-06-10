@@ -1,5 +1,4 @@
 import {
-  displayModFromPlay,
   getBestPlayMatching,
   getBestScoreMatching,
   isHDOnlyPlay,
@@ -43,6 +42,13 @@ function getBestMMPlayForSlot(history: MMScoreHistory[], slot: MMRequiredMod): M
   return getBestPlayMatching(history, (mod) => scoreMatchesMMSlot(mod, slot));
 }
 
+/** Display label from the play actually used for an MM slot (never invent HD/HR from slot alone). */
+export function modDisplayFromMMPlay(play: MMScoreHistory | null, slot: MMRequiredMod): string {
+  if (!play) return slot;
+  if (isNomodPlay(play.playedMod)) return "NM";
+  return play.playedMod || slot;
+}
+
 /** Assign players to HD / HR / NM slots to maximize total score. Only mod-matching scores count per slot. */
 export function calculateBestMMLineup(players: MMPlayer[]): MMLineupResult {
   const playersToEvaluate: MMPlayer[] = [...players];
@@ -83,7 +89,7 @@ export function calculateBestMMLineup(players: MMPlayer[]): MMLineupResult {
 
       const score = playerBestScores.get(p.id)![slot];
       const bestPlay = getBestMMPlayForSlot(p.history, slot);
-      const displayMod = displayModFromPlay(bestPlay, slot);
+      const displayMod = modDisplayFromMMPlay(bestPlay, slot);
 
       usedPlayers.add(p.id);
       current.push({ player: p, assignedMod: slot, score, displayMod });
@@ -173,27 +179,26 @@ export function validateMMDistribution(plays: { playedMod?: string | null }[]): 
   return { isValid: true };
 }
 
-/** Show each player's actual played mod (prefer match, then lobby, then practice). */
+/**
+ * Build a valid MM lineup: exactly one NM, HD, and HR across three players.
+ * Picks the best mod-matching score per slot; total score cannot override slot rules.
+ */
 export function calculateActualMMLineup(players: MMPlayer[]): ActualMMLineupResult {
-  const plays: ActualMMPlay[] = [];
+  const lineup = calculateBestMMLineup(players);
 
-  for (const player of players) {
-    const representative = pickRepresentativePlay(player.history);
-    if (!representative || representative.score <= 0) continue;
+  const plays: ActualMMPlay[] = lineup.assignments
+    .filter((a) => a.player.id >= 0 && a.score > 0)
+    .map((a) => ({
+      player: a.player,
+      score: a.score,
+      playedMod: a.displayMod,
+    }))
+    .sort((a, b) => b.score - a.score);
 
-    plays.push({
-      player,
-      score: representative.score,
-      playedMod: representative.playedMod && representative.playedMod !== "NM" ? representative.playedMod : "NM",
-    });
-  }
-
-  plays.sort((a, b) => b.score - a.score);
-  const topPlays = plays.slice(0, MM_REQUIRED_MODS.length);
-  const validation = validateMMDistribution(topPlays);
+  const validation = validateMMDistribution(plays);
 
   return {
-    plays: topPlays,
+    plays,
     isValidMMDistribution: validation.isValid,
     invalidReason: validation.reason,
   };

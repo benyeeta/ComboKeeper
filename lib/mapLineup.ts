@@ -1,11 +1,6 @@
 import { MappoolMap } from "@/lib/types";
 import { calculateBestFMLineup } from "@/lib/fmLineup";
-import {
-  calculateActualMMLineup,
-  calculateBestMMLineup,
-  hasPlayedModData,
-  MMPlayer,
-} from "@/lib/mmLineup";
+import { calculateActualMMLineup, calculateBestMMLineup, MMPlayer } from "@/lib/mmLineup";
 import {
   isHDOnlyPlay,
   isHRPlay,
@@ -159,34 +154,17 @@ export function calculateMapLineupDisplay(
   if (players.length === 0) return { players: [] };
 
   if (mapMod === "MM") {
-    if (hasPlayedModData(players)) {
-      const actual = calculateActualMMLineup(players);
-      if (actual.plays.length === 0) return { players: [] };
-      return {
-        players: actual.plays.map((play) => ({
-          ...play.player,
-          username: play.player.username ?? "",
-          avatarUrl: play.player.avatarUrl ?? "",
-          assignedMod: play.playedMod,
-          _score: play.score,
-        })),
-        mmWarning: actual.isValidMMDistribution ? undefined : actual.invalidReason,
-      };
-    }
-
-    const lineup = calculateBestMMLineup(players);
-    if (lineup.totalScore <= 0) return { players: [] };
+    const actual = calculateActualMMLineup(players);
+    if (actual.plays.length === 0) return { players: [] };
     return {
-      players: lineup.assignments
-        .filter((a) => a.player.id >= 0)
-        .map((a) => ({
-          ...a.player,
-          username: a.player.username ?? "",
-          avatarUrl: a.player.avatarUrl ?? "",
-          assignedMod: a.displayMod,
-          _score: a.score,
-        }))
-        .sort((a, b) => (b._score || 0) - (a._score || 0)),
+      players: actual.plays.map((play) => ({
+        ...play.player,
+        username: play.player.username ?? "",
+        avatarUrl: play.player.avatarUrl ?? "",
+        assignedMod: play.playedMod,
+        _score: play.score,
+      })),
+      mmWarning: actual.isValidMMDistribution ? undefined : actual.invalidReason,
     };
   }
 
