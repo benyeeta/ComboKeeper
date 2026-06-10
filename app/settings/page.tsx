@@ -8,11 +8,17 @@ import { Suspense } from "react";
 
 async function updatePrivacy(formData: FormData) {
   "use server";
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("session")?.value;
+  const userSession = sessionCookie ? await decrypt(sessionCookie) : null;
+  if (!userSession) throw new Error("Unauthorized");
+
   const isPublic = formData.get("isPublicProfile") === "on";
   const userId = parseInt(formData.get("userId") as string, 10);
-  
+  if (userId !== userSession.id) throw new Error("Forbidden");
+
   await prisma.player.update({
-    where: { id: userId },
+    where: { id: userSession.id },
     data: { isPublicProfile: isPublic }
   });
 

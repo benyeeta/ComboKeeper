@@ -6,7 +6,7 @@ import { ScoreDecoder } from 'osu-db-parser';
 import { Buffer } from 'buffer';
 import { saveScoresToDatabase } from '@/app/actions/scores';
 
-export function ScoresDbUploader({ mappoolHashes }: { mappoolHashes: string[] }) {
+export function ScoresDbUploader({ mappoolHashes, tournamentId }: { mappoolHashes: string[]; tournamentId: string }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -29,7 +29,7 @@ export function ScoresDbUploader({ mappoolHashes }: { mappoolHashes: string[] })
       }
 
       if (relevantScores.length > 0) {
-        await saveScoresToDatabase(relevantScores);
+        await saveScoresToDatabase(relevantScores, tournamentId);
         alert(`Successfully synced ${relevantScores.length} scores!`);
       } else {
         alert('No scores found for the current mappool.');

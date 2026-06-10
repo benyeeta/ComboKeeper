@@ -459,8 +459,13 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       }
       setIsLoadingMatch(true);
       const results = [];
+      if (!activeTournament?.id) {
+        setMatchResults([]);
+        setIsLoadingMatch(false);
+        return;
+      }
       for (const matchId of savedMatchIds.slice(0, 1)) {
-        const data = await fetchOsuMatch(matchId);
+        const data = await fetchOsuMatch(matchId, activeTournament.id);
         if (data && !data.error && data.events) {
           results.push(data);
         }
@@ -469,7 +474,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       setIsLoadingMatch(false);
     };
     loadMatches();
-  }, [savedMatchIds]);
+  }, [savedMatchIds, activeTournament?.id]);
 
   const handleAddMpLink = () => {
     let matchId = "";

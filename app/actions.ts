@@ -4,7 +4,15 @@ import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { decrypt } from "@/lib/session";
-import { getOsuToken, getCachedOsuUser } from "@/lib/osu";
+import {
+  fetchBeatmapsByIds,
+  fetchMatchById,
+  getCachedOsuUser,
+  MAX_MAPS_PER_REQUEST,
+  MAX_ROSTER_PLAYERS,
+  parseMatchId,
+  resolveOsuUsers,
+} from "@/lib/osu";
 import { parseTrackedPlayedMod } from "@/lib/modSlots";
 import { ratelimit } from "@/lib/ratelimit";
 import { normalizePlayedMod, parseModsBitmask, parsePlayedModFromApi } from "@/lib/parseMods";
@@ -98,11 +106,13 @@ export async function createTournament(formData: FormData) {
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
 
-  if (currentUser) {
-    const { success } = await ratelimit.limit(`createTournament_${currentUser.id}`);
-    if (!success) {
-      return { error: "You are creating tournaments too fast. Please wait a few seconds." };
-    }
+  if (!currentUser) {
+    return { error: "You must be logged in to create a tournament." };
+  }
+
+  const { success } = await ratelimit.limit(`createTournament_${currentUser.id}`);
+  if (!success) {
+    return { error: "You are creating tournaments too fast. Please wait a few seconds." };
   }
 
   const tournament = await prisma.tournament.create({
@@ -115,16 +125,14 @@ export async function createTournament(formData: FormData) {
     },
   });
 
-  if (currentUser) {
-    await prisma.player.upsert({
-      where: { id: currentUser.id },
-      update: { username: currentUser.username, avatarUrl: currentUser.avatar_url },
-      create: { id: currentUser.id, username: currentUser.username, avatarUrl: currentUser.avatar_url }
-    });
-    await prisma.tournamentKeeper.create({
-      data: { tournamentId: tournament.id, playerId: currentUser.id }
-    });
-  }
+  await prisma.player.upsert({
+    where: { id: currentUser.id },
+    update: { username: currentUser.username, avatarUrl: currentUser.avatar_url },
+    create: { id: currentUser.id, username: currentUser.username, avatarUrl: currentUser.avatar_url }
+  });
+  await prisma.tournamentKeeper.create({
+    data: { tournamentId: tournament.id, playerId: currentUser.id }
+  });
 
   const stages = ["Qualifiers", "Round of 32", "Quarterfinals", "Semifinals", "Finals", "Grand Finals"];
   for (let i = 0; i < stages.length; i++) {
@@ -149,46 +157,50 @@ export async function registerTeam(formData: FormData) {
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
 
-  if (currentUser) {
-    const { success } = await ratelimit.limit(`registerTeam_${currentUser.id}`);
-    if (!success) return { error: "You are registering teams too fast. Please wait." };
+  if (!currentUser) {
+    return { error: "You must be logged in to register a team." };
   }
 
-  if (currentUser) {
-    const existingTeam = await prisma.tournamentTeam.findFirst({
-      where: {
-        tournamentId,
-        team: { players: { some: { playerId: currentUser.id } } }
-      }
-    });
-    if (existingTeam) return { error: "You are already on a team for this tournament." };
-  }
+  const { success } = await ratelimit.limit(`registerTeam_${currentUser.id}`);
+  if (!success) return { error: "You are registering teams too fast. Please wait." };
+
+  const existingTeam = await prisma.tournamentTeam.findFirst({
+    where: {
+      tournamentId,
+      team: { players: { some: { playerId: currentUser.id } } }
+    }
+  });
+  if (existingTeam) return { error: "You are already on a team for this tournament." };
 
   const PlayerSchema = z.array(z.object({
     username: z.string().min(1).max(50),
     isEditor: z.boolean().optional().default(false),
-  }));
+  })).max(MAX_ROSTER_PLAYERS, `Teams may have at most ${MAX_ROSTER_PLAYERS} players.`);
   let parsedPlayers: z.infer<typeof PlayerSchema> = [];
   try { parsedPlayers = PlayerSchema.parse(JSON.parse(playersJson)); } 
   catch (e) { return { error: "Invalid players data format." }; }
 
-  if (currentUser && !parsedPlayers.find(p => p.username.toLowerCase() === currentUser.username.toLowerCase())) {
+  if (!parsedPlayers.find(p => p.username.toLowerCase() === currentUser.username.toLowerCase())) {
     parsedPlayers.push({ username: currentUser.username, isEditor: false });
   }
 
-  const resolvedPlayers = [];
-  for (const p of parsedPlayers) {
-    if (!p.username) continue;
-    const userData = await getCachedOsuUser(p.username);
-    if (!userData) return { error: `Could not find osu! user: ${p.username}` };
-    resolvedPlayers.push({ userData, isEditor: p.isEditor });
-  }
+  const { users: resolvedUserMap, error: resolveError } = await resolveOsuUsers(
+    parsedPlayers.map((p) => p.username).filter(Boolean),
+  );
+  if (resolveError) return { error: resolveError };
+
+  const resolvedPlayers = parsedPlayers
+    .filter((p) => p.username)
+    .map((p) => ({
+      userData: resolvedUserMap.get(p.username.toLowerCase())!,
+      isEditor: p.isEditor,
+    }));
 
   const team = await prisma.team.create({ data: { name: teamName } });
   await prisma.tournamentTeam.create({ data: { tournamentId, teamId: team.id } });
 
   for (const rp of resolvedPlayers) {
-    const isCreator = currentUser && rp.userData.id === currentUser.id;
+    const isCreator = rp.userData.id === currentUser.id;
     const player = await prisma.player.upsert({
       where: { id: rp.userData.id },
       update: { username: rp.userData.username, avatarUrl: rp.userData.avatar_url },
@@ -204,7 +216,7 @@ export async function registerTeam(formData: FormData) {
       },
     });
 
-    if (!isCreator && currentUser && prisma.notification) {
+    if (!isCreator && prisma.notification) {
       const tournament = await prisma.tournament.findUnique({ where: { id: tournamentId } });
       await prisma.notification.create({
         data: {
@@ -242,7 +254,7 @@ export async function updateTeamRoster(formData: FormData) {
   const PlayerSchema = z.array(z.object({
     username: z.string().min(1, "Username is required").max(50, "Username is too long"),
     isEditor: z.boolean().optional().default(false),
-  }));
+  })).max(MAX_ROSTER_PLAYERS, `Teams may have at most ${MAX_ROSTER_PLAYERS} players.`);
 
   let parsedPlayers: z.infer<typeof PlayerSchema> = [];
   if (playersJson) {
@@ -258,14 +270,17 @@ export async function updateTeamRoster(formData: FormData) {
   const existingIds = new Set(existingTeamPlayers.map(tp => tp.playerId));
   const currentCaptain = existingTeamPlayers.find((tp) => tp.role === "CAPTAIN");
 
-  // 1. Fetch osu! user data for all submitted players
-  const resolvedPlayers = [];
-  for (const p of parsedPlayers) {
-    if (!p.username) continue;
-    const userData = await getCachedOsuUser(p.username);
-    if (!userData) return { error: `Could not find osu! user: ${p.username}` };
-    resolvedPlayers.push({ userData, isEditor: p.isEditor });
-  }
+  const { users: resolvedUserMap, error: resolveError } = await resolveOsuUsers(
+    parsedPlayers.map((p) => p.username).filter(Boolean),
+  );
+  if (resolveError) return { error: resolveError };
+
+  const resolvedPlayers = parsedPlayers
+    .filter((p) => p.username)
+    .map((p) => ({
+      userData: resolvedUserMap.get(p.username.toLowerCase())!,
+      isEditor: p.isEditor,
+    }));
 
   if (currentCaptain && !resolvedPlayers.some((rp) => rp.userData.id === currentCaptain.playerId)) {
     return { error: "Transfer the captain role before removing the captain from the roster." };
@@ -441,7 +456,7 @@ export async function addMapsToStage(formData: FormData) {
     mod: z.string(),
     mapId: z.string(),
     beatmapId: z.string()
-  }));
+  })).max(MAX_MAPS_PER_REQUEST, `You may add at most ${MAX_MAPS_PER_REQUEST} maps at a time.`);
 
   let maps: z.infer<typeof MapsSchema> = [];
   try {
@@ -469,25 +484,15 @@ export async function addMapsToStage(formData: FormData) {
     return { error: `Slot(s) ${existingMaps.map(m => m.mapId).join(", ")} already exist in this stage. Delete them first.` };
   }
 
-  // Authenticate with the osu! API as a bot to fetch map metadata
-  const tokenData = await getOsuToken();
-  if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
+  const beatmapIds = maps
+    .map((m) => Number.parseInt(m.beatmapId, 10))
+    .filter((id) => Number.isFinite(id) && id > 0);
+  const { beatmaps: beatmapMetadataById, error: beatmapError } = await fetchBeatmapsByIds(beatmapIds);
+  if (beatmapError) return { error: beatmapError };
 
-  // Fetch multiple beatmaps from osu! API in chunks of 50
-  const beatmapIds = Array.from(new Set(maps.map(m => m.beatmapId)));
-  const beatmapMetadata = new Map();
-
-  for (let i = 0; i < beatmapIds.length; i += 50) {
-    const chunk = beatmapIds.slice(i, i + 50);
-    const url = `https://osu.ppy.sh/api/v2/beatmaps?${chunk.map(id => `ids[]=${id}`).join('&')}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
-    if (res.ok) {
-      const data = await res.json();
-      for (const b of data.beatmaps) {
-        beatmapMetadata.set(b.id.toString(), b);
-      }
-    }
-  }
+  const beatmapMetadata = new Map(
+    [...beatmapMetadataById.entries()].map(([id, beatmap]) => [id.toString(), beatmap]),
+  );
 
   const mapsToInsert = [];
   for (const map of maps) {
@@ -798,13 +803,8 @@ export async function deleteTournament(tournamentId: string) {
 export async function importMatchScores(url: string, tournamentId: string, scoreType: string, overwriteDuplicates: boolean = false) {
   if (!url || !tournamentId) return { error: "Missing required fields." };
 
-  let matchId = "";
-  const matchRegex = /matches\/(\d+)/;
-  if (matchRegex.test(url)) {
-    matchId = url.match(matchRegex)![1];
-  } else if (/^\d+$/.test(url.trim())) {
-    matchId = url.trim();
-  } else {
+  const matchId = parseMatchId(url);
+  if (!matchId) {
     return { error: "Invalid match URL. Please paste a valid osu! multiplayer link." };
   }
 
@@ -843,15 +843,8 @@ export async function importMatchScores(url: string, tournamentId: string, score
     validPlayerIds = new Set(userTt.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id)).map(p => p.playerId));
   }
 
-  const tokenData = await getOsuToken();
-  if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
-
-  const matchRes = await fetch(`https://osu.ppy.sh/api/v2/matches/${matchId}`, {
-    headers: { Authorization: `Bearer ${tokenData.access_token}` },
-  });
-  
-  if (!matchRes.ok) return { error: `Could not fetch match ${matchId} from osu!.` };
-  const matchData = await matchRes.json();
+  const { data: matchData, error: matchError } = await fetchMatchById(matchId);
+  if (matchError || !matchData) return { error: matchError || `Could not fetch match ${matchId} from osu!.` };
   if (!matchData.events) return { error: "No events found in this match." };
 
   // Fetch existing scores to prevent duplicates
@@ -1003,20 +996,14 @@ export async function importDbScores(formData: FormData) {
   }
   if (validBeatmapIds.size === 0) return { error: "No maps with valid osu! beatmap IDs found in this tournament." };
 
-  const tokenData = await getOsuToken();
-  if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
-
-  // Fetch the MD5 Checksums for our tournament maps from the osu! API
   const beatmapIds = Array.from(validBeatmapIds.keys());
-  const checksumToMapId = new Map();
+  const { beatmaps: beatmapData, error: beatmapError } = await fetchBeatmapsByIds(beatmapIds);
+  if (beatmapError) return { error: beatmapError };
 
-  for (let i = 0; i < beatmapIds.length; i += 50) {
-    const chunk = beatmapIds.slice(i, i + 50);
-    const url = `https://osu.ppy.sh/api/v2/beatmaps?${chunk.map(id => `ids[]=${id}`).join('&')}`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
-    if (!res.ok) continue;
-    const data = await res.json();
-    for (const b of data.beatmaps) checksumToMapId.set(b.checksum, validBeatmapIds.get(b.id));
+  const checksumToMapId = new Map<string, string>();
+  for (const beatmap of beatmapData.values()) {
+    const mapId = validBeatmapIds.get(beatmap.id);
+    if (mapId) checksumToMapId.set(beatmap.checksum, mapId);
   }
 
   const usernameToPlayerId = new Map();
@@ -1178,6 +1165,11 @@ export async function acceptInvite(notificationId: string, teamId: string) {
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
   if (!currentUser) return;
 
+  const notification = await prisma.notification.findUnique({ where: { id: notificationId } });
+  if (!notification || notification.userId !== currentUser.id || notification.teamId !== teamId) {
+    return;
+  }
+
   const tp = await prisma.teamPlayer.findUnique({ where: { teamId_playerId: { teamId, playerId: currentUser.id } } });
   if (tp) {
     await prisma.teamPlayer.update({
@@ -1213,6 +1205,11 @@ export async function rejectInvite(notificationId: string, teamId: string) {
   const sessionCookie = cookieStore.get("session")?.value;
   const currentUser = sessionCookie ? await decrypt(sessionCookie) : null;
   if (!currentUser) return;
+
+  const notification = await prisma.notification.findUnique({ where: { id: notificationId } });
+  if (!notification || notification.userId !== currentUser.id || notification.teamId !== teamId) {
+    return;
+  }
 
   await prisma.teamPlayer.deleteMany({ where: { teamId, playerId: currentUser.id } });
   await prisma.notification.update({
@@ -1387,7 +1384,7 @@ export async function updateStageMappool(formData: FormData) {
     mod: z.string(),
     mapId: z.string(),
     beatmapId: z.string()
-  }));
+  })).max(MAX_MAPS_PER_REQUEST, `A stage may have at most ${MAX_MAPS_PER_REQUEST} maps.`);
 
   let maps: z.infer<typeof MapsSchema> = [];
   try {
@@ -1414,18 +1411,13 @@ export async function updateStageMappool(formData: FormData) {
 
   const beatmapMetadata = new Map();
   if (needsMetadata.length > 0) {
-    const tokenData = await getOsuToken();
-    if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
-
-    const beatmapIds = Array.from(new Set(needsMetadata.map(m => m.beatmapId)));
-    for (let i = 0; i < beatmapIds.length; i += 50) {
-      const chunk = beatmapIds.slice(i, i + 50);
-      const url = `https://osu.ppy.sh/api/v2/beatmaps?${chunk.map(id => `ids[]=${id}`).join('&')}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${tokenData.access_token}` } });
-      if (res.ok) {
-        const data = await res.json();
-        for (const b of data.beatmaps) beatmapMetadata.set(b.id.toString(), b);
-      }
+    const beatmapIds = needsMetadata
+      .map((m) => Number.parseInt(m.beatmapId, 10))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const { beatmaps, error: beatmapError } = await fetchBeatmapsByIds(beatmapIds);
+    if (beatmapError) return { error: beatmapError };
+    for (const [id, beatmap] of beatmaps.entries()) {
+      beatmapMetadata.set(id.toString(), beatmap);
     }
   }
 
@@ -1497,7 +1489,12 @@ export async function addTournamentKeeper(formData: FormData) {
   const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
 
-  const userData = await getCachedOsuUser(username);
+  if (auth.currentUser) {
+    const { success } = await ratelimit.limit(`addTournamentKeeper_${auth.currentUser.id}`);
+    if (!success) return { error: "You are adding keepers too fast. Please wait." };
+  }
+
+  const userData = await getCachedOsuUser(username.trim());
   if (!userData) return { error: `Could not find osu! user: ${username}` };
 
   const player = await prisma.player.upsert({
@@ -1611,14 +1608,17 @@ export async function submitFeedback(formData: FormData) {
   return { success: true };
 }
 
-export async function fetchOsuMatch(matchId: string) {
-  const tokenData = await getOsuToken();
-  if (!tokenData?.access_token) return { error: "Failed to authenticate with osu! API." };
+export async function fetchOsuMatch(matchId: string, tournamentId: string) {
+  if (!matchId || !tournamentId) return { error: "Match ID and tournament ID are required." };
+  if (!parseMatchId(matchId)) return { error: "Invalid match ID." };
 
-  const matchRes = await fetch(`https://osu.ppy.sh/api/v2/matches/${matchId}`, {
-    headers: { Authorization: `Bearer ${tokenData.access_token}` },
-  });
+  const auth = await verifyTournamentTeamMember(tournamentId);
+  if (!auth.authorized) return { error: auth.error };
 
-  if (!matchRes.ok) return { error: `Could not fetch match ${matchId} from osu!.` };
-  return await matchRes.json();
+  const { success } = await ratelimit.limit(`fetchOsuMatch_${auth.currentUser!.id}`);
+  if (!success) return { error: "You are fetching matches too fast. Please wait." };
+
+  const { data, error } = await fetchMatchById(matchId);
+  if (error || !data) return { error: error || `Could not fetch match ${matchId} from osu!.` };
+  return data;
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { verifyAdmin } from '@/lib/admin';
 import playersData from '@/lib/players.json';
 import scoresData from '@/lib/scores.json';
 
@@ -21,6 +22,15 @@ const MOCK_MAPPOOL: Record<string, any[]> = {
 };
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production' && process.env.ENABLE_SEED_ROUTE !== 'true') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  const auth = await verifyAdmin();
+  if (!auth.authorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     // 1. Clear existing data to avoid duplicates if you run this multiple times
     await prisma.score.deleteMany();

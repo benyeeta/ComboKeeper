@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { encrypt } from '@/lib/session';
+import { osuApiFetch } from '@/lib/osuApi';
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   try {
     // 2. Exchange the authorization code for an access token
-    const tokenResponse = await fetch('https://osu.ppy.sh/oauth/token', {
+    const tokenResponse = await osuApiFetch('https://osu.ppy.sh/oauth/token', {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -46,15 +47,13 @@ export async function GET(req: NextRequest) {
     });
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('[osu! Token Error]', errorText);
+      console.error('[osu! OAuth] Token exchange failed:', tokenResponse.status);
       throw new Error('Failed to fetch access token');
     }
 
     const tokenData = await tokenResponse.json();
 
-    // Fetch user profile from the osu! API
-    const userResponse = await fetch('https://osu.ppy.sh/api/v2/me', {
+    const userResponse = await osuApiFetch('https://osu.ppy.sh/api/v2/me', {
       headers: {
         Authorization: `Bearer ${tokenData.access_token}`,
       },
