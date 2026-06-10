@@ -18,6 +18,22 @@ const MOD_COLORS: Record<string, string> = {
     TB: "border-green-500",
 };
 
+const USERNAME_CH = 10;
+
+/** Fixed player-column width: fits ~10ch usernames without stretching across the row. */
+function mappoolPlayerColWidth(lineupSize: number, poolHasModBadge: boolean, poolShowsAvatar: boolean): string {
+  if (poolHasModBadge && poolShowsAvatar) {
+    return `calc(1.25rem + 0.25rem + ${USERNAME_CH}ch + 1.75rem)`;
+  }
+  if (poolHasModBadge) {
+    return `calc(${USERNAME_CH}ch + 1.75rem)`;
+  }
+  if (lineupSize < 4) {
+    return `calc(1.25rem + 0.25rem + ${USERNAME_CH}ch)`;
+  }
+  return `calc(${USERNAME_CH}ch + 0.25rem)`;
+}
+
 type MappoolFeedProps = {
   stage: string;
   onMapSelect: (map: MappoolMap | null) => void;
@@ -47,8 +63,10 @@ export default function MappoolFeed({
   const lineupSize = parseLineupSize(activeTournament?.format);
   const maxLineupCols = Math.max(lineupSize, 3);
   const poolHasModBadge = currentMappool.some((m) => m.mod === "MM" || m.mod === "FM");
-  const minPlayerColPx =
-    lineupSize >= 4 && !poolHasModBadge ? 44 : poolHasModBadge || lineupSize < 4 ? 72 : 56;
+  const poolShowsAvatar =
+    lineupSize < 4 && currentMappool.some((m) => m.mod !== "MM" && m.mod !== "FM");
+  const playerColWidth = mappoolPlayerColWidth(lineupSize, poolHasModBadge, poolShowsAvatar);
+  const rowGridTemplate = `minmax(240px, 1fr) repeat(${maxLineupCols}, ${playerColWidth}) 1.5rem auto`;
 
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState<Set<number>>(new Set());
 
@@ -130,7 +148,65 @@ export default function MappoolFeed({
         return (
         <div key={(map as any).dbId || `${map.id}-${index}`} className="flex flex-col bg-surface border border-border-main rounded-md overflow-hidden transition-colors duration-200">
           <div
-            className={`flex items-stretch ${MOD_COLORS[map.mod] || "border-gray-500"} border-l-4 transition-colors ${
+            className={`hidden md:grid items-center gap-x-2 ${MOD_COLORS[map.mod] || "border-gray-500"} border-l-4 transition-colors ${
+              isExpanded
+                ? "bg-hover-overlay/15"
+                : "hover:bg-hover-overlay/10 has-[button:hover]:hover:bg-transparent dark:has-[button:hover]:hover:bg-transparent"
+            }`}
+            style={{ gridTemplateColumns: rowGridTemplate }}
+          >
+            <div
+              onClick={() => onMapSelect(isExpanded ? null : map)}
+              className="flex items-center gap-3 min-w-0 py-2 pl-3 pr-1 cursor-pointer"
+            >
+              <span className="font-bold text-lg w-10 flex-shrink-0">{map.id}</span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-content font-medium truncate flex items-center gap-1.5">
+                  {map.artist}
+                  <BeatmapLink beatmapId={map.beatmapId} />
+                </span>
+                <span className="text-sm text-muted truncate">{map.songName}</span>
+              </div>
+            </div>
+            <TopLineup
+              mapId={map.id}
+              stage={stage}
+              allScores={filteredScores || []}
+              mapMod={map.mod}
+              activeTournament={activeTournament}
+              maxCols={maxLineupCols}
+              onSelect={() => onMapSelect(isExpanded ? null : map)}
+            />
+            <div
+              onClick={() => onMapSelect(isExpanded ? null : map)}
+              className="flex justify-center cursor-pointer py-2"
+            >
+              {isExpanded ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-accent transform rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-muted transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <div className="flex items-center py-2 pr-3 pl-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddScore(map);
+                }}
+                className="flex items-center gap-1 border border-border-main bg-hover-overlay/15 text-content hover:bg-accent hover:border-accent hover:text-white px-2 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
+                title="Add Score"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
+                <span className="hidden sm:inline">Add</span>
+              </button>
+            </div>
+          </div>
+          <div
+            className={`flex md:hidden items-stretch ${MOD_COLORS[map.mod] || "border-gray-500"} border-l-4 transition-colors ${
               isExpanded
                 ? "bg-hover-overlay/15"
                 : "hover:bg-hover-overlay/10 has-[button:hover]:hover:bg-transparent dark:has-[button:hover]:hover:bg-transparent"
@@ -138,45 +214,7 @@ export default function MappoolFeed({
           >
             <div
               onClick={() => onMapSelect(isExpanded ? null : map)}
-              className="hidden md:grid flex-1 items-center min-w-0 cursor-pointer py-2 px-3 gap-x-2"
-              style={{
-                gridTemplateColumns: `minmax(0, 240px) repeat(${maxLineupCols}, minmax(${minPlayerColPx}px, 1fr)) 24px`,
-              }}
-            >
-              <div className="flex items-center gap-3 min-w-0 overflow-hidden">
-                <span className="font-bold text-lg w-10 flex-shrink-0">{map.id}</span>
-                <div className="flex flex-col overflow-hidden min-w-0">
-                  <span className="text-content font-medium truncate flex items-center gap-1.5">
-                    {map.artist}
-                    <BeatmapLink beatmapId={map.beatmapId} />
-                  </span>
-                  <span className="text-sm text-muted truncate">{map.songName}</span>
-                </div>
-              </div>
-              <TopLineup
-                mapId={map.id}
-                stage={stage}
-                allScores={filteredScores || []}
-                mapMod={map.mod}
-                activeTournament={activeTournament}
-                maxCols={maxLineupCols}
-                minColPx={minPlayerColPx}
-              />
-              <div className="flex justify-end">
-                {isExpanded ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-accent transform rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-muted transition-transform" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </div>
-            </div>
-            <div
-              onClick={() => onMapSelect(isExpanded ? null : map)}
-              className="flex md:hidden flex-1 items-center min-w-0 cursor-pointer py-2 px-3"
+              className="flex flex-1 items-center min-w-0 cursor-pointer py-2 px-3"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
                 <span className="font-bold text-lg w-10 flex-shrink-0">{map.id}</span>
@@ -244,7 +282,7 @@ function TopLineup({
   mapMod,
   activeTournament,
   maxCols,
-  minColPx,
+  onSelect,
 }: {
   mapId: string;
   stage: string;
@@ -252,7 +290,7 @@ function TopLineup({
   mapMod: string;
   activeTournament?: any;
   maxCols: number;
-  minColPx: number;
+  onSelect: () => void;
 }) {
   const mapScoreData = (allScores || []).find(
     (data) => data.mapId === mapId && data.stage === stage
@@ -280,8 +318,8 @@ function TopLineup({
           return (
             <div
               key={`empty-${index}`}
-              className="flex items-center min-w-0"
-              style={{ minWidth: minColPx }}
+              className="flex items-center min-w-0 py-2 cursor-pointer"
+              onClick={onSelect}
             >
               {!hasLineup && index === 0 && (
                 <p className="text-sm text-gray-500 italic truncate">No Lineup Data</p>
@@ -297,8 +335,8 @@ function TopLineup({
         return (
           <div
             key={player.id}
-            className="flex items-center gap-1 min-w-0"
-            style={{ minWidth: minColPx }}
+            className="flex items-center gap-1 min-w-0 py-2 cursor-pointer"
+            onClick={onSelect}
           >
             {showAvatar && (
               <Image
@@ -310,7 +348,7 @@ function TopLineup({
               />
             )}
             <span
-              className={`text-sm text-gray-800 dark:text-gray-200 truncate min-w-0 ${isCaptain ? "font-bold" : "font-semibold"}`}
+              className={`text-sm text-gray-800 dark:text-gray-200 truncate max-w-[10ch] ${isCaptain ? "font-bold" : "font-semibold"}`}
               title={player.username}
             >
               {player.username}
