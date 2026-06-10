@@ -44,6 +44,11 @@ export default function MappoolFeed({
   activeTournament
 }: MappoolFeedProps) {
   const currentMappool = (mappool && mappool[stage]) || [];
+  const lineupSize = parseLineupSize(activeTournament?.format);
+  const maxLineupCols = Math.max(lineupSize, 3);
+  const poolHasModBadge = currentMappool.some((m) => m.mod === "MM" || m.mod === "FM");
+  const minPlayerColPx =
+    lineupSize >= 4 && !poolHasModBadge ? 44 : poolHasModBadge || lineupSize < 4 ? 72 : 56;
 
   const [hiddenPlayerIds, setHiddenPlayerIds] = useState<Set<number>>(new Set());
 
@@ -133,9 +138,12 @@ export default function MappoolFeed({
           >
             <div
               onClick={() => onMapSelect(isExpanded ? null : map)}
-              className="flex flex-1 items-center min-w-0 cursor-pointer py-2 px-3"
+              className="hidden md:grid flex-1 items-center min-w-0 cursor-pointer py-2 px-3 gap-x-2"
+              style={{
+                gridTemplateColumns: `minmax(0, 240px) repeat(${maxLineupCols}, minmax(${minPlayerColPx}px, 1fr)) 24px`,
+              }}
             >
-              <div className="flex items-center gap-3 min-w-0 flex-shrink max-w-[45%] sm:max-w-[38%] lg:max-w-[32%]">
+              <div className="flex items-center gap-3 min-w-0 overflow-hidden">
                 <span className="font-bold text-lg w-10 flex-shrink-0">{map.id}</span>
                 <div className="flex flex-col overflow-hidden min-w-0">
                   <span className="text-content font-medium truncate flex items-center gap-1.5">
@@ -145,8 +153,42 @@ export default function MappoolFeed({
                   <span className="text-sm text-muted truncate">{map.songName}</span>
                 </div>
               </div>
-              <TopLineup mapId={map.id} stage={stage} allScores={filteredScores || []} mapMod={map.mod} activeTournament={activeTournament} />
-              <div className="w-6 flex justify-end flex-shrink-0 ml-3">
+              <TopLineup
+                mapId={map.id}
+                stage={stage}
+                allScores={filteredScores || []}
+                mapMod={map.mod}
+                activeTournament={activeTournament}
+                maxCols={maxLineupCols}
+                minColPx={minPlayerColPx}
+              />
+              <div className="flex justify-end">
+                {isExpanded ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-accent transform rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-muted transition-transform" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+            </div>
+            <div
+              onClick={() => onMapSelect(isExpanded ? null : map)}
+              className="flex md:hidden flex-1 items-center min-w-0 cursor-pointer py-2 px-3"
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+                <span className="font-bold text-lg w-10 flex-shrink-0">{map.id}</span>
+                <div className="flex flex-col overflow-hidden min-w-0">
+                  <span className="text-content font-medium truncate flex items-center gap-1.5">
+                    {map.artist}
+                    <BeatmapLink beatmapId={map.beatmapId} />
+                  </span>
+                  <span className="text-sm text-muted truncate">{map.songName}</span>
+                </div>
+              </div>
+              <div className="w-6 flex justify-end flex-shrink-0 ml-2">
                 {isExpanded ? (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-accent transform rotate-180 transition-transform" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
@@ -195,84 +237,102 @@ function modBadgeClassName(assignedMod: string): string {
   return "bg-red-900/50 text-red-300 border-red-800";
 }
 
-function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapId: string; stage: string; allScores: ScoreData[], mapMod: string, activeTournament?: any }) {
+function TopLineup({
+  mapId,
+  stage,
+  allScores,
+  mapMod,
+  activeTournament,
+  maxCols,
+  minColPx,
+}: {
+  mapId: string;
+  stage: string;
+  allScores: ScoreData[];
+  mapMod: string;
+  activeTournament?: any;
+  maxCols: number;
+  minColPx: number;
+}) {
   const mapScoreData = (allScores || []).find(
     (data) => data.mapId === mapId && data.stage === stage
   );
 
   const lineupSize = mapMod === "MM" ? 3 : parseLineupSize(activeTournament?.format);
   const hasModBadge = mapMod === "MM" || mapMod === "FM";
-
-  if (!mapScoreData || mapScoreData.players.length === 0) {
-    return (
-      <div className="hidden md:flex flex-1 min-w-[120px] items-center justify-end ml-3">
-        <p className="text-sm text-gray-500 italic">No Lineup Data</p>
-      </div>
-    );
-  }
-
-  const { players: topPlayers, mmWarning } = calculateMapLineupDisplay(mapScoreData.players, mapMod, lineupSize);
-
-  if (topPlayers.length === 0) {
-    return (
-      <div className="hidden md:flex flex-1 min-w-[120px] items-center justify-end ml-3">
-        <p className="text-sm text-gray-500 italic">No Lineup Data</p>
-      </div>
-    );
-  }
-
-  const playerCount = topPlayers.length;
   const showAvatar = lineupSize < 4 && !hasModBadge;
-  const minColPx = showAvatar ? 72 : hasModBadge ? 56 : 44;
+
+  const { players: topPlayers, mmWarning } =
+    mapScoreData && mapScoreData.players.length > 0
+      ? calculateMapLineupDisplay(mapScoreData.players, mapMod, lineupSize)
+      : { players: [], mmWarning: undefined };
+
+  const slots = Array.from({ length: maxCols }, (_, index) => topPlayers[index] ?? null);
+  const hasLineup = topPlayers.length > 0;
 
   return (
-    <div className="hidden md:flex flex-1 min-w-0 items-center justify-end gap-2 ml-3">
-      {mmWarning && (
-        <span
-          className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 rounded leading-tight max-w-[9rem] shrink-0"
-          title={mmWarning}
-        >
-          {mmWarning}
-        </span>
-      )}
-      <div
-        className="grid gap-x-2 gap-y-0.5 flex-1 min-w-0 max-w-full"
-        style={{
-          gridTemplateColumns: `repeat(${playerCount}, minmax(${minColPx}px, 1fr))`,
-        }}
-      >
-        {topPlayers.map((player) => {
-          const isCaptain = activeTournament?.players?.some(
-            (ap: any) => ap.osuId === player.id.toString() && ap.isCaptain
-          );
+    <div
+      className="contents"
+      title={mmWarning}
+    >
+      {slots.map((player, index) => {
+        if (!player) {
           return (
-            <div key={player.id} className="flex items-center gap-1 min-w-0 justify-end">
-              {showAvatar && (
-                <Image
-                  src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
-                  alt=""
-                  width={20}
-                  height={20}
-                  className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"
-                />
-              )}
-              <span
-                className={`text-sm text-gray-800 dark:text-gray-200 truncate min-w-0 ${isCaptain ? "font-bold" : "font-semibold"}`}
-                title={player.username}
-              >
-                {player.username}
-              </span>
-              {player.assignedMod && hasModBadge && (
-                <span
-                  className={`text-[10px] font-bold px-1 rounded border flex-shrink-0 ${modBadgeClassName(player.assignedMod)}`}
-                >
-                  {player.assignedMod === "NM" ? "NM" : `+${player.assignedMod}`}
-                </span>
+            <div
+              key={`empty-${index}`}
+              className="flex items-center min-w-0"
+              style={{ minWidth: minColPx }}
+            >
+              {!hasLineup && index === 0 && (
+                <p className="text-sm text-gray-500 italic truncate">No Lineup Data</p>
               )}
             </div>
           );
-        })}
-      </div>
+        }
+
+        const isCaptain = activeTournament?.players?.some(
+          (ap: any) => ap.osuId === player.id.toString() && ap.isCaptain
+        );
+
+        return (
+          <div
+            key={player.id}
+            className="flex items-center gap-1 min-w-0"
+            style={{ minWidth: minColPx }}
+          >
+            {showAvatar && (
+              <Image
+                src={player.avatarUrl || `https://a.ppy.sh/${player.id}`}
+                alt=""
+                width={20}
+                height={20}
+                className="w-5 h-5 rounded-full border border-gray-300 dark:border-gray-600 object-cover flex-shrink-0"
+              />
+            )}
+            <span
+              className={`text-sm text-gray-800 dark:text-gray-200 truncate min-w-0 ${isCaptain ? "font-bold" : "font-semibold"}`}
+              title={player.username}
+            >
+              {player.username}
+            </span>
+            {player.assignedMod && hasModBadge && (
+              <span
+                className={`text-[10px] font-bold px-1 rounded border flex-shrink-0 ${modBadgeClassName(player.assignedMod)}`}
+              >
+                {player.assignedMod === "NM" ? "NM" : `+${player.assignedMod}`}
+              </span>
+            )}
+            {mmWarning && index === 0 && (
+              <span
+                className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 px-1 py-0.5 rounded leading-tight shrink-0"
+                title={mmWarning}
+              >
+                !
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

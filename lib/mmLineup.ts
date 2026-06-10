@@ -152,6 +152,16 @@ export function pickRepresentativePlay(history: MMScoreHistory[]): MMScoreHistor
   return sameType.reduce((best, current) => (current.score > best.score ? current : best), sameType[0]);
 }
 
+/** Display order for MM lineup columns in the mappool feed (not score order). */
+export const MM_DISPLAY_SLOT_ORDER: readonly MMRequiredMod[] = ["NM", "HR", "HD"];
+
+export function mmDisplaySortRank(playedMod: string): number {
+  if (isNomodPlay(playedMod)) return 0;
+  if (isHRPlay(playedMod)) return 1;
+  if (isHDOnlyPlay(playedMod)) return 2;
+  return 99;
+}
+
 export function validateMMDistribution(plays: { playedMod?: string | null }[]): {
   isValid: boolean;
   reason?: string;
@@ -193,7 +203,7 @@ export function calculateActualMMLineup(players: MMPlayer[]): ActualMMLineupResu
       score: a.score,
       playedMod: a.displayMod,
     }))
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => mmDisplaySortRank(a.playedMod) - mmDisplaySortRank(b.playedMod));
 
   const validation = validateMMDistribution(plays);
 
