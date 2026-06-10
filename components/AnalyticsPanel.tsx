@@ -1,6 +1,9 @@
 import Image from "next/image";
 import { useMemo } from "react";
 import { MappoolMap, PlayerData, ScoreData } from "@/lib/types";
+import { modBadgeClass, modBadgeLabel } from "@/lib/matchStats";
+import { pickRepresentativePlay } from "@/lib/mmLineup";
+import { calculateWeightedTrimmedMean } from "@/lib/playerAverage";
 
 type AnalyticsPanelProps = {
   selectedMap: MappoolMap | null;
@@ -10,63 +13,46 @@ type AnalyticsPanelProps = {
   activeTournament?: any;
 };
 
-/**
- * Calculates the mean of a dataset, excluding a percentage of data points from the top and bottom tails.
- * This is equivalent to Excel's TRIMMEAN function.
- * @param scores - An array of numbers.
- * @param percent - The fractional number of data points to exclude (e.g., 0.5 for 50%).
- * @returns The trimmed mean, or null if there are not enough scores.
- */
-function calculateTrimmedMean(scores: number[], percent: number): number | null {
-  if (scores.length < 2) {
-    return null;
-  }
+function isPracticeScoreType(scoreType?: string): boolean {
+  return !scoreType || scoreType === "PRACTICE" || scoreType === "LOBBY";
+}
 
-  const sortedScores = [...scores].sort((a, b) => a - b);
-  const trimCount = Math.floor((sortedScores.length * percent) / 2);
-
-  const trimmedScores = sortedScores.slice(trimCount, sortedScores.length - trimCount);
-  if (trimmedScores.length === 0) {
-    return null;
-  }
-
-  const sum = trimmedScores.reduce((acc, val) => acc + val, 0);
-  return sum / trimmedScores.length;
+function formatModLabel(playedMod?: string | null): string {
+  if (!playedMod || playedMod === "NM") return "NM";
+  return playedMod.includes("+") ? playedMod : `+${playedMod}`;
 }
 
 export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlayerScores, allScores, activeTournament }: AnalyticsPanelProps) {
-  if (!selectedMap) return null;
+  const mapMod = selectedMap?.mod;
+  const showModColumn = mapMod === "MM" || mapMod === "FM";
 
-  // Memoize the processed leaderboard data to avoid re-computation on every render.
   const leaderboardData = useMemo(() => {
     if (!selectedMap) return null;
 
-    // Find score data for the selected map from our array of scores
-    const mapScoreData = (allScores || []).find(data => data.mapId === selectedMap.id && data.stage === selectedStage);
+    const mapScoreData = (allScores || []).find((data) => data.mapId === selectedMap.id && data.stage === selectedStage);
     if (!mapScoreData) {
       return null;
     }
 
     const processed = mapScoreData.players.map((player) => {
-      // Find the play with the highest score from the player's history
       const topPlay = player.history.reduce(
         (best, current) => (current.score > best.score ? current : best),
         player.history[0] || { score: 0, accuracy: 0 }
       );
 
-      // Segment scores to find actual performance vs expectations
-      const practiceScores = player.history.filter((p: any) => p.scoreType === 'PRACTICE' || !p.scoreType);
-      const matchScores = player.history.filter((p: any) => p.scoreType && p.scoreType !== 'PRACTICE');
+      const practiceScores = player.history.filter((p) => isPracticeScoreType(p.scoreType));
+      const matchScores = player.history.filter((p) => p.scoreType && !isPracticeScoreType(p.scoreType));
 
       const bestMatch = matchScores.reduce(
-        (best: any, current: any) => (current.score > best.score ? current : best),
+        (best, current) => (current.score > best.score ? current : best),
         matchScores[0] || { score: 0 }
       );
 
-      // The trend is the historical scores over time
+      const representative = pickRepresentativePlay(player.history);
+      const displayMod = representative?.playedMod || bestMatch.playedMod || topPlay.playedMod || "NM";
+
       const trend = player.history.map((play) => play.score);
-      const practiceScoreVals = practiceScores.map((p: any) => p.score);
-      const average = calculateTrimmedMean(practiceScoreVals, 0.5);
+      const average = calculateWeightedTrimmedMean(practiceScores, 0.5);
 
       let perfDiff = null;
       if (bestMatch.score > 0 && average !== null) {
@@ -74,25 +60,30 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
       }
 
       return {
-        ...player, // Pass through the original player object
+        ...player,
         name: player.username,
         avatarUrl: player.avatarUrl || `https://a.ppy.sh/${player.id}`,
         score: topPlay.score.toLocaleString(),
-        trend: trend,
-        averageScore: average !== null ? Math.round(average).toLocaleString() : 'min 2 plays',
-        bestMatchScore: bestMatch.score > 0 ? bestMatch.score.toLocaleString() : '-',
+        trend,
+        averageScore: average !== null ? Math.round(average).toLocaleString() : "min 2 plays",
+        bestMatchScore: bestMatch.score > 0 ? bestMatch.score.toLocaleString() : "-",
         perfDiff: perfDiff !== null ? Math.round(perfDiff) : null,
-        isCaptain: activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isCaptain) || false,
+        playedMod: displayMod,
+        isCaptain:
+          activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isCaptain) || false,
       };
     });
 
-    // Sort the leaderboard by score (descending)
     return processed.sort((a, b) => {
-      const scoreA = parseInt(a.score.replace(/,/g, ''), 10);
-      const scoreB = parseInt(b.score.replace(/,/g, ''), 10);
+      const scoreA = parseInt(a.score.replace(/,/g, ""), 10);
+      const scoreB = parseInt(b.score.replace(/,/g, ""), 10);
       return scoreB - scoreA;
     });
   }, [selectedMap, selectedStage, allScores, activeTournament]);
+
+  if (!selectedMap) return null;
+
+  const colSpan = showModColumn ? 7 : 6;
 
   return (
     <div className="flow-root">
@@ -102,6 +93,9 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
               <thead>
                 <tr>
                   <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 dark:text-white sm:pl-0">Player</th>
+                  {showModColumn && (
+                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Mod</th>
+                  )}
                   <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Score Trend</th>
                   <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Practice Avg</th>
                   <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900 dark:text-white">Match Best</th>
@@ -123,6 +117,13 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
                           </span>
                         </div>
                       </td>
+                      {showModColumn && (
+                        <td className="whitespace-nowrap px-3 py-4 text-sm">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${modBadgeClass(player.playedMod)}`}>
+                            {modBadgeLabel(player.playedMod) || formatModLabel(player.playedMod)}
+                          </span>
+                        </td>
+                      )}
                       <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600 dark:text-gray-300">
                           <div className="flex items-center gap-4 text-green-400">
                               <Sparkline scores={player.trend} />
@@ -145,7 +146,7 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
                   ))
                 ) : (
                     <tr>
-                        <td colSpan={6} className="text-center py-8 text-gray-500">No score data available for this map.</td>
+                        <td colSpan={colSpan} className="text-center py-8 text-gray-500">No score data available for this map.</td>
                     </tr>
                 )}
               </tbody>
@@ -156,17 +157,14 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
   );
 }
 
-// A more visually appealing sparkline component to show score progression.
-// Moved outside the main component to prevent re-declaration on every render.
 function Sparkline({ scores }: { scores: number[] }) {
   if (!scores || scores.length < 2) {
-    // Can't draw a line with less than 2 points. Return a placeholder.
     return <div className="w-24 h-8" />;
   }
 
   const width = 100;
   const height = 25;
-  const padding = 3; // Vertical padding for the graph
+  const padding = 3;
   const drawingHeight = height - padding * 2;
 
   const minScore = Math.min(...scores);
@@ -176,12 +174,11 @@ function Sparkline({ scores }: { scores: number[] }) {
   const points = scores.map((score, i) => {
     const x = (i / (scores.length - 1)) * width;
     
-    let y_normalized = 0.5; // Default to middle if all scores are the same
+    let y_normalized = 0.5;
     if (range > 0) {
       y_normalized = (score - minScore) / range;
     }
     
-    // Invert Y axis for SVG, and apply padding
     const y = (height - padding) - (y_normalized * drawingHeight);
     return { x, y };
   });
@@ -199,10 +196,8 @@ function Sparkline({ scores }: { scores: number[] }) {
         </linearGradient>
       </defs>
       
-      {/* Gradient fill area */}
       <polygon points={areaPoints} fill="url(#sparkline-gradient)" />
       
-      {/* The trend line */}
       <polyline
         fill="none"
         stroke="currentColor"
@@ -212,13 +207,12 @@ function Sparkline({ scores }: { scores: number[] }) {
         points={linePoints}
       />
       
-      {/* Highlight the last data point */}
       <circle
         cx={lastPoint.x.toFixed(2)}
         cy={lastPoint.y.toFixed(2)}
         r="2.5"
         fill="currentColor"
-        stroke="#1f2937" // bg-gray-800
+        stroke="#1f2937"
         strokeWidth="1.5"
       />
     </svg>

@@ -95,3 +95,43 @@ export function calculateTeamPracticeCoverage(
     fullCompletion: slackers.length === 0,
   };
 }
+
+export type PracticeCoverageProgress = {
+  completedRuns: number;
+  totalRequiredRuns: number;
+  percent: number;
+};
+
+export function calculatePracticeCoverageProgress(
+  stageScores: ScoreData[],
+  requiredMapIds: string[],
+  rosterPlayers: RosterPlayer[],
+  runsRequired = REQUIRED_RUNS_PER_MAP
+): PracticeCoverageProgress {
+  const totalRequiredRuns = requiredMapIds.length * rosterPlayers.length * runsRequired;
+  if (totalRequiredRuns === 0) {
+    return { completedRuns: 0, totalRequiredRuns: 0, percent: 0 };
+  }
+
+  const playCounts = new Map<number, Map<string, number>>();
+  for (const mapData of stageScores) {
+    for (const player of mapData.players) {
+      if (!playCounts.has(player.id)) playCounts.set(player.id, new Map());
+      playCounts.get(player.id)!.set(mapData.mapId, player.history.length);
+    }
+  }
+
+  let completedRuns = 0;
+  for (const roster of rosterPlayers) {
+    const mapCounts = playCounts.get(roster.id) ?? new Map<string, number>();
+    for (const mapId of requiredMapIds) {
+      completedRuns += Math.min(mapCounts.get(mapId) ?? 0, runsRequired);
+    }
+  }
+
+  return {
+    completedRuns,
+    totalRequiredRuns,
+    percent: Math.round((completedRuns / totalRequiredRuns) * 100),
+  };
+}

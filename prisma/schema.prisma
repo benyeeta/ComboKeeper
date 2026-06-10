@@ -96,7 +96,20 @@ model Player {
   scores    Score[]
   notifications Notification[]
   tournamentsKept TournamentKeeper[]
+  trophies  PlayerTrophy[]
   createdAt DateTime @default(now())
+}
+
+model PlayerTrophy {
+  id           String   @id @default(uuid())
+  playerId     Int
+  player       Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  trophyKey    String
+  scopeId      String   @default("lifetime")
+  metadata     Json?
+  earnedAt     DateTime @default(now())
+
+  @@unique([playerId, trophyKey, scopeId])
 }
 
 model Notification {
@@ -114,7 +127,7 @@ model Score {
   score        Int
   accuracy     Float
   timestamp    DateTime   @default(now())
-  scoreType    String     @default("PRACTICE") // e.g., "PRACTICE", "QUALIFIER_1", "QUALIFIER_2", "MATCH"
+  scoreType    String     @default("PRACTICE") // PRACTICE, LOBBY, MATCH, QUALIFIER_1, QUALIFIER_2, etc.
   playedMod    String?    // e.g., "NM", "HD", "HR", "EZ"
   playerId     Int
   player       Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)

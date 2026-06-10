@@ -6,6 +6,7 @@ import { MappoolMap, Mod, ScoreData } from "@/lib/types";
 import { calculateMapLineupDisplay } from "@/lib/mapLineup";
 import { parseLineupSize } from "@/lib/tournamentFormat";
 import AnalyticsPanel from "./AnalyticsPanel";
+import BeatmapLink from "./BeatmapLink";
 
 const MOD_COLORS: Record<string, string> = {
     NM: "border-gray-500",
@@ -135,8 +136,11 @@ export default function MappoolFeed({
             >
               <div className="flex items-center gap-4 flex-grow overflow-hidden min-w-0">
                 <span className="font-bold text-lg w-12 flex-shrink-0">{map.id}</span>
-                <div className="flex flex-col overflow-hidden">
-                  <span className="text-content font-medium truncate">{map.artist}</span>
+                <div className="flex flex-col overflow-hidden min-w-0">
+                  <span className="text-content font-medium truncate flex items-center gap-1.5">
+                    {map.artist}
+                    <BeatmapLink beatmapId={map.beatmapId} />
+                  </span>
                   <span className="text-sm text-muted truncate">{map.songName}</span>
                 </div>
               </div>
@@ -198,7 +202,7 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
     );
   }
 
-  const topPlayers = calculateMapLineupDisplay(mapScoreData.players, mapMod, lineupSize);
+  const { players: topPlayers, mmWarning } = calculateMapLineupDisplay(mapScoreData.players, mapMod, lineupSize);
 
   if (topPlayers.length === 0) {
     return (
@@ -209,10 +213,16 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
   }
 
   return (
-    <div
-      className="hidden md:grid gap-2"
-      style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`, width: panelWidth }}
-    >
+    <div className="hidden md:flex flex-col items-end gap-1" style={{ width: panelWidth }}>
+      {mmWarning && (
+        <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/50 px-1.5 py-0.5 rounded">
+          {mmWarning}
+        </span>
+      )}
+      <div
+        className="grid gap-2 w-full"
+        style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}
+      >
       {topPlayers.map((player) => {
         const isCaptain = activeTournament?.players?.some((ap: any) => ap.osuId === player.id.toString() && ap.isCaptain);
         return (
@@ -241,6 +251,7 @@ function TopLineup({ mapId, stage, allScores, mapMod, activeTournament }: { mapI
         </div>
         );
       })}
+      </div>
     </div>
   );
 }

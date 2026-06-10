@@ -119,7 +119,7 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
                   <option value="QUALIFIER">Qualifier (Auto-detect Both Runs)</option>
                   <option value="QUALIFIER_1">Qualifier (Run 1 Only)</option>
                   <option value="QUALIFIER_2">Qualifier (Run 2 Only)</option>
-                  <option value="PRACTICE">Practice</option>
+                  <option value="LOBBY">Lobby Practice</option>
                </select>
             </div>
             <div className="flex items-center gap-2 mb-2 mt-4">

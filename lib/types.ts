@@ -7,6 +7,8 @@ export type MappoolMap = {
   artist: string;
   songName: string;
   skill: string;
+  beatmapId?: number | null;
+  dbId?: string;
 };
 
 export const STAGES = [

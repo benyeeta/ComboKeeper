@@ -1,6 +1,7 @@
 "use client";
 
 import { MappoolMap, PlayerData } from "@/lib/types";
+import BeatmapLink from "@/components/BeatmapLink";
 import { deleteScores, updateScoreType } from "@/app/actions";
 import { useState, useEffect } from "react";
 
@@ -71,6 +72,7 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
       case "MATCH": return "bg-pink-900/50 text-pink-300 border-pink-800";
       case "QUALIFIER_1": return "bg-blue-900/50 text-blue-300 border-blue-800";
       case "QUALIFIER_2": return "bg-indigo-900/50 text-indigo-300 border-indigo-800";
+      case "LOBBY": return "bg-teal-900/50 text-teal-300 border-teal-800";
       default: return "bg-gray-800 text-gray-400 border-gray-600";
     }
   };
@@ -80,6 +82,7 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
       case "MATCH": return "Match";
       case "QUALIFIER_1": return "Qual 1";
       case "QUALIFIER_2": return "Qual 2";
+      case "LOBBY": return "Lobby";
       default: return "Practice";
     }
   };
@@ -101,7 +104,10 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
                 {playerData.username}'s Scores
                 {isCaptain && <span className="ml-2 text-sm text-pink-400" title="Captain">♔</span>}
               </h2>
-              <p className="text-sm text-gray-400">on <span className="font-semibold text-blue-400">{map.id}</span>: {map.songName}</p>
+              <p className="text-sm text-gray-400 flex items-center gap-1.5">
+                on <span className="font-semibold text-blue-400">{map.id}</span>: {map.songName}
+                <BeatmapLink beatmapId={map.beatmapId} />
+              </p>
             </div>
           </div>
           <button onClick={handleClose} className="rounded-full p-1 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
@@ -174,6 +180,7 @@ const PlayerScoreHistoryModal = ({ isOpen, onClose, playerData, map, currentUser
                         <option value="QUALIFIER_1" className="bg-gray-800 text-white font-sans text-xs">Qual 1</option>
                         <option value="QUALIFIER_2" className="bg-gray-800 text-white font-sans text-xs">Qual 2</option>
                         <option value="PRACTICE" className="bg-gray-800 text-white font-sans text-xs">Practice</option>
+                        <option value="LOBBY" className="bg-gray-800 text-white font-sans text-xs">Lobby</option>
                       </select>
                     ) : (
                       <span className={`text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ml-3 ${play.scoreType ? getTypeColor(play.scoreType) : getTypeColor("PRACTICE")}`}>

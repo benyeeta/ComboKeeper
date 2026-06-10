@@ -1,6 +1,52 @@
 import prisma from '@/lib/prisma';
 import { normalizePlayedMod } from '@/lib/parseMods';
 import { MappoolMap, ScoreData } from '@/lib/types';
+import type { MyTournamentCard } from '@/lib/tournamentLists';
+
+export async function getMyTournaments(userId: number): Promise<MyTournamentCard[]> {
+  const memberships = await prisma.teamPlayer.findMany({
+    where: { playerId: userId, status: 'ACCEPTED' },
+    include: {
+      team: {
+        include: {
+          tournaments: { include: { tournament: true } },
+          players: {
+            where: { status: 'ACCEPTED' },
+            include: { player: true },
+          },
+        },
+      },
+    },
+  });
+
+  const entries: MyTournamentCard[] = [];
+
+  for (const membership of memberships) {
+    for (const tt of membership.team.tournaments) {
+      entries.push({
+        id: tt.tournament.id,
+        name: tt.tournament.name,
+        acronym: tt.tournament.acronym,
+        format: tt.tournament.format,
+        isCompleted: tt.tournament.isCompleted,
+        teamId: membership.team.id,
+        teamName: membership.team.name,
+        placement: tt.placement,
+        roster: membership.team.players.map((tp) => ({
+          id: tp.player.id,
+          username: tp.player.username,
+          avatarUrl: tp.player.avatarUrl,
+          role: tp.role,
+        })),
+      });
+    }
+  }
+
+  return entries.sort((a, b) => {
+    if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+    return a.name.localeCompare(b.name);
+  });
+}
 
 export async function getTournamentData(userId: number, selectedTournamentId?: string) {
   const isAdmin = process.env.ADMIN_OSU_ID ? userId === Number(process.env.ADMIN_OSU_ID) : false;

@@ -5,6 +5,7 @@ import NotificationBell from '@/components/NotificationBell';
 import prisma from '@/lib/prisma';
 import { decrypt } from '@/lib/session';
 import NavLinks from '@/components/NavLinks';
+import MobileNav from '@/components/MobileNav';
 import FeedbackModal from '@/components/FeedbackModal';
 
 export async function Header() {
@@ -29,10 +30,11 @@ export async function Header() {
   }
 
   return (
-    <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors duration-200">
+    <header className="relative border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-colors duration-200">
       <div className="max-w-7xl mx-auto w-full flex items-center justify-between p-4">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
+        <div className="flex items-center gap-3 md:gap-8">
+          <MobileNav />
+          <Link href="/" className="text-xl md:text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
             Combo<span className="text-pink-500">Keeper</span>
           </Link>
           <NavLinks />

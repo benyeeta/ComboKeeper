@@ -15,6 +15,7 @@ import EditRosterModal from "@/components/EditRosterModal";
 import ManageTournamentModal from "@/components/ManageTournamentModal";
 import EditMappoolModal from "@/components/EditMappoolModal";
 import ManageTeamModal from "@/components/ManageTeamModal";
+import TournamentPicker from "@/components/TournamentPicker";
 
 type DashboardProps = {
   initialData: {
@@ -66,14 +67,6 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const managedTournaments = initialData.allTournaments?.filter(t => t.isKeeper) || [];
-  const participatingTournaments = initialData.allTournaments?.filter(t => !t.isKeeper) || [];
-
-  const activeManaged = managedTournaments.filter(t => !t.isCompleted);
-  const finishedManaged = managedTournaments.filter(t => t.isCompleted);
-  
-  const activeParticipating = participatingTournaments.filter(t => !t.isCompleted);
-  const finishedParticipating = participatingTournaments.filter(t => t.isCompleted);
 
   useEffect(() => {
     if (initialData.activeTournament?.id !== currentTournamentId) {
@@ -131,57 +124,16 @@ export default function Dashboard({ initialData }: DashboardProps) {
           <div className="flex flex-col">
             <label className="text-[10px] font-bold text-muted uppercase tracking-wider mb-1">Tournament</label>
             <div className="flex items-center gap-2">
-              <select 
+              <TournamentPicker
+                allTournaments={initialData.allTournaments}
+                activeTournamentId={initialData.activeTournament?.id}
                 className="max-w-[250px] truncate rounded-md border border-border-main bg-surface p-2 text-sm font-medium text-content shadow-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                value={initialData.activeTournament?.id || ""}
-                onChange={(e) => {
+                onChange={(tournamentId) => {
                   startTransition(() => {
-                    if (e.target.value) {
-                      router.push(`/?t=${e.target.value}`);
-                    } else {
-                      router.push("/");
-                    }
+                    router.push(tournamentId ? `/?t=${tournamentId}` : "/");
                   });
                 }}
-              >
-                {!initialData.activeTournament && <option value="">No Active Tournament</option>}
-                {activeManaged.length > 0 && (
-                  <optgroup label="Active: Tournaments I Keep">
-                    {activeManaged.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {activeParticipating.length > 0 && (
-                  <optgroup label="Active: My Teams">
-                    {activeParticipating.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {finishedManaged.length > 0 && (
-                  <optgroup label="Finished: Tournaments I Keep">
-                    {finishedManaged.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-                {finishedParticipating.length > 0 && (
-                  <optgroup label="Finished: My Teams">
-                    {finishedParticipating.map(t => (
-                      <option key={t.id} value={t.id}>
-                        {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
+              />
               <button onClick={() => setIsAddTournamentOpen(true)} className="rounded-md border border-border-main bg-surface p-2 text-sm font-medium text-content transition-colors hover:bg-hover-overlay/20 hover:border-accent/50 shadow-sm" title="Join or Create Tournament">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" /></svg>
               </button>

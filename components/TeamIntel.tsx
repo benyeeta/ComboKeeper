@@ -13,10 +13,14 @@ import {
   type MatchMapResult,
 } from "@/lib/matchStats";
 import {
+  calculatePracticeCoverageProgress,
   calculateTeamPracticeCoverage,
   getRequiredPracticeMapIds,
   REQUIRED_RUNS_PER_MAP,
 } from "@/lib/teamPracticeCoverage";
+import BeatmapLink from "@/components/BeatmapLink";
+import { getBeatmapIdFromPool } from "@/lib/beatmapUrls";
+import { buildMapsToPracticeInputFromIntel, calculateMapsToPractice } from "@/lib/mapsToPractice";
 
 type TeamIntelProps = {
   allScores: ScoreData[];
@@ -28,12 +32,14 @@ type TeamIntelProps = {
 function IntelMapCard({
   label,
   mapId,
+  beatmapId,
   labelClassName,
   className,
   children,
 }: {
   label: string;
   mapId: string;
+  beatmapId?: number | null;
   labelClassName: string;
   className: string;
   children: ReactNode;
@@ -42,8 +48,9 @@ function IntelMapCard({
     <div className={className}>
       <div className="flex items-center justify-between gap-3 mb-2">
         <span className={`text-sm font-bold ${labelClassName}`}>{label}</span>
-        <span className="rounded-md bg-black/5 dark:bg-white/10 px-2.5 py-1 text-base font-black tracking-wide text-gray-900 dark:text-white shrink-0">
+        <span className="flex items-center gap-1.5 rounded-md bg-black/5 dark:bg-white/10 px-2.5 py-1 text-base font-black tracking-wide text-gray-900 dark:text-white shrink-0">
           {mapId}
+          <BeatmapLink beatmapId={beatmapId} />
         </span>
       </div>
       <p className="text-sm text-gray-700 dark:text-gray-300">{children}</p>
@@ -275,7 +282,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
           if (h.scoreType === 'MATCH') {
             mapMatchScore += h.score;
             mapMatchPlays += 1;
-          } else if (!h.scoreType || h.scoreType === 'PRACTICE') {
+          } else if (!h.scoreType || h.scoreType === 'PRACTICE' || h.scoreType === 'LOBBY') {
             mapPracticeScore += h.score;
             mapPracticePlays += 1;
           }
@@ -356,10 +363,23 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       else if (avgStdDev > 75000) playstyle = { type: 'COINFLIP', dev: avgStdDev };
     }
 
-      const mapsToPractice = mapStats
-      .filter(m => m.id !== bestMap.id && m.id !== worstMap.id && m.id !== safePick.id && m.id !== coinflipPick.id && !m.id.toUpperCase().includes('TB'))
-      .sort((a, b) => a.avg - b.avg)
-        .slice(0, 3);
+    const excludeFromPractice = [
+      bestMap.id,
+      worstMap.id,
+      safePick.id,
+      coinflipPick.id,
+    ].filter(Boolean);
+
+    const mapsToPractice = calculateMapsToPractice(
+      buildMapsToPracticeInputFromIntel(
+        mappool,
+        selectedStage,
+        stageScores,
+        activeTournament,
+        hiddenPlayerIds,
+        excludeFromPractice
+      )
+    );
 
     const pickOrder = mapStats
       .filter(m => m.avg > 0 && !m.id.toUpperCase().includes('TB'))
@@ -382,6 +402,10 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       REQUIRED_RUNS_PER_MAP
     );
 
+    const practiceCoverageProgress = practiceCoverage
+      ? calculatePracticeCoverageProgress(stageScores, requiredMapIds, rosterPlayers, REQUIRED_RUNS_PER_MAP)
+      : null;
+
     return {
       fortress: highestMinMap.min > 0 ? highestMinMap : null,
       achilles: worstMap.avg < Infinity ? worstMap : null,
@@ -395,6 +419,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
       pickOrder: pickOrder.length > 0 ? pickOrder : null,
       mutiny,
       practiceCoverage,
+      practiceCoverageProgress,
     };
   }, [filteredScores, selectedStage, mappool, activeTournament, hiddenPlayerIds]);
 
@@ -521,6 +546,68 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
           </div>
         )}
       </div>
+
+      {intel?.practiceCoverage && intel.practiceCoverageProgress && (
+        <div className="mb-6 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <h3 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              Practice Coverage
+            </h3>
+            <span className="text-sm text-gray-600 dark:text-gray-300">
+              {intel.practiceCoverageProgress.completedRuns} / {intel.practiceCoverageProgress.totalRequiredRuns} runs
+              <span className="ml-2 font-semibold text-gray-900 dark:text-white">
+                ({intel.practiceCoverageProgress.percent}%)
+              </span>
+            </span>
+          </div>
+          <div className="h-2.5 w-full bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden mb-4">
+            <div
+              className={`h-full rounded-full transition-all ${
+                intel.practiceCoverage.fullCompletion ? "bg-lime-500" : "bg-pink-500"
+              }`}
+              style={{ width: `${intel.practiceCoverageProgress.percent}%` }}
+            />
+          </div>
+
+          {intel.practiceCoverage.fullCompletion ? (
+            <div className="bg-lime-50 dark:bg-lime-900/30 p-3 rounded border border-lime-200 dark:border-lime-800/50">
+              <span className="text-lime-700 dark:text-lime-400 font-bold text-sm">Pat on the Back</span>
+              <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                Everyone logged at least {REQUIRED_RUNS_PER_MAP} runs on all{" "}
+                {intel.practiceCoverage.requiredMapIds.length} maps. The crew is locked in.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <span className="text-amber-700 dark:text-amber-400 font-bold text-sm block">Team Slack</span>
+              {intel.practiceCoverage.slackers.map((slacker) => (
+                <details
+                  key={slacker.id}
+                  className="bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-md group"
+                >
+                  <summary className="px-3 py-2 cursor-pointer list-none flex items-center justify-between text-sm font-semibold text-gray-900 dark:text-white">
+                    <span>{slacker.username}</span>
+                    <span className="text-xs font-normal text-amber-700 dark:text-amber-400">
+                      {slacker.missingMaps.length} map{slacker.missingMaps.length !== 1 ? "s" : ""} incomplete
+                    </span>
+                  </summary>
+                  <div className="px-3 pb-3 pt-0 flex flex-wrap gap-1.5">
+                    {slacker.missingMaps.map((gap) => (
+                      <span
+                        key={gap.mapId}
+                        className="text-xs bg-white dark:bg-gray-800 border border-amber-200 dark:border-amber-800/50 px-2 py-0.5 rounded font-mono"
+                      >
+                        {gap.mapId}: {gap.playCount}/{REQUIRED_RUNS_PER_MAP}
+                      </span>
+                    ))}
+                  </div>
+                </details>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {hasIntel ? (
         <div className={`grid grid-cols-1 md:grid-cols-2 ${isQualifier ? 'lg:grid-cols-2' : 'xl:grid-cols-4 lg:grid-cols-3'} gap-6`}>
           {/* Picks & Bans */}
@@ -532,6 +619,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
               <IntelMapCard
                 label="The Comfort Pick"
                 mapId={intel.fortress.id}
+                beatmapId={getBeatmapIdFromPool(mappool, selectedStage, intel.fortress.id)}
                 labelClassName="text-green-600 dark:text-green-400"
                 className="bg-green-50 dark:bg-green-900/30 p-4 rounded border border-green-200 dark:border-green-800/50 shadow-sm"
               >
@@ -543,6 +631,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
               <IntelMapCard
                 label="The Safe Pick"
                 mapId={intel.safePick.id}
+                beatmapId={getBeatmapIdFromPool(mappool, selectedStage, intel.safePick.id)}
                 labelClassName="text-emerald-600 dark:text-emerald-400"
                 className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded border border-emerald-200 dark:border-emerald-800/50 shadow-sm"
               >
@@ -554,6 +643,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
               <IntelMapCard
                 label="The Coinflip Pick"
                 mapId={intel.coinflipPick.id}
+                beatmapId={getBeatmapIdFromPool(mappool, selectedStage, intel.coinflipPick.id)}
                 labelClassName="text-yellow-600 dark:text-yellow-400"
                 className="bg-yellow-50 dark:bg-yellow-900/30 p-4 rounded border border-yellow-200 dark:border-yellow-800/50 shadow-sm"
               >
@@ -565,6 +655,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
               <IntelMapCard
                 label="The Ban Target"
                 mapId={intel.achilles.id}
+                beatmapId={getBeatmapIdFromPool(mappool, selectedStage, intel.achilles.id)}
                 labelClassName="text-red-600 dark:text-red-400"
                 className="bg-red-50 dark:bg-red-900/30 p-4 rounded border border-red-200 dark:border-red-800/50 shadow-sm"
               >
@@ -608,10 +699,23 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
           
           {intel.mapsToPractice ? intel.mapsToPractice.map((map, i) => (
             <div key={map.id} className="bg-surface p-4 rounded border border-border-main flex flex-col shadow-sm">
-              <span className="text-content font-bold mb-1">Priority #{i + 1}: {map.id}</span>
-              <span className="text-sm text-muted">
-                {map.plays === 0 ? "No plays recorded yet. Needs immediate attention!" : `Team is struggling here. Averaging ${Math.round(map.avg).toLocaleString()} across ${map.plays} plays.`}
+              <span className="text-content font-bold mb-1 flex items-center gap-1.5">
+                Priority #{i + 1}: {map.id}
+                <BeatmapLink beatmapId={getBeatmapIdFromPool(mappool, selectedStage, map.id)} />
               </span>
+              <span className="text-sm text-muted">
+                {map.plays === 0
+                  ? "No plays recorded yet. Needs immediate attention!"
+                  : `Team is struggling here. Practice avg ${Math.round(map.avg).toLocaleString()} across ${map.plays} solo/lobby plays.`}
+              </span>
+              {map.underPracticedPlayers.length > 0 && (
+                <p className="text-xs text-amber-700 dark:text-amber-400 mt-2">
+                  Under target:{" "}
+                  {map.underPracticedPlayers
+                    .map((p) => `${p.username} (${p.playCount}/${REQUIRED_RUNS_PER_MAP})`)
+                    .join(", ")}
+                </p>
+              )}
             </div>
           )) : (
             <div className="bg-surface p-4 rounded border border-border-main flex flex-col shadow-sm items-center justify-center text-center h-full min-h-[100px]">
@@ -628,6 +732,7 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
             <IntelMapCard
               label="The Hive Mind"
               mapId={intel.hiveMind.id}
+              beatmapId={getBeatmapIdFromPool(mappool, selectedStage, intel.hiveMind.id)}
               labelClassName="text-purple-600 dark:text-purple-400"
               className="bg-purple-50 dark:bg-purple-900/30 p-4 rounded border border-purple-200 dark:border-purple-800/50 shadow-sm"
             >
@@ -682,27 +787,6 @@ export default function TeamIntel({ allScores, selectedStage, activeTournament, 
             </div>
           )}
 
-          {intel.practiceCoverage?.fullCompletion && (
-            <div className="bg-lime-50 dark:bg-lime-900/30 p-4 rounded border border-lime-200 dark:border-lime-800/50 flex flex-col shadow-sm">
-              <span className="text-lime-700 dark:text-lime-400 font-bold mb-1">Pat on the Back</span>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                Everyone on the roster logged at least {REQUIRED_RUNS_PER_MAP} runs on all{" "}
-                {intel.practiceCoverage.requiredMapIds.length} maps in the pool. The crew is locked in.
-              </span>
-            </div>
-          )}
-
-          {intel.practiceCoverage && intel.practiceCoverage.slackers.length > 0 && (
-            <div className="bg-amber-50 dark:bg-amber-900/30 p-4 rounded border border-amber-200 dark:border-amber-800/50 flex flex-col shadow-sm">
-              <span className="text-amber-700 dark:text-amber-400 font-bold mb-1">Team Slack</span>
-              <span className="text-sm text-gray-700 dark:text-gray-300">
-                These players haven&apos;t completed {REQUIRED_RUNS_PER_MAP} runs on every map yet. Step it up!{" "}
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {intel.practiceCoverage.slackers.map((slacker) => slacker.username).join(", ")}
-                </span>
-              </span>
-            </div>
-          )}
         </div>
       </div>
         ) : (

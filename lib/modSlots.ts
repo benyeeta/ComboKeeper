@@ -23,6 +23,8 @@ export function parseTrackedPlayedMod(mods: unknown): string {
 export type ModScoreHistory = {
   score: number;
   playedMod?: string | null;
+  scoreType?: string;
+  timestamp?: string;
 };
 
 export function isNomodPlay(playedMod: string | null | undefined): boolean {

@@ -4,6 +4,7 @@ import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import StageSelector from "@/components/StageSelector";
 import TeamIntel from "@/components/TeamIntel";
+import TournamentPicker from "@/components/TournamentPicker";
 import { ScoreData } from "@/lib/types";
 
 type TeamHubClientProps = {
@@ -36,15 +37,6 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
-  const participatingTournaments = initialData.allTournaments?.filter(t => !t.isKeeper) || [];
-  const managedTournaments = initialData.allTournaments?.filter(t => t.isKeeper) || [];
-
-  const activeManaged = managedTournaments.filter(t => !t.isCompleted);
-  const finishedManaged = managedTournaments.filter(t => t.isCompleted);
-  
-  const activeParticipating = participatingTournaments.filter(t => !t.isCompleted);
-  const finishedParticipating = participatingTournaments.filter(t => t.isCompleted);
-
   useEffect(() => {
     if (initialData.activeTournament?.id !== currentTournamentId) {
       setCurrentTournamentId(initialData.activeTournament?.id);
@@ -69,57 +61,16 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
           
           <div className="flex flex-col">
             <label className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Tournament</label>
-            <select 
+            <TournamentPicker
+              allTournaments={initialData.allTournaments}
+              activeTournamentId={initialData.activeTournament?.id}
               className="max-w-[250px] truncate rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-2 text-sm font-medium text-gray-900 dark:text-white shadow-sm focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500"
-              value={initialData.activeTournament?.id || ""}
-              onChange={(e) => {
+              onChange={(tournamentId) => {
                 startTransition(() => {
-                  if (e.target.value) {
-                    router.push(`/team?t=${e.target.value}`);
-                  } else {
-                    router.push("/team");
-                  }
+                  router.push(tournamentId ? `/team?t=${tournamentId}` : "/team");
                 });
               }}
-            >
-              {!initialData.activeTournament && <option value="">No Active Tournament</option>}
-              {activeManaged.length > 0 && (
-                <optgroup label="Active: Tournaments I Keep">
-                  {activeManaged.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {activeParticipating.length > 0 && (
-                <optgroup label="Active: My Teams">
-                  {activeParticipating.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {finishedManaged.length > 0 && (
-                <optgroup label="Finished: Tournaments I Keep">
-                  {finishedManaged.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {finishedParticipating.length > 0 && (
-                <optgroup label="Finished: My Teams">
-                  {finishedParticipating.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.acronym ? `[${t.acronym}] ` : ''}{t.name}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+            />
           </div>
         </div>
       </div>
