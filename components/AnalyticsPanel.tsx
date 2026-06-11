@@ -51,7 +51,9 @@ export default function AnalyticsPanel({ selectedMap, selectedStage, onViewPlaye
       const representative = pickRepresentativePlay(player.history);
       const displayMod = representative?.playedMod || bestMatch.playedMod || topPlay.playedMod || "NM";
 
-      const trend = player.history.map((play) => play.score);
+      const trend = [...player.history]
+        .sort((a, b) => new Date(a.timestamp || 0).getTime() - new Date(b.timestamp || 0).getTime())
+        .map((play) => play.score);
       const average = calculateWeightedTrimmedMean(practiceScores, 0.5);
 
       let perfDiff = null;
