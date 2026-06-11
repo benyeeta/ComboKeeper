@@ -3,6 +3,7 @@
 import { createTournament, registerTeam, getPopularTournaments } from "@/app/actions";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTournamentRefetch } from "@/components/TournamentDataProvider";
 
 export default function AddTournamentModal({ isOpen, onClose, currentUsername }: { isOpen: boolean; onClose: () => void; currentUsername?: string }) {
   const [players, setPlayers] = useState([{ username: currentUsername || "", isEditor: false }]);
@@ -12,6 +13,7 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
   const [popularList, setPopularList] = useState<any[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<string>("");
   const router = useRouter();
+  const refetchTournament = useTournamentRefetch();
 
   const handleClose = useCallback(() => {
     setError("");
@@ -90,6 +92,7 @@ export default function AddTournamentModal({ isOpen, onClose, currentUsername }:
             if (result?.error) setError(result.error);
             else {
               handleClose();
+              refetchTournament();
               if ((result as any).tournamentId) {
                 router.push(`/?t=${(result as any).tournamentId}`);
               }

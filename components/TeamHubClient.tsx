@@ -5,46 +5,42 @@ import { useRouter } from "next/navigation";
 import StageSelector from "@/components/StageSelector";
 import TeamIntel from "@/components/TeamIntel";
 import TournamentPicker from "@/components/TournamentPicker";
-import { ScoreData } from "@/lib/types";
+import { useStageScores } from "@/components/useStageScores";
+import type { TournamentInitialData } from "@/lib/queries";
+import type { MappoolMap } from "@/lib/types";
 
 type TeamHubClientProps = {
-  initialData: {
-    mappool?: Record<string, any[]>;
-    allScores: ScoreData[];
-    activeTournament: any;
-    stages: { id: string; name: string }[];
-    allTournaments?: any[];
-  };
+  initialData: TournamentInitialData;
 };
 
 export default function TeamHubClient({ initialData }: TeamHubClientProps) {
-  const getDefaultStage = (stages: { id: string; name: string }[], mappool?: Record<string, any[]>, allScores?: ScoreData[]) => {
+  const getDefaultStage = (stages: { id: string; name: string }[], mappool?: Record<string, MappoolMap[]>) => {
     if (!stages || !Array.isArray(stages) || stages.length === 0) return "";
     for (let i = stages.length - 1; i >= 0; i--) {
       const stageName = stages[i].name;
       if (mappool && mappool[stageName] && Array.isArray(mappool[stageName]) && mappool[stageName].length > 0) {
         return stageName;
       }
-      if (allScores && allScores.some(s => s.stage === stageName)) {
-        return stageName;
-      }
     }
     return stages[0]?.name || "";
   };
 
-  const [selectedStage, setSelectedStage] = useState<string>(() => getDefaultStage(initialData.stages || [], initialData.mappool, initialData.allScores));
+  const [selectedStage, setSelectedStage] = useState<string>(() => getDefaultStage(initialData.stages || [], initialData.mappool));
   const [currentTournamentId, setCurrentTournamentId] = useState(initialData.activeTournament?.id);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
+  const selectedStageId = (initialData.stages || []).find((s) => s.name === selectedStage)?.id;
+  const { scores: stageScores, isLoadingScores } = useStageScores(selectedStageId);
+
   useEffect(() => {
     if (initialData.activeTournament?.id !== currentTournamentId) {
       setCurrentTournamentId(initialData.activeTournament?.id);
-      setSelectedStage(getDefaultStage(initialData.stages || [], initialData.mappool, initialData.allScores));
+      setSelectedStage(getDefaultStage(initialData.stages || [], initialData.mappool));
     } else if (initialData.stages && Array.isArray(initialData.stages) && !initialData.stages.find(s => s.name === selectedStage)) {
-      setSelectedStage(getDefaultStage(initialData.stages || [], initialData.mappool, initialData.allScores));
+      setSelectedStage(getDefaultStage(initialData.stages || [], initialData.mappool));
     }
-  }, [initialData.activeTournament?.id, currentTournamentId, initialData.stages, selectedStage, initialData.mappool, initialData.allScores]);
+  }, [initialData.activeTournament?.id, currentTournamentId, initialData.stages, selectedStage, initialData.mappool]);
 
   return (
     <div className="max-w-7xl mx-auto w-full flex flex-col flex-grow mt-4">
@@ -76,7 +72,7 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
       </div>
       
       {initialData.activeTournament?.teamId ? (
-        <div className={`flex-grow flex flex-col transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={`flex-grow flex flex-col transition-opacity duration-200 ${isPending || isLoadingScores ? 'opacity-50 pointer-events-none' : ''}`}>
           <div className="mb-4">
             <StageSelector
               stages={(initialData.stages || []).map(s => s.name)}
@@ -84,7 +80,7 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
               setSelectedStage={setSelectedStage}
             />
           </div>
-          <TeamIntel allScores={initialData.allScores} selectedStage={selectedStage} activeTournament={initialData.activeTournament} mappool={initialData.mappool} />
+          <TeamIntel allScores={stageScores} selectedStage={selectedStage} activeTournament={initialData.activeTournament} mappool={initialData.mappool} />
         </div>
       ) : (
         <div className="flex-grow flex flex-col items-center justify-center mt-24 text-center text-gray-500">
@@ -92,7 +88,7 @@ export default function TeamHubClient({ initialData }: TeamHubClientProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
           <h2 className="text-xl font-semibold text-gray-400 mb-2">No Team Found</h2>
-          <p className="max-w-md">You aren't currently on a team for this tournament, or no tournament is selected.</p>
+          <p className="max-w-md">You aren&apos;t currently on a team for this tournament, or no tournament is selected.</p>
         </div>
       )}
     </div>

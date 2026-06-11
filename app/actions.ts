@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { revalidateTournamentViews } from "@/lib/revalidateTournament";
 import { cookies, headers } from "next/headers";
 import { decrypt } from "@/lib/session";
 import {
@@ -142,7 +143,7 @@ export async function createTournament(formData: FormData) {
   }
 
   // Refresh the dashboard
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true, tournamentId: tournament.id };
 }
 
@@ -229,7 +230,7 @@ export async function registerTeam(formData: FormData) {
     }
   }
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true, tournamentId };
 }
 
@@ -288,7 +289,7 @@ export async function updateTeamRoster(formData: FormData) {
 
   if (resolvedPlayers.length === 0) {
     await prisma.team.delete({ where: { id: teamId } });
-    revalidatePath("/");
+    revalidateTournamentViews();
     revalidatePath("/profile");
     return { success: true, deleted: true };
   }
@@ -354,7 +355,7 @@ export async function updateTeamRoster(formData: FormData) {
     }
   }
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -374,7 +375,7 @@ export async function deleteTeam(teamId: string) {
 
   await prisma.team.delete({ where: { id: teamId } });
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   revalidatePath("/profile");
   return { success: true };
 }
@@ -429,7 +430,7 @@ export async function transferTeamCaptain(teamId: string, newCaptainOsuId: strin
     });
   }
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -517,7 +518,7 @@ export async function addMapsToStage(formData: FormData) {
   });
 
   // Refresh the dashboard
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -539,7 +540,7 @@ export async function deleteMap(id: string) {
     where: { id }
   });
   
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -561,7 +562,7 @@ export async function deleteMaps(ids: string[]) {
 
   await prisma.mappoolMap.deleteMany({ where: { id: { in: ids } } });
   
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -609,7 +610,7 @@ export async function addManualScores(mappoolMapId: string, playerId: number, sc
     }
   }
   
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -638,7 +639,7 @@ export async function deleteScore(id: string) {
     where: { id }
   });
   
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -672,7 +673,7 @@ export async function deleteScores(ids: string[]) {
     where: { id: { in: ids } }
   });
   
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -702,7 +703,7 @@ export async function updateScoreType(id: string, newScoreType: string) {
     data: { scoreType: newScoreType }
   });
   
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -717,7 +718,7 @@ export async function toggleTournamentStatus(tournamentId: string, isCompleted: 
     data: { isCompleted }
   });
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true, tournamentId };
 }
 
@@ -756,7 +757,7 @@ export async function updateTournamentDetails(formData: FormData) {
     data: { name, acronym: acronym || null, format }
   });
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -775,7 +776,7 @@ export async function updateTeamPlacement(formData: FormData) {
     data: { placement: placement || null }
   });
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -795,7 +796,7 @@ export async function deleteTournament(tournamentId: string) {
     await prisma.team.deleteMany({ where: { id: { in: teamIds } } });
   }
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   revalidatePath("/profile");
   return { success: true };
 }
@@ -922,7 +923,7 @@ export async function importMatchScores(url: string, tournamentId: string, score
     await prisma.score.deleteMany({ where: { id: { in: Array.from(scoresToDelete) } } });
   }
   await prisma.score.createMany({ data: scoresToInsert });
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { message: `Successfully imported ${scoresToInsert.length} scores!` };
 }
 
@@ -1140,7 +1141,7 @@ export async function importDbScores(formData: FormData) {
     await prisma.score.deleteMany({ where: { id: { in: Array.from(manualScoresToDelete) } } });
   }
   await prisma.score.createMany({ data: scoresToInsert });
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { message: `Successfully imported ${scoresToInsert.length} solo scores!` };
 }
 
@@ -1197,7 +1198,7 @@ export async function acceptInvite(notificationId: string, teamId: string) {
     });
   }
 
-  revalidatePath("/");
+  revalidateTournamentViews();
 }
 
 export async function rejectInvite(notificationId: string, teamId: string) {
@@ -1231,7 +1232,7 @@ export async function rejectInvite(notificationId: string, teamId: string) {
     });
   }
 
-  revalidatePath("/");
+  revalidateTournamentViews();
 }
 
 export async function leaveTeam(teamId: string) {
@@ -1247,7 +1248,7 @@ export async function leaveTeam(teamId: string) {
     await prisma.team.delete({ where: { id: teamId } });
   }
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   revalidatePath("/profile");
   return { success: true };
 }
@@ -1278,7 +1279,7 @@ export async function addStage(tournamentId: string, name: string) {
 
   await prisma.stage.create({ data: { tournamentId, name, sortOrder } });
   
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -1292,7 +1293,7 @@ export async function deleteStage(stageId: string) {
 
   await prisma.stage.delete({ where: { id: stageId } });
   
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -1323,7 +1324,7 @@ export async function renameStage(stageId: string, name: string) {
 
   await prisma.stage.update({ where: { id: stageId }, data: { name: trimmed } });
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -1356,7 +1357,7 @@ export async function reorderStages(tournamentId: string, stageIds: string[]) {
     )
   );
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -1439,7 +1440,7 @@ export async function updateStageMappool(formData: FormData) {
     }
   }
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -1513,7 +1514,7 @@ export async function addTournamentKeeper(formData: FormData) {
     data: { tournamentId, playerId: player.id }
   });
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 
@@ -1531,7 +1532,7 @@ export async function removeTournamentKeeper(tournamentId: string, playerId: num
     where: { tournamentId_playerId: { tournamentId, playerId } }
   });
 
-  revalidatePath("/");
+  revalidateTournamentViews();
   return { success: true };
 }
 

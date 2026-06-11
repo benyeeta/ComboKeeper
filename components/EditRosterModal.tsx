@@ -2,6 +2,7 @@
 
 import { transferTeamCaptain, updateTeamRoster } from "@/app/actions";
 import { useRouter } from "next/navigation";
+import { useTournamentRefetch } from "@/components/TournamentDataProvider";
 import { useState, useEffect } from "react";
 
 type RosterPlayer = {
@@ -30,6 +31,7 @@ export default function EditRosterModal({
   currentUserRole?: string;
 }) {
   const router = useRouter();
+  const refetchTournament = useTournamentRefetch();
   const [players, setPlayers] = useState<RosterPlayer[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,7 +87,7 @@ export default function EditRosterModal({
       return;
     }
 
-    router.refresh();
+    refetchTournament();
     onClose();
   };
 
@@ -121,7 +123,7 @@ export default function EditRosterModal({
                 router.push("/");
               }
               onClose();
-              router.refresh();
+              refetchTournament();
             }
           }}
           className="flex flex-col gap-4 overflow-y-auto pr-2"

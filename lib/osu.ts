@@ -116,7 +116,10 @@ export async function fetchBeatmapsByIds(beatmapIds: number[]) {
   return { beatmaps, error: null as string | null };
 }
 
-export async function fetchMatchById(matchId: string) {
+export async function getCachedMatch(matchId: string) {
+  "use cache";
+  cacheLife({ expire: 86400 });
+
   const parsed = parseMatchId(matchId);
   if (!parsed) return { data: null, error: "Invalid match ID." };
 
@@ -134,4 +137,8 @@ export async function fetchMatchById(matchId: string) {
   }
 
   return { data: await res.json(), error: null as string | null };
+}
+
+export async function fetchMatchById(matchId: string) {
+  return getCachedMatch(matchId);
 }

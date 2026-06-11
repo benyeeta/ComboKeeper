@@ -3,6 +3,7 @@
 import { toggleTournamentStatus, deleteTournament, updateTournamentDetails, getTournamentKeepers, addTournamentKeeper, removeTournamentKeeper } from "@/app/actions";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTournamentRefetch } from "@/components/TournamentDataProvider";
 
 export default function ManageTournamentModal({ 
   isOpen, 
@@ -22,6 +23,7 @@ export default function ManageTournamentModal({
   isCompleted?: boolean;
 }) {
   const router = useRouter();
+  const refetchTournament = useTournamentRefetch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [keepers, setKeepers] = useState<{id: number, username: string, avatarUrl: string|null}[]>([]);
   const [isKeepersLoading, setIsKeepersLoading] = useState(true);
@@ -65,7 +67,7 @@ export default function ManageTournamentModal({
       }
       onClose();
       router.push("/");
-      router.refresh();
+      refetchTournament();
     }
   };
 
@@ -78,6 +80,7 @@ export default function ManageTournamentModal({
     }
     setIsSubmitting(true);
     await toggleTournamentStatus(tournamentId, checked);
+    refetchTournament();
     setIsSubmitting(false);
   };
 
@@ -154,7 +157,10 @@ export default function ManageTournamentModal({
               const res = await updateTournamentDetails(formData);
               setIsSubmitting(false);
               if (res?.error) alert(res.error);
-              else onClose();
+              else {
+                refetchTournament();
+                onClose();
+              }
             }} className="flex flex-col gap-3">
               <input type="hidden" name="tournamentId" value={tournamentId} />
               <div>

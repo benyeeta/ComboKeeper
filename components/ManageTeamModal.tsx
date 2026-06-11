@@ -2,6 +2,7 @@
 
 import { deleteTeam, updateTeamPlacement } from "@/app/actions";
 import { useRouter } from "next/navigation";
+import { useTournamentRefetch } from "@/components/TournamentDataProvider";
 import { useState, useEffect } from "react";
 
 export default function ManageTeamModal({
@@ -20,6 +21,7 @@ export default function ManageTeamModal({
   placement?: string | null;
 }) {
   const router = useRouter();
+  const refetchTournament = useTournamentRefetch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -54,7 +56,7 @@ export default function ManageTeamModal({
 
     onClose();
     router.push("/");
-    router.refresh();
+    refetchTournament();
   };
 
   return (
@@ -86,7 +88,10 @@ export default function ManageTeamModal({
               const result = await updateTeamPlacement(formData);
               setIsSubmitting(false);
               if (result?.error) setError(result.error);
-              else onClose();
+              else {
+                refetchTournament();
+                onClose();
+              }
             }}
             className="flex flex-col gap-3"
           >

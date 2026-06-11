@@ -3,6 +3,7 @@
 import { MappoolMap } from "@/lib/types";
 import { useState, useEffect } from "react";
 import { addManualScores } from "@/app/actions";
+import { useTournamentRefetch } from "@/components/TournamentDataProvider";
 
 // Helper to format number string with spaces for readability
 const formatScore = (value: string): string => {
@@ -24,6 +25,7 @@ interface ManualScoreEntryProps {
 }
 
 const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUserId, currentUserRole }: ManualScoreEntryProps) => {
+  const refetchTournament = useTournamentRefetch();
   const [scoreEntries, setScoreEntries] = useState<{ score: string; playedMod: string; isFc: boolean }[]>([{ score: "", playedMod: "NM", isFc: false }]);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | undefined>(undefined);
   const [scoreType, setScoreType] = useState<string>("PRACTICE");
@@ -109,6 +111,7 @@ const ManualScoreEntry = ({ isOpen, onClose, map, stage, teamPlayers, currentUse
           setFeedback({ type: "error", text: res.error });
         } else {
           setFeedback({ type: "success", text: "Score(s) successfully added!" });
+          refetchTournament();
           setTimeout(() => onClose(), 1500);
         }
       } catch (error) {

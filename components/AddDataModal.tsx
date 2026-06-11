@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { importMatchScores, importDbScores } from "@/app/actions";
+import { useTournamentRefetch } from "@/components/TournamentDataProvider";
 
 type Tab = "mp" | "db";
 
@@ -12,6 +13,7 @@ interface AddDataModalProps {
 }
 
 const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
+  const refetchTournament = useTournamentRefetch();
   const [activeTab, setActiveTab] = useState<Tab>("mp");
   const [url, setUrl] = useState("");
   const [scoreType, setScoreType] = useState("MATCH");
@@ -64,8 +66,9 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
     if (res?.error) setFeedback({ type: "error", text: res.error });
     else if (res?.message) {
       setFeedback({ type: "success", text: res.message });
-      setUrl(""); // clear url on success
-      setTimeout(() => onClose(), 1500); // close modal after success
+      setUrl("");
+      refetchTournament();
+      setTimeout(() => onClose(), 1500);
     }
     setIsLoading(false);
   };
@@ -87,8 +90,9 @@ const AddDataModal = ({ isOpen, onClose, tournamentId }: AddDataModalProps) => {
     if (res?.error) setFeedback({ type: "error", text: res.error });
     else if (res?.message) {
       setFeedback({ type: "success", text: res.message });
-      setDbFile(null); // clear file on success
-      setTimeout(() => onClose(), 1500); // close modal after success
+      setDbFile(null);
+      refetchTournament();
+      setTimeout(() => onClose(), 1500);
     }
     setIsLoading(false);
   };

@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MappoolMap, PlayerData, ScoreData } from "@/lib/types";
+import { useTournamentRefetch } from "@/components/TournamentDataProvider";
+import { useStageScores } from "@/components/useStageScores";
+import { MappoolMap, PlayerData } from "@/lib/types";
+import type { TournamentInitialData } from "@/lib/queries";
 import { addStage, deleteStage, renameStage } from "@/app/actions";
 import StageSelector from "@/components/StageSelector";
 import MappoolFeed from "@/components/MappoolFeed";
@@ -18,27 +21,7 @@ import ManageTeamModal from "@/components/ManageTeamModal";
 import TournamentPicker from "@/components/TournamentPicker";
 
 type DashboardProps = {
-  initialData: {
-    mappool: Record<string, MappoolMap[]>;
-    allScores: ScoreData[];
-    activeTournament: { 
-      id: string; 
-      name: string; 
-      acronym: string | null;
-      format?: string;
-      isKeeper: boolean;
-      teamId?: string; 
-      teamName?: string;
-      isCompleted?: boolean;
-      placement?: string | null;
-      currentUserId?: number;
-      currentUserRole?: string;
-      players: { osuId: string; username: string; role?: string; isCaptain?: boolean; isEditor?: boolean; status: string }[];
-    } | null;
-    stages: { id: string; name: string }[];
-    allTournaments?: { id: string; name: string; acronym: string | null; isCompleted: boolean; isKeeper: boolean }[];
-    currentUser?: { id: number; username: string };
-  };
+  initialData: TournamentInitialData;
 };
 
 export default function Dashboard({ initialData }: DashboardProps) {
@@ -66,7 +49,9 @@ export default function Dashboard({ initialData }: DashboardProps) {
   const [isManageTeamOpen, setIsManageTeamOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
-
+  const refetchTournament = useTournamentRefetch();
+  const selectedStageId = (initialData.stages || []).find((s) => s.name === selectedStage)?.id;
+  const { scores: stageScores, isLoadingScores } = useStageScores(selectedStageId);
 
   useEffect(() => {
     if (initialData.activeTournament?.id !== currentTournamentId) {
@@ -81,6 +66,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
     const name = prompt("Enter new stage name (e.g. Group Stage, Round of 16):");
     if (name && name.trim() && initialData.activeTournament) {
       await addStage(initialData.activeTournament.id, name.trim());
+      refetchTournament();
     }
   };
 
@@ -88,6 +74,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
     const stageObj = initialData.stages.find(s => s.name === selectedStage);
     if (stageObj && confirm(`Are you sure you want to delete ${selectedStage}? All maps and scores in this stage will be permanently lost!`)) {
       await deleteStage(stageObj.id);
+      refetchTournament();
     }
   };
 
@@ -114,7 +101,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
     }
 
     setSelectedStage(newName);
-    router.refresh();
+    refetchTournament();
   };
 
   return <div className="max-w-7xl mx-auto w-full flex flex-col flex-grow">
@@ -269,15 +256,15 @@ export default function Dashboard({ initialData }: DashboardProps) {
             />
           </div>
 
-          <div className={`flex-grow mt-6 w-full transition-opacity duration-200 ${isPending ? 'opacity-50 pointer-events-none' : ''}`}>
+          <div className={`flex-grow mt-6 w-full transition-opacity duration-200 ${isPending || isLoadingScores ? 'opacity-50 pointer-events-none' : ''}`}>
             <MappoolFeed
               stage={selectedStage}
               onMapSelect={setSelectedMap}
               selectedMap={selectedMap}
               onAddScore={setManualEntryMap}
               mappool={initialData.mappool || {}}
-              allScores={initialData.allScores || []}
-              stageId={(initialData.stages || []).find(s => s.name === selectedStage)?.id}
+              allScores={stageScores}
+              stageId={selectedStageId}
               tournamentId={initialData.activeTournament.id}
               onViewPlayerScores={setViewingPlayer}
               activeTournament={initialData.activeTournament || undefined}

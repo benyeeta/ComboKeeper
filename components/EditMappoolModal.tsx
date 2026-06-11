@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { reorderStages, updateStageMappool } from "@/app/actions";
+import { useTournamentRefetch } from "@/components/TournamentDataProvider";
 import BeatmapLink from "@/components/BeatmapLink";
 
 interface EditMappoolModalProps {
@@ -19,7 +19,7 @@ interface EditMappoolModalProps {
 }
 
 export default function EditMappoolModal({ isOpen, onClose, tournamentId, stages, selectedStage, onSelectStage, onAddStage, onRenameStage, onDeleteStage, mappool }: EditMappoolModalProps) {
-  const router = useRouter();
+  const refetchTournament = useTournamentRefetch();
   const [maps, setMaps] = useState<any[]>([]);
   const [orderedStages, setOrderedStages] = useState(stages);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -112,7 +112,7 @@ export default function EditMappoolModal({ isOpen, onClose, tournamentId, stages
       setError(result.error);
       setOrderedStages(previousOrder);
     } else {
-      router.refresh();
+      refetchTournament();
     }
   };
 
@@ -194,7 +194,10 @@ export default function EditMappoolModal({ isOpen, onClose, tournamentId, stages
     setIsSubmitting(false);
     
     if (result?.error) setError(result.error);
-    else onClose();
+    else {
+      refetchTournament();
+      onClose();
+    }
   };
 
   return (
