@@ -508,6 +508,7 @@ export async function addMapsToStage(formData: FormData) {
       songName: bm.beatmapset.title,
       skill: null,
       beatmapId: parseInt(map.beatmapId, 10),
+      beatmapsetId: bm.beatmapset_id,
       stageId,
     });
   }
@@ -1423,15 +1424,22 @@ export async function updateStageMappool(formData: FormData) {
 
   // 3. Process updates and additions
   for (const map of maps) {
-    let artist, songName;
+    let artist: string | undefined;
+    let songName: string | undefined;
+    let beatmapsetId: number | undefined;
     if (!map.dbId || needsMetadata.includes(map)) {
       const bm = beatmapMetadata.get(map.beatmapId);
       if (!bm || !bm.beatmapset) return { error: `Beatmap with ID ${map.beatmapId} not found.` };
       artist = bm.beatmapset.artist;
       songName = bm.beatmapset.title;
+      beatmapsetId = bm.beatmapset_id;
     }
 
-    const payload = { mapId: map.mapId, mod: map.mod, ...(artist ? { artist, songName, beatmapId: parseInt(map.beatmapId, 10) } : {}) };
+    const payload = {
+      mapId: map.mapId,
+      mod: map.mod,
+      ...(artist ? { artist, songName, beatmapId: parseInt(map.beatmapId, 10), beatmapsetId } : {}),
+    };
     if (map.dbId) {
       await prisma.mappoolMap.update({ where: { id: map.dbId }, data: payload });
     } else {

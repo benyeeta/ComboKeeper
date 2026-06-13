@@ -1,5 +1,10 @@
 import type { MappoolMap } from "@/lib/types";
 
+export function osuDirectUrl(beatmapsetId: number | null | undefined): string | null {
+  if (beatmapsetId == null || beatmapsetId <= 0) return null;
+  return `osu://dl/${beatmapsetId}`;
+}
+
 export function beatmapUrl(beatmapId: number | string | null | undefined): string | null {
   if (beatmapId == null || beatmapId === "") return null;
   const id = typeof beatmapId === "string" ? parseInt(beatmapId, 10) : beatmapId;

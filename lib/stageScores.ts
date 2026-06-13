@@ -86,6 +86,7 @@ export function buildMappoolEntry(m: {
   artist: string;
   songName: string;
   beatmapId: number | null;
+  beatmapsetId: number | null;
   skill: string | null;
 }): MappoolMap {
   return {
@@ -95,6 +96,7 @@ export function buildMappoolEntry(m: {
     artist: m.artist,
     songName: m.songName,
     beatmapId: m.beatmapId,
+    beatmapsetId: m.beatmapsetId,
     skill: m.skill || undefined,
   } as MappoolMap;
 }
