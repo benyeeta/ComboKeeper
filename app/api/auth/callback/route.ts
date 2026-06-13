@@ -87,6 +87,14 @@ export async function GET(req: NextRequest) {
       maxAge: tokenData.expires_in || 86400,
     });
 
+    response.cookies.set('show_rules_disclaimer', '1', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24,
+    });
+
     return response;
   } catch (error) {
     console.error('Error during OAuth callback:', error);

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { MappoolMap } from '@/lib/types';
 import type { MyTournamentCard } from '@/lib/tournamentLists';
 import { buildMappoolEntry, formatStageScores, sortMappoolMaps } from '@/lib/stageScores';
+import { parseGameMode } from '@/lib/tournamentMode';
 
 export type TournamentDataResult = Awaited<ReturnType<typeof fetchTournamentDataFromDb>>;
 
@@ -240,6 +241,7 @@ async function fetchTournamentDataFromDb(userId: number, selectedTournamentId?: 
       name: tournament.name,
       acronym: tournament.acronym,
       format: tournament.format,
+      gameMode: parseGameMode(tournament.gameMode),
       rosterSize: tournament.rosterSize,
       isKeeper,
       teamId: userTeam?.id,

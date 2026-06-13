@@ -202,6 +202,7 @@ export default function Dashboard({ initialData }: DashboardProps) {
           tournamentName={initialData.activeTournament.name}
           tournamentAcronym={initialData.activeTournament.acronym}
           tournamentFormat={initialData.activeTournament.format}
+          tournamentGameMode={initialData.activeTournament.gameMode}
           isCompleted={initialData.activeTournament.isCompleted}
         />
       )}

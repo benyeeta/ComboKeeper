@@ -7,10 +7,12 @@ import { decrypt } from '@/lib/session';
 import NavLinks from '@/components/NavLinks';
 import MobileNav from '@/components/MobileNav';
 import FeedbackModal from '@/components/FeedbackModal';
+import RulesDisclaimerModal from '@/components/RulesDisclaimerModal';
 
 export async function Header() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('session')?.value;
+  const showRulesDisclaimer = cookieStore.get('show_rules_disclaimer')?.value === '1';
   let user = null;
   let notifications: any[] = [];
 
@@ -49,6 +51,7 @@ export async function Header() {
             </Link>
           )}
           <FeedbackModal />
+          {user && <RulesDisclaimerModal initialOpen={showRulesDisclaimer} />}
           {user ? (
             <>
               <NotificationBell initialNotifications={notifications} />

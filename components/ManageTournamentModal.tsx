@@ -4,6 +4,7 @@ import { toggleTournamentStatus, deleteTournament, updateTournamentDetails, getT
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useTournamentRefetch } from "@/components/TournamentDataProvider";
+import { GAME_MODE_OPTIONS, type GameMode, parseGameMode } from "@/lib/tournamentMode";
 
 export default function ManageTournamentModal({ 
   isOpen, 
@@ -12,6 +13,7 @@ export default function ManageTournamentModal({
   tournamentName,
   tournamentAcronym,
   tournamentFormat,
+  tournamentGameMode,
   isCompleted,
 }: { 
   isOpen: boolean; 
@@ -20,6 +22,7 @@ export default function ManageTournamentModal({
   tournamentName: string;
   tournamentAcronym?: string | null;
   tournamentFormat?: string;
+  tournamentGameMode?: string;
   isCompleted?: boolean;
 }) {
   const router = useRouter();
@@ -29,6 +32,7 @@ export default function ManageTournamentModal({
   const [isKeepersLoading, setIsKeepersLoading] = useState(true);
   const [newKeeperUsername, setNewKeeperUsername] = useState("");
   const [format, setFormat] = useState(tournamentFormat || "1v1");
+  const [gameMode, setGameMode] = useState<GameMode>(parseGameMode(tournamentGameMode));
 
   useEffect(() => {
     if (isOpen) {
@@ -43,8 +47,9 @@ export default function ManageTournamentModal({
           setIsKeepersLoading(false);
         });
       setFormat(tournamentFormat || "1v1");
+      setGameMode(parseGameMode(tournamentGameMode));
     }
-  }, [isOpen, tournamentId, tournamentFormat]);
+  }, [isOpen, tournamentId, tournamentFormat, tournamentGameMode]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -181,6 +186,22 @@ export default function ManageTournamentModal({
                     <option value="4v4">4v4</option>
                   </select>
                 </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted block mb-1">Game Mode</label>
+                <select
+                  name="gameMode"
+                  value={gameMode}
+                  onChange={(e) => setGameMode(parseGameMode(e.target.value))}
+                  className="w-full rounded bg-surface border border-border-main p-2 text-sm text-content focus:border-accent focus:outline-none"
+                  required
+                >
+                  {GAME_MODE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
               <button type="submit" disabled={isSubmitting} className="w-full rounded bg-accent px-4 py-2 text-sm font-bold text-white transition-colors hover:opacity-90 disabled:opacity-50">Save Changes</button>
             </form>

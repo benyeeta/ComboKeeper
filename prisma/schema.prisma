@@ -34,6 +34,7 @@ model Tournament {
   name        String
   acronym     String?
   format      String   @default("4v4")
+  gameMode    String   @default("osu") // osu | taiko | fruits | mania
   rosterSize  Int      @default(8)
   isCompleted Boolean  @default(false)
   stages      Stage[]

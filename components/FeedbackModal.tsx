@@ -48,6 +48,16 @@ export default function FeedbackModal() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleOpenFeedback = (e: Event) => {
+      const detail = (e as CustomEvent<{ type?: string }>).detail;
+      if (detail?.type) setType(detail.type);
+      setIsOpen(true);
+    };
+    window.addEventListener("combokeeper:open-feedback", handleOpenFeedback);
+    return () => window.removeEventListener("combokeeper:open-feedback", handleOpenFeedback);
+  }, []);
+
   return (
     <>
       <button 

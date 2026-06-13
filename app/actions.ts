@@ -17,6 +17,7 @@ import {
 import { parseTrackedPlayedMod } from "@/lib/modSlots";
 import { ratelimit } from "@/lib/ratelimit";
 import { normalizePlayedMod, parseModsBitmask, parsePlayedModFromApi } from "@/lib/parseMods";
+import { GAME_MODES } from "@/lib/tournamentMode";
 import { z } from "zod";
 
 async function verifyKeeper(tournamentId: string) {
@@ -77,6 +78,7 @@ export async function createTournament(formData: FormData) {
     name: z.string().min(1, "Tournament name is required").max(100, "Tournament name is too long"),
     acronym: z.string().max(20, "Acronym is too long").optional().catch(""),
     format: z.string().min(1, "Format is required"),
+    gameMode: z.enum(GAME_MODES).default("osu"),
     rosterSize: z.coerce.number().min(1).max(32).default(8)
   });
 
@@ -85,7 +87,7 @@ export async function createTournament(formData: FormData) {
     return { error: validatedFields.error.issues[0]?.message || "Validation failed." };
   }
 
-  const { name, acronym, format, rosterSize } = validatedFields.data;
+  const { name, acronym, format, gameMode, rosterSize } = validatedFields.data;
 
   const existingName = await prisma.tournament.findFirst({
     where: { name: { equals: name, mode: "insensitive" } }
@@ -121,6 +123,7 @@ export async function createTournament(formData: FormData) {
       name,
       acronym: acronym || null,
       format,
+      gameMode,
       rosterSize,
       isCompleted: false
     },
@@ -727,8 +730,13 @@ export async function updateTournamentDetails(formData: FormData) {
   const name = formData.get("name") as string;
   const acronym = formData.get("acronym") as string;
   const format = formData.get("format") as string;
+  const gameModeRaw = formData.get("gameMode") as string;
 
   if (!tournamentId || !name || !format) return { error: "Missing required fields." };
+
+  const gameModeParsed = z.enum(GAME_MODES).safeParse(gameModeRaw);
+  if (!gameModeParsed.success) return { error: "Invalid game mode." };
+  const gameMode = gameModeParsed.data;
 
   const auth = await verifyKeeper(tournamentId);
   if (!auth.authorized) return { error: auth.error };
@@ -754,7 +762,7 @@ export async function updateTournamentDetails(formData: FormData) {
 
   await prisma.tournament.update({
     where: { id: tournamentId },
-    data: { name, acronym: acronym || null, format }
+    data: { name, acronym: acronym || null, format, gameMode }
   });
 
   revalidateTournamentViews();
