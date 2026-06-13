@@ -822,7 +822,6 @@ export async function importMatchScores(url: string, tournamentId: string, score
   const auth = await verifyTournamentTeamMember(tournamentId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
-  const isAdmin = auth.teamPlayer?.role !== "PLAYER";
 
   if (currentUser) {
     const { success } = await ratelimit.limit(`importMatchScores_${currentUser.id}`);
@@ -838,10 +837,10 @@ export async function importMatchScores(url: string, tournamentId: string, score
     }
   }
   
-  let validPlayerIds = new Set();
+  let validPlayerIds = new Set<number>();
   const userTt = tournament.teams.find(tt => tt.team.players.some(p => p.playerId === currentUser?.id));
   if (userTt) {
-    validPlayerIds = new Set(userTt.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id)).map(p => p.playerId));
+    validPlayerIds = new Set(userTt.team.players.filter(p => p.status === "ACCEPTED").map(p => p.playerId));
   }
 
   const { data: matchData, error: matchError } = await fetchMatchById(matchId);
