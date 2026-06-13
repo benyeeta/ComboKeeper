@@ -82,6 +82,7 @@ model MappoolMap {
   songName    String
   skill       String?
   beatmapId   Int?     // For osu! api fetching later
+  beatmapsetId Int?    // For osu!direct download links
   stageId     String
   stage       Stage    @relation(fields: [stageId], references: [id], onDelete: Cascade)
   scores      Score[]

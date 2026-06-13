@@ -511,6 +511,7 @@ export async function addMapsToStage(formData: FormData) {
       songName: bm.beatmapset.title,
       skill: null,
       beatmapId: parseInt(map.beatmapId, 10),
+      beatmapsetId: bm.beatmapset_id,
       stageId,
     });
   }
@@ -830,7 +831,6 @@ export async function importMatchScores(url: string, tournamentId: string, score
   const auth = await verifyTournamentTeamMember(tournamentId);
   if (!auth.authorized) return { error: auth.error };
   const currentUser = auth.currentUser;
-  const isAdmin = auth.teamPlayer?.role !== "PLAYER";
 
   if (currentUser) {
     const { success } = await ratelimit.limit(`importMatchScores_${currentUser.id}`);
@@ -846,10 +846,10 @@ export async function importMatchScores(url: string, tournamentId: string, score
     }
   }
   
-  let validPlayerIds = new Set();
+  let validPlayerIds = new Set<number>();
   const userTt = tournament.teams.find(tt => tt.team.players.some(p => p.playerId === currentUser?.id));
   if (userTt) {
-    validPlayerIds = new Set(userTt.team.players.filter(p => p.status === "ACCEPTED" && (isAdmin || p.playerId === currentUser?.id)).map(p => p.playerId));
+    validPlayerIds = new Set(userTt.team.players.filter(p => p.status === "ACCEPTED").map(p => p.playerId));
   }
 
   const { data: matchData, error: matchError } = await fetchMatchById(matchId);
@@ -1432,15 +1432,22 @@ export async function updateStageMappool(formData: FormData) {
 
   // 3. Process updates and additions
   for (const map of maps) {
-    let artist, songName;
+    let artist: string | undefined;
+    let songName: string | undefined;
+    let beatmapsetId: number | undefined;
     if (!map.dbId || needsMetadata.includes(map)) {
       const bm = beatmapMetadata.get(map.beatmapId);
       if (!bm || !bm.beatmapset) return { error: `Beatmap with ID ${map.beatmapId} not found.` };
       artist = bm.beatmapset.artist;
       songName = bm.beatmapset.title;
+      beatmapsetId = bm.beatmapset_id;
     }
 
-    const payload = { mapId: map.mapId, mod: map.mod, ...(artist ? { artist, songName, beatmapId: parseInt(map.beatmapId, 10) } : {}) };
+    const payload = {
+      mapId: map.mapId,
+      mod: map.mod,
+      ...(artist ? { artist, songName, beatmapId: parseInt(map.beatmapId, 10), beatmapsetId } : {}),
+    };
     if (map.dbId) {
       await prisma.mappoolMap.update({ where: { id: map.dbId }, data: payload });
     } else {

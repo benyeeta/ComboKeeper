@@ -8,6 +8,7 @@ export type MappoolMap = {
   songName: string;
   skill: string;
   beatmapId?: number | null;
+  beatmapsetId?: number | null;
   dbId?: string;
 };
 

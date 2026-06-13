@@ -7,6 +7,8 @@ import { calculateMapLineupDisplay } from "@/lib/mapLineup";
 import { parseLineupSize } from "@/lib/tournamentFormat";
 import AnalyticsPanel from "./AnalyticsPanel";
 import BeatmapLink from "./BeatmapLink";
+import MappoolDownloadButton from "./MappoolDownloadButton";
+import OsuDirectLink from "./OsuDirectLink";
 
 const MOD_COLORS: Record<string, string> = {
     NM: "border-gray-500",
@@ -60,6 +62,7 @@ export default function MappoolFeed({
   activeTournament
 }: MappoolFeedProps) {
   const currentMappool = (mappool && mappool[stage]) || [];
+  const hasBeatmapIds = currentMappool.some((m) => m.beatmapId != null && m.beatmapId > 0);
   const lineupSize = parseLineupSize(activeTournament?.format);
   const maxLineupCols = Math.max(lineupSize, 3);
   const poolHasModBadge = currentMappool.some((m) => m.mod === "MM" || m.mod === "FM");
@@ -99,9 +102,19 @@ export default function MappoolFeed({
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm rounded-lg p-4 flex flex-col gap-3 transition-colors duration-200">
-      <div className="flex flex-col gap-1 mb-1">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{stage ? `${stage} Mappool` : "Mappool"}</h2>
-        <p className="text-xs text-gray-500 dark:text-gray-400">Click to view analytics, or use the + button to add a score.</p>
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <div className="flex flex-col gap-1 min-w-0">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{stage ? `${stage} Mappool` : "Mappool"}</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Click to view analytics, or use the + button to add a score.</p>
+        </div>
+        {tournamentId && stageId && (
+          <MappoolDownloadButton
+            tournamentId={tournamentId}
+            stageId={stageId}
+            stageName={stage}
+            hasBeatmapIds={hasBeatmapIds}
+          />
+        )}
       </div>
 
       {uniquePlayers.length > 0 && (
@@ -164,6 +177,7 @@ export default function MappoolFeed({
                 <span className="text-content font-medium truncate flex items-center gap-1.5">
                   {map.artist}
                   <BeatmapLink beatmapId={map.beatmapId} />
+                  <OsuDirectLink beatmapsetId={map.beatmapsetId} />
                 </span>
                 <span className="text-sm text-muted truncate">{map.songName}</span>
               </div>
@@ -222,6 +236,7 @@ export default function MappoolFeed({
                   <span className="text-content font-medium truncate flex items-center gap-1.5">
                     {map.artist}
                     <BeatmapLink beatmapId={map.beatmapId} />
+                    <OsuDirectLink beatmapsetId={map.beatmapsetId} />
                   </span>
                   <span className="text-sm text-muted truncate">{map.songName}</span>
                 </div>

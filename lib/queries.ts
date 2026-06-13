@@ -200,6 +200,7 @@ async function fetchTournamentDataFromDb(userId: number, selectedTournamentId?: 
                 artist: true,
                 songName: true,
                 beatmapId: true,
+                beatmapsetId: true,
                 skill: true,
               },
             },
